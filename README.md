@@ -1,19 +1,19 @@
 # abc-tools
 
 A JavaScript library mainly for sorting melodies by their modal contour, independent of key and mode. Designed for ABC notation tunes, particularly Irish traditional music.
-There may be other tools added too.
+There may be other tools added too, later on.
 
-The algorithm used for sorting is original, and is described [here](./docs/contour_sort.md)
+The algorithm used for sorting is new/original, as far as I know, and is described [here](./docs/contour_sort.md)
 
-The implementation and project setup were done with the help of github copilot and claude.ai.
+The writing of the algorithm,  implementation, and project setup were done with the help of Claude.ai and github copilot.
 
-## Installation
+## installation
 
 ```
 npm install tune-contour-sort
 ```
 
-## Usage / sorting
+## usage / sorting
 
 ```javascript
 const { getSortObject, sort, sortArray } = require('tune-contour-sort');
@@ -43,7 +43,7 @@ const tunes = [
 
 const sorted = sortArray(tunes);
 ```
-## API /sorting
+## API / sorting
 
 ### `getSortObject(abc)`
 
@@ -81,27 +81,17 @@ Sorts an array of tune objects.
 **Returns:** Sorted array (with `sortObject` added to each item)
 
 
-## Licenses
+## license
 
-This project uses dual licensing:
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
-- **Code (JavaScript)**: [MIT License](LICENSE-CODE)
-- **Tune sort algorithm and its [description](docs/contour_sort.md)**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](LICENSE-ALGORITHM)
-
-### What this means:
-
-**Code**: Can be freely used, modified, and distributed (see MIT License terms)
-
-**Sort algorithm**: Licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), which means:
-- **BY** (Attribution): You must give appropriate credit to the original creator
-- **NC** (NonCommercial): You may not use the data for commercial purposes
-- **SA** (ShareAlike): If you remix or build upon the data, you must distribute your contributions under the same CC BY-NC-SA 4.0 license
+This means you are free to use, modify, and distribute this software, but any derivative works must also be distributed under the GPL-3.0 license. See the [LICENSE](LICENSE) file for full details.
 
 
-## Contributing
+## contributing
 
 Issues and pull requests welcome at https://github.com/goplayerjuggler/abc-tools
 
-## References
+## references
 
 Based on the [modal contour sorting algorithm](./docs/contour_sort.md) described in the project documentation; similar to but distinct from Jianpu (numbered musical notation) sorting systems.
