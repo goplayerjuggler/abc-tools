@@ -31,7 +31,7 @@ const silenceChar = '_'; // silence character
 function extractTonalBase(abc) {
   const keyMatch = abc.match(/^K:\s*([A-G])/m);
   if (!keyMatch) {
-	throw new Error('No key signature found in ABC');
+    throw new Error('No key signature found in ABC');
   }
   return keyMatch[1].toUpperCase();
 }
@@ -42,7 +42,7 @@ function extractTonalBase(abc) {
 function extractUnitLength(abc) {
   const lengthMatch = abc.match(/^L:\s*(\d+)\/(\d+)/m);
   if (lengthMatch) {
-	return new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
+    return new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
   }
   return new Fraction(1, 8); // Default to 1/8
 }
@@ -53,63 +53,63 @@ function extractUnitLength(abc) {
 function parseNote(noteStr, unitLength) {
   // Check for rest/silence
   if (noteStr.match(/^[zx]/i)) {
-	// Parse duration for silence
-	let duration = unitLength.clone();
-	
-	// Handle explicit fractions first (e.g., '3/2', '2/3')
-	const fracMatch = noteStr.match(/(\d+)\/(\d+)/);
-	if (fracMatch) {
+    // Parse duration for silence
+    let duration = unitLength.clone();
+
+    // Handle explicit fractions first (e.g., '3/2', '2/3')
+    const fracMatch = noteStr.match(/(\d+)\/(\d+)/);
+    if (fracMatch) {
 	  duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
-	} else {
+    } else {
 	  // Handle explicit multipliers (e.g., '2', '3')
-	  const multMatch = noteStr.match(/(\d+)(?![\/])/);
+	  const multMatch = noteStr.match(/(\d+)(?![/])/);
 	  if (multMatch) {
-		duration = duration.multiply(parseInt(multMatch[1]));
+        duration = duration.multiply(parseInt(multMatch[1]));
 	  }
-	  
+
 	  // Handle divisions (e.g., '/', '//', '///')
 	  const divMatch = noteStr.match(/\/+/);
 	  if (divMatch) {
-		const slashes = divMatch[0].length;
-		duration = duration.divide(Math.pow(2, slashes));
+        const slashes = divMatch[0].length;
+        duration = duration.divide(Math.pow(2, slashes));
 	  }
-	}
-	
-	return { isSilence: true, duration };
+    }
+
+    return { isSilence: true, duration };
   }
 
   const pitchMatch = noteStr.match(/[A-Ga-g]/);
-  if (!pitchMatch) return null;
-  
+  if (!pitchMatch) {return null;}
+
   const pitch = pitchMatch[0];
-  
+
   // Count octave modifiers
   const upOctaves = (noteStr.match(/'/g) || []).length;
   const downOctaves = (noteStr.match(/,/g) || []).length;
   const octave = upOctaves - downOctaves;
-  
+
   // Parse duration as Fraction
   let duration = unitLength.clone();
-  
+
   // Handle explicit fractions (e.g., '3/2', '2/3') - check this FIRST
   const fracMatch = noteStr.match(/(\d+)\/(\d+)/);
   if (fracMatch) {
-	duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
+    duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
   } else {
-	// Handle explicit multipliers (e.g., '2', '3')
-	const multMatch = noteStr.match(/(\d+)(?![\/])/);
-	if (multMatch) {
+    // Handle explicit multipliers (e.g., '2', '3')
+    const multMatch = noteStr.match(/(\d+)(?!'[/]')/);
+    if (multMatch) {
 	  duration = duration.multiply(parseInt(multMatch[1]));
-	}
-	
-	// Handle divisions (e.g., '/', '//', '///')
-	const divMatch = noteStr.match(/\/+/);
-	if (divMatch) {
+    }
+
+    // Handle divisions (e.g., '/', '//', '///')
+    const divMatch = noteStr.match(/\/+/);
+    if (divMatch) {
 	  const slashes = divMatch[0].length;
 	  duration = duration.divide(Math.pow(2, slashes));
-	}
+    }
   }
-  
+
   return { pitch, octave, duration, isSilence: false };
 }
 
@@ -119,29 +119,29 @@ function parseNote(noteStr, unitLength) {
  */
 function tokeniseABC(abc) {
   const lines = abc.split('\n');
-  let musicLines = [];
+  const musicLines = [];
   let inHeaders = true;
-  
+
   for (const line of lines) {
-	const trimmed = line.trim();
-	if (trimmed === '' || trimmed.startsWith('%')) continue;
-	
-	if (inHeaders && trimmed.match(/^[A-Z]:/)) continue;
-	inHeaders = false;
-	musicLines.push(trimmed);
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('%')) {continue;}
+
+    if (inHeaders && trimmed.match(/^[A-Z]:/)) {continue;}
+    inHeaders = false;
+    musicLines.push(trimmed);
   }
-  
+
   const music = musicLines.join(' ')
-	// Handle simple triplets: (3CDE -> C2/3 D2/3 E2/3
-	.replace(/\(3:?([A-Ga-g][',]*)([A-Ga-g][',]*)([A-Ga-g][',]*)(?![\/0-9])/g, '$12/3$22/3$32/3')
-	// Handle triplets with slashes: (3C/D/E/ -> C1/3 D1/3 E1/3
-	.replace(/\(3:?([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/(?![\/0-9])/g, '$11/3$21/3$31/3')
-	// Handle triplets with double length: (3C2D2E2 -> C4/3 D4/3 E4/3
-	.replace(/\(3:?([A-Ga-g][',]*)2([A-Ga-g][',]*)2([A-Ga-g][',]*)2(?![\/0-9])/g, '$14/3$24/3$34/3');
+  // Handle simple triplets: (3CDE -> C2/3 D2/3 E2/3
+    .replace(/\(3:?([A-Ga-g][',]*)([A-Ga-g][',]*)([A-Ga-g][',]*)(?![/0-9])/g, '$12/3$22/3$32/3')
+  // Handle triplets with slashes: (3C/D/E/ -> C1/3 D1/3 E1/3
+    .replace(/\(3:?([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/(?![/0-9])/g, '$11/3$21/3$31/3')
+  // Handle triplets with double length: (3C2D2E2 -> C4/3 D4/3 E4/3
+    .replace(/\(3:?([A-Ga-g][',]*)2([A-Ga-g][',]*)2([A-Ga-g][',]*)2(?![/0-9])/g, '$14/3$24/3$34/3');
 
   // Match notes and rests
   const tokens = music.match(/[=^_]?[A-Ga-gzx][',]*[0-9]*\/?[0-9]*/g) || [];
-  
+
   return tokens;
 }
 
@@ -157,16 +157,16 @@ function tokeniseABC(abc) {
 function calculateModalPosition(tonalBase, pitch, octaveShift) {
   const tonalDegree = TONAL_BASE_OFFSET[tonalBase];
   const noteDegree = NOTE_TO_DEGREE[pitch.toUpperCase()];
-  
+
   // Calculate relative degree (how many scale steps from tonic)
-  let relativeDegree = (noteDegree - tonalDegree + 7) % 7;
-  
+  const relativeDegree = (noteDegree - tonalDegree + 7) % 7;
+
   // Adjust octave: lowercase notes are one octave higher
   let octave = octaveShift;
   if (pitch === pitch.toLowerCase()) {
-	octave += 1;
+    octave += 1;
   }
-  
+
   // Return position as single number: octave * 7 + degree
   // Using offset of 2 octaves to keep values positive
   return (octave + 2) * OCTAVE_SHIFT + relativeDegree;
@@ -187,9 +187,9 @@ function encodeToChar(position, isHeld) {
  */
 function decodeChar(char) {
   if (char === silenceChar) {
-	return { isSilence: true, position: null, isHeld: null };
+    return { isSilence: true, position: null, isHeld: null };
   }
-  
+
   const code = char.charCodeAt(0) - baseChar;
   const position = Math.floor(code / 2);
   const isHeld = code % 2 === 0;
@@ -206,97 +206,97 @@ function decodeChar(char) {
  */
 function getSortObject(abc, options = {}) {
   const { nbBars = Infinity, part = 'A' } = options;
-  
+
   const tonalBase = extractTonalBase(abc);
   const unitLength = extractUnitLength(abc);
   const tokens = tokeniseABC(abc);
-  
+
   const sortKey = [];
   const durations = [];
-  
+
   let barCount = 0;
   let index = 0;
-  
+
   for (const token of tokens) {
-	if (token === '|' || token === '||' || token === '|]') {
+    if (token === '|' || token === '||' || token === '|]') {
 	  barCount++;
-	  if (barCount >= nbBars) break;
+	  if (barCount >= nbBars) {break;}
 	  continue;
-	}
-	
-	const note = parseNote(token, unitLength);
-	if (!note) continue;
-	
-	const { duration, isSilence } = note;
-	const comparison = duration.compare(unitLength);
-	
-	if (isSilence) {
+    }
+
+    const note = parseNote(token, unitLength);
+    if (!note) {continue;}
+
+    const { duration, isSilence } = note;
+    const comparison = duration.compare(unitLength);
+
+    if (isSilence) {
 	  // Handle silence
 	  if (comparison > 0) {
-		// Long silence: split into multiple silence characters
-		const ratio = duration.divide(unitLength);
-		const durationRatio = Math.round(ratio.num / ratio.den);
-		
-		for (let i = 0; i < durationRatio; i++) {
+        // Long silence: split into multiple silence characters
+        const ratio = duration.divide(unitLength);
+        const durationRatio = Math.round(ratio.num / ratio.den);
+
+        for (let i = 0; i < durationRatio; i++) {
 		  sortKey.push(silenceChar);
-		}
-		index += durationRatio;
+        }
+        index += durationRatio;
 	  } else if (comparison < 0) {
-		// Short silence: duration < unitLength
-		// Store duration relative to unitLength
-		const relativeDuration = duration.divide(unitLength);
-		
-		durations.push({ i: index, n: relativeDuration.num, d: relativeDuration.den });
-		sortKey.push(silenceChar);
-		index++;
+        // Short silence: duration < unitLength
+        // Store duration relative to unitLength
+        const relativeDuration = duration.divide(unitLength);
+
+        durations.push({ i: index, n: relativeDuration.num, d: relativeDuration.den });
+        sortKey.push(silenceChar);
+        index++;
 	  } else {
-		// Normal silence
-		sortKey.push(silenceChar);
-		index++;
+        // Normal silence
+        sortKey.push(silenceChar);
+        index++;
 	  }
-	} else {
+    } else {
 	  // Handle pitched note
 	  const { pitch, octave } = note;
 	  const position = calculateModalPosition(tonalBase, pitch, octave);
-	  
+
 	  if (comparison > 0) {
-		// Held note: duration > unitLength
-		const ratio = duration.divide(unitLength);
-		const durationRatio = Math.round(ratio.num / ratio.den);
-		
-		// First note is played
-		sortKey.push(encodeToChar(position, false));
-		
-		// Subsequent notes are held
-		for (let i = 1; i < durationRatio; i++) {
+        // Held note: duration > unitLength
+        const ratio = duration.divide(unitLength);
+        const durationRatio = Math.round(ratio.num / ratio.den);
+
+        // First note is played
+        sortKey.push(encodeToChar(position, false));
+
+        // Subsequent notes are held
+        for (let i = 1; i < durationRatio; i++) {
 		  sortKey.push(encodeToChar(position, true));
-		}
-		
-		index += durationRatio;
+        }
+
+        index += durationRatio;
 	  } else if (comparison < 0) {
-		// Subdivided note: duration < unitLength
-		// Store duration as a fraction RELATIVE TO unitLength (CSB)
-		// Example: if unitLength = 1/8 and note duration = 1/16,
-		// then relativeDuration = (1/16) / (1/8) = 1/2
-		// Stored as {i: index, n: 1, d: 2} meaning "1/2 of a CSB"
-		const relativeDuration = duration.divide(unitLength);
-		
-		durations.push({ i: index, n: relativeDuration.num, d: relativeDuration.den });
-		sortKey.push(encodeToChar(position, false));
-		index++;
+        // Subdivided note: duration < unitLength
+        // Store duration as a fraction RELATIVE TO unitLength (CSB)
+        // Example: if unitLength = 1/8 and note duration = 1/16,
+        // then relativeDuration = (1/16) / (1/8) = 1/2
+        // Stored as {i: index, n: 1, d: 2} meaning "1/2 of a CSB"
+        const relativeDuration = duration.divide(unitLength);
+
+        durations.push({ i: index, n: relativeDuration.num, d: relativeDuration.den });
+        sortKey.push(encodeToChar(position, false));
+        index++;
 	  } else {
-		// Normal note: duration === unitLength
-		sortKey.push(encodeToChar(position, false));
-		index++;
+        // Normal note: duration === unitLength
+        sortKey.push(encodeToChar(position, false));
+        index++;
 	  }
-	}
+    }
   }
-  
+
   return {
-	sortKey: sortKey.join(''),
-	durations: durations.length > 0 ? durations : undefined,
-	version: '1.0',
-	part
+    sortKey: sortKey.join(''),
+    durations: durations.length > 0 ? durations : undefined,
+    version: '1.0',
+    part
   };
 }
 
@@ -310,125 +310,125 @@ function getSortObject(abc, options = {}) {
 function sort(objA, objB) {
   let keyA = objA.sortKey;
   let keyB = objB.sortKey;
-  
+
   const dursA = objA.durations || [];
   const dursB = objB.durations || [];
 
   // No durations: simple lexicographic comparison
   if (dursA.length === 0 && dursB.length === 0) {
-	return keyA === keyB ? 0 : (keyA < keyB ? -1 : 1);
+    return keyA === keyB ? 0 : (keyA < keyB ? -1 : 1);
   }
-  
+
   // Build maps of position -> {n, d}
   const durMapA = Object.fromEntries(dursA.map(dur => [dur.i, { n: dur.n || 1, d: dur.d }]));
   const durMapB = Object.fromEntries(dursB.map(dur => [dur.i, { n: dur.n || 1, d: dur.d }]));
-  
+
   let posA = 0;
   let posB = 0;
   let logicalIndex = 0;
   let counter = 0;
-  
+
   while (posA < keyA.length && posB < keyB.length) {
-	if (counter++ > 10000) throw new Error('Sort algorithm iteration limit exceeded');
-	
-	const durA = durMapA[logicalIndex];
-	const durB = durMapB[logicalIndex];
-	
-	// Get durations as fractions
-	const fracA = durA ? new Fraction(durA.n, durA.d) : new Fraction(1, 1);
-	const fracB = durB ? new Fraction(durB.n, durB.d) : new Fraction(1, 1);
-	
-	const comp = fracA.compare(fracB);
-	
-	if (comp === 0) {
+    if (counter++ > 10000) {throw new Error('Sort algorithm iteration limit exceeded');}
+
+    const durA = durMapA[logicalIndex];
+    const durB = durMapB[logicalIndex];
+
+    // Get durations as fractions
+    const fracA = durA ? new Fraction(durA.n, durA.d) : new Fraction(1, 1);
+    const fracB = durB ? new Fraction(durB.n, durB.d) : new Fraction(1, 1);
+
+    const comp = fracA.compare(fracB);
+
+    if (comp === 0) {
 	  // Same duration, compare characters directly
 	  const charA = keyA.charAt(posA);
 	  const charB = keyB.charAt(posB);
-	  
-	  if (charA < charB) return -1;
-	  if (charA > charB) return 1;
-	  
+
+	  if (charA < charB) {return -1;}
+	  if (charA > charB) {return 1;}
+
 	  posA++;
 	  posB++;
 	  logicalIndex++;
-	} else if (comp < 0) {
+    } else if (comp < 0) {
 	  // fracA < fracB: expand B by inserting held note
 	  // Split B's note into: note of duration fracA + held note of duration (fracB - fracA)
-	  
+
 	  const charA = keyA.charAt(posA);
 	  const charB = keyB.charAt(posB);
-	  
-	  if (charA < charB) return -1;
-	  if (charA > charB) return 1;
-	  
+
+	  if (charA < charB) {return -1;}
+	  if (charA > charB) {return 1;}
+
 	  // Insert held note into B
 	  const decodedB = decodeChar(charB);
 	  const heldChar = decodedB.isSilence ? silenceChar : encodeToChar(decodedB.position, true);
-	  
+
 	  keyB = keyB.substring(0, posB + 1) + heldChar + keyB.substring(posB + 1);
-	  
+
 	  // Update duration map for B
 	  const remainingDur = fracB.subtract(fracA);
 	  delete durMapB[logicalIndex];
-	  
+
 	  // Add new duration entry for the held note
 	  durMapB[logicalIndex + 1] = { n: remainingDur.num, d: remainingDur.den };
-	  
+
 	  // Shift all subsequent B durations by 1
 	  const newDurMapB = {};
 	  for (const idx in durMapB) {
-		const numIdx = parseInt(idx);
-		if (numIdx > logicalIndex + 1) {
+        const numIdx = parseInt(idx);
+        if (numIdx > logicalIndex + 1) {
 		  newDurMapB[numIdx + 1] = durMapB[idx];
-		} else {
+        } else {
 		  newDurMapB[numIdx] = durMapB[idx];
-		}
+        }
 	  }
 	  Object.assign(durMapB, newDurMapB);
-	  
+
 	  posA++;
 	  posB++;
 	  logicalIndex++;
-	} else {
+    } else {
 	  // fracA > fracB: expand A by inserting held note
-	  
+
 	  const charA = keyA.charAt(posA);
 	  const charB = keyB.charAt(posB);
-	  
-	  if (charA < charB) return -1;
-	  if (charA > charB) return 1;
-	  
+
+	  if (charA < charB) {return -1;}
+	  if (charA > charB) {return 1;}
+
 	  // Insert held note into A
 	  const decodedA = decodeChar(charA);
 	  const heldChar = decodedA.isSilence ? silenceChar : encodeToChar(decodedA.position, true);
-	  
+
 	  keyA = keyA.substring(0, posA + 1) + heldChar + keyA.substring(posA + 1);
-	  
+
 	  // Update duration map for A
 	  const remainingDur = fracA.subtract(fracB);
 	  delete durMapA[logicalIndex];
-	  
+
 	  durMapA[logicalIndex + 1] = { n: remainingDur.num, d: remainingDur.den };
-	  
+
 	  // Shift all subsequent A durations by 1
 	  const newDurMapA = {};
 	  for (const idx in durMapA) {
-		const numIdx = parseInt(idx);
-		if (numIdx > logicalIndex + 1) {
+        const numIdx = parseInt(idx);
+        if (numIdx > logicalIndex + 1) {
 		  newDurMapA[numIdx + 1] = durMapA[idx];
-		} else {
+        } else {
 		  newDurMapA[numIdx] = durMapA[idx];
-		}
+        }
 	  }
 	  Object.assign(durMapA, newDurMapA);
-	  
+
 	  posA++;
 	  posB++;
 	  logicalIndex++;
-	}
+    }
   }
-  
-  if (posA >= keyA.length && posB >= keyB.length) return 0;
+
+  if (posA >= keyA.length && posB >= keyB.length) {return 0;}
   return posA >= keyA.length ? -1 : 1;
 }
 
@@ -437,23 +437,23 @@ function sort(objA, objB) {
  */
 function sortArray(arr) {
   for (const item of arr) {
-	if (!item.sortObject && item.abc) {
+    if (!item.sortObject && item.abc) {
 	  try {
-		item.sortObject = getSortObject(item.abc);
+        item.sortObject = getSortObject(item.abc);
 	  } catch (err) {
-		console.error(`Failed to generate sort object: ${err.message}`);
-		item.sortObject = null;
+        console.error(`Failed to generate sort object: ${err.message}`);
+        item.sortObject = null;
 	  }
-	}
+    }
   }
-  
+
   arr.sort((a, b) => {
-	if (!a.sortObject && !b.sortObject) return 0;
-	if (!a.sortObject) return 1;
-	if (!b.sortObject) return -1;
-	return sort(a.sortObject, b.sortObject);
+    if (!a.sortObject && !b.sortObject) {return 0;}
+    if (!a.sortObject) {return 1;}
+    if (!b.sortObject) {return -1;}
+    return sort(a.sortObject, b.sortObject);
   });
-  
+
   return arr;
 }
 
@@ -463,9 +463,9 @@ function sortArray(arr) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-	getSortObject,
-	sort,
-	sortArray,
-	decodeChar
+    getSortObject,
+    sort,
+    sortArray,
+    decodeChar
   };
 }
