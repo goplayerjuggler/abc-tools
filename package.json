@@ -1,7 +1,7 @@
 {
   "name": "abc-tools",
   "version": "1.0.0",
-  "description": "sorting algorithm and implementation for ABC tunes; other tools",
+  "description": "sorting algorithm and implementation for ABC tunes; plus other tools to come later",
   "main": "src/index.js",
   "scripts": {
     "test": "node test/test.js",
@@ -19,7 +19,7 @@
     "irish",
     "folk"
   ],
-  "author": "Your Name",
+  "author": "Malcolm Schonfield",
   "license": "MIT",
   "repository": {
     "type": "git",

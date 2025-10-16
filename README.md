@@ -3,6 +3,8 @@
 A JavaScript library mainly for sorting melodies by their modal contour, independent of key and mode. Designed for ABC notation tunes, particularly Irish traditional music.
 There may be other tools added too.
 
+The algorithm used for sorting is original, and is described [here](./docs/contour_sort.md)
+
 ## Installation
 
 ```
