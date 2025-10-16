@@ -249,7 +249,7 @@ When comparing two tunes:
 
 2. **If rhythmic divisions differ at a position:** apply the algorithm above for **expanding** where necessary, using the held-note rule
 
-## Examples
+## Examples with incipits of real tunes – a jig and two reels
 
 **Tune in G major:**
 - ABC:
