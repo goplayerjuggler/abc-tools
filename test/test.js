@@ -77,7 +77,7 @@ G2B`;
 
   // Test 4: Octave shifts
   console.log('Test 4: octave shifts');
-  const abcOctaves = 'X:1\nL:1/8\nK:C\nC, C c c\'';
+  const abcOctaves = "X:1\nL:1/8\nK:C\nC, C c c'";
   const objOctaves = getSortObject(abcOctaves);
 
   const decodedOct = Array.from(objOctaves.sortKey).map(c => decodeChar(c));
