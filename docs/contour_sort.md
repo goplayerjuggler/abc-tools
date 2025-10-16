@@ -115,16 +115,16 @@ Two contours `A` and `B` are compared by the following algorithm. Say `a` is the
     - Now compare the 1/2 duration notes directly
     - Then continue with the remainders
 
-## A few short examples
+## A few short examples 
+The following examples show the results of the algorithm when it encounters notes to be compared that have different durations.  
+Assume each example is K:Cmajor, L:1/8, R:4/4 (ABC headers). That means the CSB is one eighth note. See the section [understanding ABC format](#understanding-ABC-format) below for more details.
 
-Assume each example is K:Cmajor, L:1/8, R:4/4 (ABC headers). That means the CSB is one eighth note.
 
+1. **Held vs repeated**: If tune T1 starts with `c2` (a quarter note), and tune T2 starts with `cc` (two eighth notes), then T1 < T2 (held sorts before repeated). This is because `c2` will be rewritten as `c c(held)`
 
-1. **Held vs repeated**: If tune T1 starts with `c2` (a quarter note), and tune T2 starts with `cc` (two eighth notes), then T1 < T2 (held sorts before repeated).
+2. **Subdivisions - 1**: If T3 starts with `c/d/c` (two sixteenth notes and an eighth note) then T2 < T3. Because T2 gets converted to `c/ c(held)/ c` and then after discarding the first note in T2 and T3, the next notes that are compare are `c(held)/` for T2 and `d/` for .
 
-2. **Subdivisions before full notes**: If T3 starts with `c/d/c` (two sixteenth notes and an eighth note) then T2 < T3 (full notes sort before subdivided notes at same pitch).
-
-3. **Pitch ordering in subdivisions**: For T4 = `c/B/c` we have T4 < T2 (lower pitch B sorts before higher pitch c).
+3. **Subdivisions - 2**: For T4 = `c/B/c` we have T4 < T2 (lower pitch B sorts before higher pitch c). It works similarly to the previous example.
 4. **triplets**
 **Triplet notation in ABC**: `(3CDE` represents three notes played in the time of two eighth notes. Each note has duration 2/3 of an eighth note.
 
@@ -143,7 +143,7 @@ It can be useful to save some intermediate data structures to optimise sorting o
 
 This implementation represents the modal contour with two objects: the first giving all the MDIs encoded as a string, and is called the **sort key**; and the second giving the indexes of items where the duration is less than one CSB, along with the actual duration, called the **durations**.
 ```javascript
-//data structure for tune B in previous example
+//data structure for tune B in example 4 above
 {
     sortKey:"...",
     durations:[{i:0,n:2,d:3},{i:1,n:2,d:3}]
@@ -155,7 +155,7 @@ Each entry represents a note whose duration is less than one CSB:
 - `i`: index position in the sortKey
 - `n`: numerator of duration fraction
 - `d`: denominator of duration fraction
-- **important**: n/d represents the duration as a **fraction of the csb**
+- **important**: n/d represents the duration as a **fraction of the CSB**
 
 Examples (assuming L:1/8, so CSB = 1/8):
 - sixteenth note: duration = 1/2 CSB → {i: 0, n: 1, d: 2}
@@ -170,7 +170,8 @@ Understanding ABC pitch notation:
 Low to high, here are the notes that are commonly seen on treble clefs.
 `.. G, A, B, C D E F G A B c d e f g a b c' d' ...`
 `C` represents “middle C”.
-Note that this is case-sensitive; and `,` (comma) represents down one octave, and `'` represents up one octave.
+Note that this is case-sensitive; and `,` (comma) represents down one octave, and `'` represents up one octave.  
+Full specs are available [here](https://abcnotation.com/wiki/abc:standard:v2.1).
 
 ## Determining the primary octave
 
