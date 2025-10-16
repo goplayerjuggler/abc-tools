@@ -149,6 +149,21 @@ This implementation represents the modal contour with two objects: the first giv
     durations:[{i:0,n:2,d:3},{i:1,n:2,d:3}]
 }
 ```
+## durations array format
+
+Each entry represents a note whose duration is less than one CSB:
+- `i`: index position in the sortKey
+- `n`: numerator of duration fraction
+- `d`: denominator of duration fraction
+- **important**: n/d represents the duration as a **fraction of the csb**
+
+Examples (assuming L:1/8, so CSB = 1/8):
+- sixteenth note: duration = 1/2 CSB → {i: 0, n: 1, d: 2}
+- triplet eighth: duration = 2/3 CSB → {i: 0, n: 2, d: 3}
+- thirty-second: duration = 1/4 CSB → {i: 0, n: 1, d: 4}
+
+If the property `n` is omitted, then take `n=1`; it defaults to 1.
+
 
 ## understanding ABC format
 Understanding ABC pitch notation:

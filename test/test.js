@@ -54,24 +54,24 @@ G2B`;
   assert(sort(objHeld, objRepeated) === -1, 'Held note sorts before repeated note');
   console.log(`  Held: ${objHeld.sortKey.length} chars, Repeated: ${objRepeated.sortKey.length} chars\n`);
   
-  // Test 3: Subdivisions
-  console.log('Test 3a: subdivisions');
+  // Test 3: durations
+  console.log('Test 3a: durations');
   const abcSub = `X:1\nL:1/8\nK:C\nC/D/E`;
   const objSub = getSortObject(abcSub);
   
   assert(objSub.sortKey.length === 3, 'C/D/E has 3 notes');
   assert(objSub.durations && objSub.durations.length === 2, 
-	'Two subdivisions recorded');
+	'Two durations recorded');
   assert(objSub.durations[0].d === 2, 'First subdivision has divisor 2');
   console.log(`  Durations: ${JSON.stringify(objSub.durations)}\n`);
   
-  console.log('Test 3b: triplet subdivisions');
+  console.log('Test 3b: triplet durations');
   const abcSub2 = `X:1\nL:1/8\nK:C\n(3CDEF`;
   const objSub2 = getSortObject(abcSub2);
   
   assert(objSub2.sortKey.length === 4, '(3CDEF has 4 notes');
   assert(objSub2.durations && objSub2.durations.length === 3, 
-	'3 subdivisions recorded');
+	'3 durations recorded');
   assert(objSub2.durations && objSub2.durations[0].d === 3, 'First subdivision has divisor 3');
   console.log(`  Durations: ${JSON.stringify(objSub2.durations)}\n`);
   
@@ -128,7 +128,7 @@ G2B AGA B2d gdB`;
   console.log(`  Order: ${tunes.map(t => t.name).join(', ')}\n`);
 
   // Test 8: The Flogging vs The Colliers (with triplets)
-  console.log('Test 8: the flogging vs the colliers; including triplets');
+  console.log('Test 8: the flogging vs the colliers’; including triplets');
   const theFlogging = { 
 	name: 'The Flogging', 
 	abc: `X: 12
@@ -143,7 +143,7 @@ BGGA BGdG BGGA Bdgd|`
   const theColliers = { 
 	name: 'The Colliers', 
 	abc: `X:1
-T: The Colliers
+T: The Colliers’
 R: reel
 L:1/8
 M:4/2
@@ -154,7 +154,7 @@ FDE/F/G A2AB cAdB cAG2 |`
   const theColliers2 = { 
 	name: 'The Colliers (triplet)', 
 	abc: `X:1
-T: The Colliers
+T: The Colliers’
 R: reel
 L:1/8
 M:4/2
@@ -181,6 +181,7 @@ FD(3EFG A2AB cAdB cAG2 |`
   assert(tunes4[1].name === 'The Colliers (triplet)', 'The Colliers (triplet) sorts second');
   assert(tunes4[2].name === 'The Colliers', 'The Colliers sorts third');
   console.log(`  Order: ${tunes4.map(t => t.name).join(', ')}\n`);
+  console.log(`  The Colliers’ with sort object: ${JSON.stringify(theColliers)}\n`);
   
   // Test 9: Triplet vs sixteenth notes
   console.log('Test 9: triplet vs sixteenth notes comparison');
@@ -240,7 +241,32 @@ FD(3EFG A2AB cAdB cAG2 |`
 	'Short silence creates duration entry');
   assert(objShortSilence.durations[0].d === 2, 'Short silence has divisor 2');
   console.log(`  Short silence encoding works correctly\n`);
+ 
+  // 14 : semiquavers as CSB
   
+  console.log('Test 14: semiquavers as CSB');
+   const theColliers14 = { 
+	name: 'The Colliers', 
+	abc: `X:1
+T: The Colliers
+R: reel
+L: 1/8
+M:4/4
+K:D mixo
+FDE/F/G A2AB cAdB cAG2 |` 
+  };
+  const objSub14 = getSortObject(theColliers14.abc);
+  
+  assert(objSub14.sortKey.length === 17, '17 notes');
+  assert(objSub14.durations && objSub14.durations.length === 2, 
+	'Two durations recorded');
+  assert(objSub14.durations[0].d === 2, 'First subdivision has divisor 2');
+  console.log(`  Durations: ${JSON.stringify(objSub14.durations)}\n`);
+  assert(sort(objSub14, theColliers.sortObject) === 0, 'sorts together with same tune, different CSB')
+  
+  
+ 
+
   // Summary
   console.log('='.repeat(50));
   console.log(`Tests completed: ${passed} passed, ${failed} failed`);
