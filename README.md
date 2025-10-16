@@ -5,6 +5,8 @@ There may be other tools added too.
 
 The algorithm used for sorting is original, and is described [here](./docs/contour_sort.md)
 
+The implementation and project setup were done with the help of github copilot and claude.ai.
+
 ## Installation
 
 ```
@@ -78,10 +80,28 @@ Sorts an array of tune objects.
 
 **Returns:** Sorted array (with `sortObject` added to each item)
 
+
+## Licenses
+
+This project uses dual licensing:
+
+- **Code (JavaScript)**: [MIT License](LICENSE-CODE)
+- **Tune sort algorithm and its [description](docs/contour_sort.md)**: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](LICENSE-ALGORITHM)
+
+### What this means:
+
+**Code**: Can be freely used, modified, and distributed (see MIT License terms)
+
+**Sort algorithm**: Licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), which means:
+- **BY** (Attribution): You must give appropriate credit to the original creator
+- **NC** (NonCommercial): You may not use the data for commercial purposes
+- **SA** (ShareAlike): If you remix or build upon the data, you must distribute your contributions under the same CC BY-NC-SA 4.0 license
+
+
 ## Contributing
 
 Issues and pull requests welcome at https://github.com/goplayerjuggler/abc-tools
 
 ## References
 
-Based on the modal contour sorting algorithm described in the project documentation, similar to but distinct from Jianpu (numbered musical notation) sorting systems.
+Based on the [modal contour sorting algorithm](./docs/contour_sort.md) described in the project documentation; similar to but distinct from Jianpu (numbered musical notation) sorting systems.
