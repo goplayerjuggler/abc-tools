@@ -1,0 +1,26 @@
+# Source control
+.git/
+.gitignore
+
+# Testing
+test/
+coverage/
+
+# Documentation source
+docs/
+
+# Development files
+.eslintrc.js
+.prettierrc
+
+# IDE
+.vscode/
+.idea/
+
+# Logs and others
+*.log
+log.txt
+npm-debug.log*
+
+ignored/
+tmp/

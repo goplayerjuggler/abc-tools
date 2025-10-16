@@ -1,0 +1,70 @@
+
+> tune-contour-sort@1.1.0 test
+> node tuneContourSort.1.1.2.1.js
+
+Running tuneContourSort tests...
+
+Test 1: basic encoding - G major held note
+✓ G2 encoded as played then held
+✓ Both G notes at same position
+  Sort key length: 3
+
+Test 2: held vs repeated notes
+✓ C2 second note is held
+✓ CC second note is played
+✓ Held note sorts before repeated note
+  Held: 2 chars, Repeated: 2 chars
+
+Test 3a: subdivisions
+✓ C/D/E has 3 notes
+✓ Two subdivisions recorded
+✓ First subdivision has divisor 2
+  Divisions: [{"index":0,"divisor":2},{"index":1,"divisor":2}]
+
+Test 3b: triplet subdivisions
+✓ (3CDEF has 4 notes
+✓ 3 subdivisions recorded
+✗ First subdivision has divisor 3
+  Divisions: [{"index":0,"divisor":2},{"index":1,"divisor":2},{"index":2,"divisor":2}]
+
+Test 4: octave shifts
+✓ C, lower than C
+✓ C lower than c
+✓ c lower than c'
+  Positions: 7, 14, 21, 28
+
+Test 5: the munster
+✓ The Munster has 12 encoded notes
+  Sort key length: 12
+
+Test 6: different keys, same contour
+✓ Same modal contour in different keys produces same sort key
+  Both keys produce identical sort keys
+
+Test 7: array sorting
+✓ CCC sorts first
+✓ CDE sorts second
+✓ ccc sorts last
+  Order: Tune 2, Tune 3, Tune 1
+
+Test 8: the flogging vs the colliers; including triplets
+✓ The Flogging sorts first (original order)
+✓ The Colliers sorts second
+  Order: The Flogging, The Colliers
+
+✓ The Flogging sorts first (reversed order)
+✓ The Colliers sorts second
+Sorting 3 tunes with triplet variation
+✓ The Flogging sorts first
+✗ The Colliers (triplet) sorts second
+✗ The Colliers sorts third
+  Order: The Flogging, The Colliers, The Colliers (triplet)
+
+Test 9: triplet vs sixteenth notes comparison
+✗ Triplet has divisor 3
+✓ Sixteenth has divisor 2
+  Triplet vs Sixteenth comparison result: 1
+  (Negative means triplet sorts first, positive means sixteenth sorts first)
+
+==================================================
+Tests completed: 24 passed, 4 failed

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Logs and others
+*.log
+log.txt
+npm-debug.log*
+
+ignored/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Build
+dist/

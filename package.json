@@ -1,0 +1,39 @@
+{
+  "name": "abc-tools",
+  "version": "1.0.0",
+  "description": "sorting algorithm and implementation for ABC tunes; other tools",
+   "main": "src/index.js",
+  "scripts": {
+    "test": "node test/test.js",
+    "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix"
+  },
+  "keywords": [
+    "abc",
+    "music",
+    "melody",
+    "sorting",
+    "modal",
+    "tune",
+    "traditional",
+    "irish",
+    "folk"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goplayerjuggler/abc-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/goplayerjuggler/abc-tools/issues"
+  },
+  "homepage": "https://github.com/goplayerjuggler/abc-tools#readme",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
+
+}
