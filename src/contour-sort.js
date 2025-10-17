@@ -91,7 +91,7 @@ function decodeChar(char) {
  * Generate sort object from ABC notation
  * @returns { sortKey: string, durations: Array, version: string, part: string }
  */
-function getSortObject(abc, options = {}) {
+function getContour(abc, options = {}) {
   const { nbBars = Infinity, part = 'A' } = options;
 
   const tonalBase = extractTonalBase(abc);
@@ -354,7 +354,7 @@ function sortArray(arr) {
   for (const item of arr) {
     if (!item.sortObject && item.abc) {
       try {
-        item.sortObject = getSortObject(item.abc);
+        item.sortObject = getContour(item.abc);
       } catch (err) {
         console.error(`Failed to generate sort object: ${err.message}`);
         item.sortObject = null;
@@ -383,7 +383,7 @@ function sortArray(arr) {
 // ============================================================================
 
 module.exports = {
-  getSortObject,
+  getSortObject: getContour,
   sort,
   sortArray,
   decodeChar,

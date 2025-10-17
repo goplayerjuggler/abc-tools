@@ -1,4 +1,4 @@
-const { getSortObject, sort, sortArray, decodeChar } = require('../src/index.js');
+const { getSortObject: getContour, sort, sortArray, decodeChar } = require('../src/index.js');
 
 describe('ABC Tools - Sorting', () => {
   describe('Basic encoding', () => {
@@ -11,7 +11,7 @@ M:12/8
 K:G major
 G2B`;
 
-      const obj1 = getSortObject(abc1);
+      const obj1 = getContour(abc1);
       const decoded1 = Array.from(obj1.sortKey).map(c => decodeChar(c));
 
       expect(decoded1[0].isHeld).toBe(false);
@@ -26,8 +26,8 @@ G2B`;
       const abcHeld = 'X:1\nL:1/8\nK:C\nC2';
       const abcRepeated = 'X:1\nL:1/8\nK:C\nCC';
 
-      const objHeld = getSortObject(abcHeld);
-      const objRepeated = getSortObject(abcRepeated);
+      const objHeld = getContour(abcHeld);
+      const objRepeated = getContour(abcRepeated);
 
       const decodedHeld = Array.from(objHeld.sortKey).map(c => decodeChar(c));
       const decodedRep = Array.from(objRepeated.sortKey).map(c => decodeChar(c));
@@ -41,7 +41,7 @@ G2B`;
   describe('Durations', () => {
     test('subdivision durations', () => {
       const abcSub = 'X:1\nL:1/8\nK:C\nC/D/E';
-      const objSub = getSortObject(abcSub);
+      const objSub = getContour(abcSub);
 
       expect(objSub.sortKey.length).toBe(3);
       expect(objSub.durations).toBeDefined();
@@ -51,7 +51,7 @@ G2B`;
 
     test('triplet durations', () => {
       const abcSub2 = 'X:1\nL:1/8\nK:C\n(3CDEF';
-      const objSub2 = getSortObject(abcSub2);
+      const objSub2 = getContour(abcSub2);
 
       expect(objSub2.sortKey.length).toBe(4);
       expect(objSub2.durations).toBeDefined();
@@ -63,8 +63,8 @@ G2B`;
       const abcTriplet = 'X:1\nL:1/8\nK:C\n(3CDE F';
       const abcSixteenth = 'X:1\nL:1/8\nK:C\nC/D/E F';
 
-      const objTriplet = getSortObject(abcTriplet);
-      const objSixteenth = getSortObject(abcSixteenth);
+      const objTriplet = getContour(abcTriplet);
+      const objSixteenth = getContour(abcSixteenth);
 
       expect(objTriplet.durations[0].d).toBe(3);
       expect(objSixteenth.durations[0].d).toBe(2);
@@ -84,7 +84,7 @@ M:4/4
 K:D mixo
 FDE/F/G A2AB cAdB cAG2 |`
       };
-      const objSub14 = getSortObject(theColliers14.abc);
+      const objSub14 = getContour(theColliers14.abc);
 
       expect(objSub14.sortKey.length).toBe(17);
       expect(objSub14.durations).toBeDefined();
@@ -96,7 +96,7 @@ FDE/F/G A2AB cAdB cAG2 |`
   describe('Octave shifts', () => {
     test('different octaves sort correctly', () => {
       const abcOctaves = "X:1\nL:1/8\nK:C\nC, C c c'";
-      const objOctaves = getSortObject(abcOctaves);
+      const objOctaves = getContour(abcOctaves);
 
       const decodedOct = Array.from(objOctaves.sortKey).map(c => decodeChar(c));
 
@@ -116,7 +116,7 @@ M:12/8
 K:G major
 G2B AGA B2d gdB`;
 
-      const objMunster = getSortObject(abcMunster);
+      const objMunster = getContour(abcMunster);
       expect(objMunster.sortKey.length).toBe(12);
     });
   });
@@ -126,8 +126,8 @@ G2B AGA B2d gdB`;
       const abcG = 'X:1\nL:1/8\nK:G\nGAB';
       const abcD = 'X:1\nL:1/8\nK:D\nDEF';
 
-      const objG = getSortObject(abcG);
-      const objD = getSortObject(abcD);
+      const objG = getContour(abcG);
+      const objD = getContour(abcD);
 
       expect(objG.sortKey).toBe(objD.sortKey);
     });
@@ -220,7 +220,7 @@ K:D mixo
 FDE/F/G A2AB cAdB cAG2 |`//L:1/16
       };
 
-      const objSub14 = getSortObject(theColliers14.abc);
+      const objSub14 = getContour(theColliers14.abc);
       expect(sort(objSub14, theColliers.sortObject)).toBe(0);
     });
   });
@@ -228,7 +228,7 @@ FDE/F/G A2AB cAdB cAG2 |`//L:1/16
   describe('Silences', () => {
     test('encodes silence correctly', () => {
       const abcSilence = 'X:1\nL:1/8\nK:C\nCzD';
-      const objSilence = getSortObject(abcSilence);
+      const objSilence = getContour(abcSilence);
 
       const decodedSilence = Array.from(objSilence.sortKey).map(c => decodeChar(c));
 
@@ -241,15 +241,15 @@ FDE/F/G A2AB cAdB cAG2 |`//L:1/16
       const abcSilenceFirst = 'X:1\nL:1/8\nK:C\nzC';
       const abcNoteFirst = 'X:1\nL:1/8\nK:C\nCC';
 
-      const objSilenceFirst = getSortObject(abcSilenceFirst);
-      const objNoteFirst = getSortObject(abcNoteFirst);
+      const objSilenceFirst = getContour(abcSilenceFirst);
+      const objNoteFirst = getContour(abcNoteFirst);
 
       expect(sort(objSilenceFirst, objNoteFirst)).toBe(-1);
     });
 
     test('long silence', () => {
       const abcLongSilence = 'X:1\nL:1/8\nK:C\nz2C';
-      const objLongSilence = getSortObject(abcLongSilence);
+      const objLongSilence = getContour(abcLongSilence);
 
       const decodedLongSilence = Array.from(objLongSilence.sortKey).map(c => decodeChar(c));
 
@@ -261,7 +261,7 @@ FDE/F/G A2AB cAdB cAG2 |`//L:1/16
 
     test('short silence', () => {
       const abcShortSilence = 'X:1\nL:1/8\nK:C\nz/C';
-      const objShortSilence = getSortObject(abcShortSilence);
+      const objShortSilence = getContour(abcShortSilence);
 
       expect(objShortSilence.durations).toBeDefined();
       expect(objShortSilence.durations.length).toBe(1);

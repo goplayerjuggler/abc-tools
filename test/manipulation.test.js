@@ -132,7 +132,7 @@ FA | DFA dAF | GBd gdB |]`;
     test('throws error when requesting more bars than available', () => {
       expect(() => {
         getFirstBars(tuneWithAnacrusis, 10);
-      }).toThrow('Not enough complete bars');
+      }).toThrow('Not enough bars to satisfy request. Requested 10 bars.');
     });
 
     test('throws error when no complete bars found', () => {
@@ -147,6 +147,225 @@ FA |]`;
         getFirstBars(onlyAnacrusis, 1);
       }).toThrow('No complete bars found');
     });
+  });
+});
+
+describe('ABC Manipulator - getFirstBars with partial bars', () => {
+  const tuneWithAnacrusis = `X:1
+T:Example Tune
+M:4/4
+L:1/8
+K:D
+FA | d2 cB A2 FA | d2 f2 e2 d2 | c2 BA G2 FE |]`;
+
+  const tune3_4 = `X:1
+T:with anacrucis
+L:1/4
+M:3/4
+K:D
+E/F/ | DEF | EFG | FGA | GAB |]`;
+
+  describe('fractional bar extraction (without anacrusis)', () => {
+    test('extracts 1.5 bars as numeric value', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 1.5, false);
+
+      expect(result).toContain('K:D');
+      expect(result).toContain('d2 cB A2 FA'); // full first bar
+      expect(result).toContain('d2 f2'); // half of second bar (4 eighth notes)
+      expect(result).not.toContain('e2 d2'); // rest of second bar excluded
+      expect(result).not.toContain('K:D\nFA |'); // anacrusis excluded
+    });
+
+    test('extracts 1.5 bars using Fraction', () => {
+      const {Fraction} = require('../src/math.js');
+      const result = getFirstBars(tuneWithAnacrusis, new Fraction(3, 2), false);
+
+      expect(result).toContain('d2 cB A2 FA');
+      expect(result).toContain('d2 f2');
+      expect(result).not.toContain('e2 d2');
+    });
+
+    test('extracts 0.5 bars', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 0.5, false);
+
+      expect(result).toContain('d2 cB'); // half of first complete bar (4 eighth notes)
+      expect(result).not.toContain('A2 FA');
+      expect(result).not.toContain('FA |'); // anacrusis excluded
+    });
+
+    test('extracts 2.25 bars', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 2.25, false);
+
+      expect(result).toContain('K:D\nd2 cB A2 FA | d2 f2 e2 d2 | c2 '); // bar 1-2; bar 3 (2 eighth notes)
+      expect(result).not.toContain('BA G2 FE |]');
+    });
+  });
+
+  describe('fractional bars with 3/4 meter', () => {
+    test('extracts 1.5 bars without anacrusis', () => {
+      const result = getFirstBars(tune3_4, 1.5, false);
+
+      expect(result).toContain('DEF'); // full first bar
+      expect(result).toContain('EF'); // half of second bar
+      expect(result).not.toContain('G'); // rest of second bar excluded
+      expect(result).not.toContain('E/F/ |'); // anacrusis excluded
+    });
+
+    test('extracts 0.5 bars (1.5 quarter notes)', () => {
+      const result = getFirstBars(tune3_4, 0.5, false);
+
+      expect(result).toContain('DE'); // half of first complete bar
+      expect(result).not.toContain('F');
+      expect(result).not.toContain('E/F/ |');
+    });
+  });
+
+  describe('partial bars with anacrusis included', () => {
+    test('extracts 1.5 bars with anacrusis, not counting it', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 1.5, true, false);
+
+      expect(result).toContain('FA |'); // anacrusis included but not counted
+      expect(result).toContain('d2 cB A2 FA'); // full first bar
+      expect(result).toContain('d2 f2'); // half of second bar
+      expect(result).not.toContain('e2 d2');
+    });
+
+    test('extracts 2 bars worth with anacrusis counted in total (3/4)', () => {
+      const result = getFirstBars(tune3_4, 2, true, true);
+
+      // Target: 2 * 3/4 = 6/4
+      // Anacrusis: 1/8 (E/F/)
+      // Remaining needed: 6/4 - 1/8 = 12/8 - 1/8 = 11/8
+      // Bar 1 (DEF): 3/4 = 6/8
+      // Remaining: 11/8 - 6/8 = 5/8
+      // Bar 2: need 5/8 worth = EF (2/4 = 4/8) + part of G
+      // Actually 5/8 = 2.5 quarter notes = EF and half of G... but G is 1/4
+      // Let me recalculate: 11/8 quarters = 11/8 * 1/4 duration units
+      // Wait, L:1/4 so each quarter note is 1 unit
+      // Target: 2 * 3 = 6 quarter notes
+      // Anacrusis: 1/2 quarter note (E/F/)
+      // Remaining: 6 - 0.5 = 5.5 quarter notes
+      // Bar 1: DEF = 3 quarter notes, accumulated = 3
+      // Bar 2: EF = 2 quarter notes, accumulated = 5, need 0.5 more
+      // So should get E/F/ | DEF | EF
+      
+      expect(result).toContain('E/F/ |'); // anacrusis
+      expect(result).toContain('DEF'); // first complete bar
+      expect(result).toContain('EF'); // part of second bar
+      expect(result).not.toContain('| EFG'); // should not have full second bar
+    });
+
+    test('extracts 1 bar worth with anacrusis counted (4/4)', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 1, true, true);
+
+      // Target: 1 * 8/8 = 8 eighth notes
+      // Anacrusis: FA = 2 eighth notes
+      // Remaining: 8 - 2 = 6 eighth notes
+      // Bar 1 starts with: d2 cB A2 FA (8 eighth notes total)
+      // We need 6 eighth notes: d2 cB A2 (6 eighth notes)
+      
+      expect(result).toContain('FA |'); // anacrusis
+      expect(result).toContain('d2 cB A2'); // 6 eighth notes
+      expect(result).not.toContain('FA | d2 cB A2 FA'); // should not have full bar
+    });
+
+    test('extracts 0.5 bars worth with anacrusis counted', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 0.5, true, true);
+
+      // Target: 0.5 * 8 = 4 eighth notes
+      // Anacrusis: FA = 2 eighth notes
+      // Remaining: 4 - 2 = 2 eighth notes
+      // Should get: FA | d2
+      
+      expect(result).toContain('FA |');
+      expect(result).toContain('d2');
+      expect(result).not.toContain('cB');
+    });
+  });
+
+  describe('edge cases for partial bars', () => {
+    test('extracts exactly 1.0 bars (should match integer behavior)', () => {
+      const resultInt = getFirstBars(tuneWithAnacrusis, 1, false);
+      const resultFloat = getFirstBars(tuneWithAnacrusis, 1.0, false);
+
+      expect(resultFloat).toBe(resultInt);
+    });
+
+    test('extracts exactly 2.0 bars using Fraction', () => {
+      const {Fraction} = require('../src/math.js');
+      const resultInt = getFirstBars(tuneWithAnacrusis, 2, false);
+      const resultFrac = getFirstBars(tuneWithAnacrusis, new Fraction(2, 1), false);
+
+      expect(resultFrac).toBe(resultInt);
+    });
+
+    test('handles very small fractions (0.25 bars)', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 0.25, false);
+
+      // 0.25 * 8 = 2 eighth notes
+      expect(result).toContain('d2');
+      expect(result).not.toContain('cB');
+    });
+
+    test('throws error when requesting more than available', () => {
+      expect(() => {
+        getFirstBars(tuneWithAnacrusis, 10.5);
+      }).toThrow('Not enough bars');
+    });
+  });
+
+  describe('preserves formatting with partial bars', () => {
+    test('maintains spacing in partial bar extraction', () => {
+      const tuneWithSpacing = `X:1
+M:4/4
+L:1/8
+K:D
+D2 FA  dA FD | G2 Bc  d2 cB |]`;
+
+      const result = getFirstBars(tuneWithSpacing, 1.5, false);
+
+      // Should preserve the double space
+      expect(result).toContain('D2 FA  dA FD');
+    });
+  });
+});
+
+describe('ABC Manipulator - getFirstBars parameter combinations', () => {
+  const tuneWithAnacrusis = `X:1
+T:Test
+M:4/4
+L:1/8
+K:D
+FA | d2 cB A2 FA | d2 f2 e2 d2 |]`;
+
+  test('withAnacrucis=false, countAnacrucisInTotal=false (default)', () => {
+    const result = getFirstBars(tuneWithAnacrusis, 1, false, false);
+    
+    expect(result).not.toContain('K:D\nFA |');
+    expect(result).toContain('d2 cB A2 FA');
+  });
+
+  test('withAnacrucis=true, countAnacrucisInTotal=false', () => {
+    const result = getFirstBars(tuneWithAnacrusis, 1, true, false);
+    
+    expect(result).toContain('FA |'); // included
+    expect(result).toContain('d2 cB A2 FA'); // full bar after anacrusis
+  });
+
+  test('withAnacrucis=true, countAnacrucisInTotal=true', () => {
+    const result = getFirstBars(tuneWithAnacrusis, 1, true, true);
+    
+    expect(result).toContain('FA |'); // included
+    expect(result).toContain('d2 cB A2'); // partial bar (6 eighth notes to complete 1 bar worth)
+    expect(result).not.toContain('d2 cB A2 FA'); // should not have full bar
+  });
+
+  test('withAnacrucis=false, countAnacrucisInTotal=true (ignored)', () => {
+    // countAnacrucisInTotal should be ignored when withAnacrucis is false
+    const result = getFirstBars(tuneWithAnacrusis, 1, false, true);
+    
+    expect(result).not.toContain('K:D\nFA |');
+    expect(result).toContain('d2 cB A2 FA');
   });
 });
 
@@ -453,7 +672,6 @@ D2 FA |]`;
   });
 });
 
-
 describe('ABC Manipulator - getIncipit', () => {
   const tuneWithAnacrusis = `X:1
 T:Example Tune
@@ -470,17 +688,18 @@ FA | d2 cB A2 FA | d2 f2 e2 d2 | AAAA AAAA`;
 // D2 FA dA FD | G2 Bc d2 cB | A2 AB c2 BA |]`;
 
   describe('default incipit', () => {
-    test('two bars; no title', () => {
+    test('two bars’ worth; no title', () => {
       const result = getIncipit({abc:tuneWithAnacrusis});
 
       expect(result).toContain('X:1');
       expect(result).not.toContain('T:Example Tune');
       expect(result).toContain('M:4/4');
       expect(result).toContain('L:1/8');
-      expect(result).toContain('K:D\nFA | d2 cB A2 FA | d2 f2 e2 d2'); // anacrusis included
-      expect(result).not.toContain('AAAA');
+      expect(result).toContain('K:D\nFA | d2 cB A2 FA | d2 f2 e2 '); // anacrusis included
+      expect(result).not.toContain('d2 | AAAA');
       
     });
 
   });
 });
+

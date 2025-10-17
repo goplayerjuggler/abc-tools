@@ -415,58 +415,132 @@ function toggleMeter_6_8_to_12_8(abc) {
     return `${newHeaders.join('\n')}\n${newMusic}`;
   }
 }
-
 /**
- * Get the first N complete bars from ABC notation, with or without the anacrusis
+ * Get the first N complete or partial bars from ABC notation, with or without the anacrusis
  * Preserves all formatting, comments, spacing, and line breaks
  * @param {string} abc - ABC notation
- * @param {number} numBars - Number of bars to extract (default: 1). Todo: handle partial bars - values like 1.5 or new Fraction(3,2)
+ * @param {number|Fraction} numBars - Number of bars to extract (can be fractional, e.g., 1.5 or new Fraction(3,2))
  * @param {boolean} withAnacrucis - when flagged, the returned result also includes the anacrusis - incomplete bar (default: false)
- * @returns {string} - ABC with (optionally) the anacrusis, plus the first `numBars` complete bars
+ * @param {boolean} countAnacrucisInTotal - when true AND withAnacrucis is true, the anacrusis counts toward numBars duration (default: false)
+ * @param {object} headersToStrip - optional header stripping configuration {all:boolean, toKeep:string}
+ * @returns {string} - ABC with (optionally) the anacrusis, plus the first `numBars` worth of music
  */
-function getFirstBars(abc, numBars = 1, withAnacrucis = false, headersToStrip) {
+function getFirstBars(abc, numBars = 1, withAnacrucis = false, countAnacrucisInTotal = false, headersToStrip) {
   const {headerLines, musicText, barLines} = findBarLinePositions(abc, headersToStrip);
   const analysis = analyzeBarDurations(abc);
   const {bars, expectedBarDuration} = analysis;
 
-  // Find first complete bar (by bar index in the bars array)
-  let startBarIdx = -1;
+  // Convert numBars to Fraction if it's a number
+  const numBarsFraction = typeof numBars === 'number' 
+    ? new Fraction(Math.round(numBars * 1000), 1000)
+    : numBars;
+
+  // Calculate target duration
+  const targetDuration = expectedBarDuration.multiply(numBarsFraction);
+
+  // Find first complete bar index
+  let firstCompleteBarIdx = -1;
   for (let i = 0; i < bars.length; i++) {
     const barDuration = analysis.barDurations[i];
     if (barDuration.compare(expectedBarDuration) === 0) {
-      startBarIdx = i;
+      firstCompleteBarIdx = i;
       break;
     }
   }
 
-  if (startBarIdx === -1) {
+  if (firstCompleteBarIdx === -1) {
     throw new Error('No complete bars found');
   }
 
-  // Count N complete bars from start
-  const endBarIdx = startBarIdx + numBars - 1;
-
-  if (endBarIdx >= bars.length) {
-    throw new Error(`Not enough complete bars. Found ${bars.length - startBarIdx} complete bars, requested ${numBars}`);
-  }
-
-  // Each bar is followed by a bar line at barLines[i]
-  // Bar 0 is followed by barLines[0]
-  // Bar 1 is followed by barLines[1], etc.
-
-  // We want bars from startBarIdx to endBarIdx (inclusive)
-  // Start after the bar line preceding startBarIdx (which is barLines[startBarIdx - 1])
-  // If startBarIdx is 0 (no anacrusis), start from beginning
-  // End includes the bar line after endBarIdx (which is barLines[endBarIdx])
-
+  const hasPickup = firstCompleteBarIdx > 0;
+  
+  // Determine starting position in the music text
   let startPos = 0;
-  if (startBarIdx > 0 && !withAnacrucis) {
+  if (hasPickup && withAnacrucis) {
+    // Include anacrusis in output
+    startPos = 0;
+  } else if (hasPickup && !withAnacrucis) {
     // Skip anacrusis - start after its bar line
-    startPos = barLines[startBarIdx - 1].index + barLines[startBarIdx - 1].length;
+    startPos = barLines[firstCompleteBarIdx - 1].index + barLines[firstCompleteBarIdx - 1].length;
   }
-  // If withAnacrucis is true and startBarIdx > 0, we start from beginning (startPos = 0)
 
-  const endPos = barLines[endBarIdx].index + barLines[endBarIdx].length;
+  // Calculate accumulated duration for target calculation
+  let accumulatedDuration = new Fraction(0, 1);
+  if (hasPickup && withAnacrucis && countAnacrucisInTotal) {
+    // Count anacrusis toward target
+    accumulatedDuration = analysis.barDurations[0];
+  }
+
+  // Find the end position by accumulating bar durations from first complete bar
+  let endPos = startPos;
+  
+  for (let i = firstCompleteBarIdx; i < bars.length; i++) {
+    const barDuration = analysis.barDurations[i];
+    const newAccumulated = accumulatedDuration.add(barDuration);
+    
+    if (newAccumulated.compare(targetDuration) >= 0) {
+      // We've reached or exceeded target
+      
+      if (newAccumulated.compare(targetDuration) === 0) {
+        // Exact match - include full bar with its bar line
+        endPos = barLines[i].index + barLines[i].length;
+      } else {
+        // Need partial bar
+        const remainingDuration = targetDuration.subtract(accumulatedDuration);
+        
+        // Find position within this bar
+        const bar = bars[i];
+        let barAccumulated = new Fraction(0, 1);
+        
+        // Find where this bar starts in the music text
+        let barStartPos;
+        if (i === 0) {
+          barStartPos = 0;
+        } else {
+          barStartPos = barLines[i - 1].index + barLines[i - 1].length;
+        }
+        
+        // Skip whitespace at start of bar
+        while (barStartPos < musicText.length && /\s/.test(musicText[barStartPos])) {
+          barStartPos++;
+        }
+        
+        let notePos = 0;
+        for (let j = 0; j < bar.length; j++) {
+          const note = bar[j];
+          const prevBarAccumulated = barAccumulated.clone();
+          barAccumulated = barAccumulated.add(note.duration);
+          
+          // Find this note in the source text
+          const searchStart = barStartPos + notePos;
+          const noteIndex = musicText.indexOf(note.token, searchStart);
+          
+          if (noteIndex >= 0) {
+            notePos = noteIndex - barStartPos + note.token.length;
+            
+            // Check if we've reached or exceeded the remaining duration
+            if (barAccumulated.compare(remainingDuration) >= 0) {
+              // Include this note
+              endPos = noteIndex + note.token.length;
+              
+              // Skip trailing space if present
+              if (note.hasFollowingSpace && endPos < musicText.length && musicText[endPos] === ' ') {
+                endPos++;
+              }
+              break;
+            }
+          }
+        }
+      }
+      break;
+    }
+    
+    accumulatedDuration = newAccumulated;
+  }
+
+  if (endPos === startPos) {
+    throw new Error(`Not enough bars to satisfy request. Requested ${numBars} bars.`);
+  }
 
   // Extract the music section
   let selectedMusic = musicText.substring(startPos, endPos);
@@ -475,7 +549,6 @@ function getFirstBars(abc, numBars = 1, withAnacrucis = false, headersToStrip) {
   selectedMusic = selectedMusic.trimStart();
 
   // Reconstruct ABC
-
   return `${headerLines.join('\n')}\n${selectedMusic}`;
 }
 /**
@@ -495,10 +568,10 @@ function getIncipit({abc, numBars//, part=null
       || (currentMeter[0] === 4 && currentMeter[1] === 2  && unitLength.den === 8)
       || (currentMeter[0] === 12 && currentMeter[1] === 8 )
     ) {
-      numBars = 1//new Fraction(3,2)
+      numBars = new Fraction(3,2)
     }
   }
-  return getFirstBars(abc, numBars, true, {all: true} )
+  return getFirstBars(abc, numBars, true, true, {all: true} )
 }
 
 module.exports = {
