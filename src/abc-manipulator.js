@@ -2,14 +2,19 @@ const {Fraction} = require('./math.js');
 const {parseABCWithBars, extractMeter, extractUnitLength} = require('./abc-parser.js');
 
 // ============================================================================
-// ABC MANIPULATION FUNCTIONS
+// ABC manipulation functions
 // ============================================================================
-
 /**
  * Find all bar line positions in the ABC source
  * Returns array of {index, type, barNumber} where index is position in music section
+ * @param {string} abc the ABC source to be parsed
+ * @param {object} headersToStrip of the form {all:boolean, toKeep:string}. toKeep not yet implemented
+ * @returns headerLines,
+    musicText,
+    musicLines,
+    barLines
  */
-function findBarLinePositions(abc) {
+function findBarLinePositions(abc, headersToStrip) {
   const lines = abc.split('\n');
   const musicLines = [];
   let headerEndIndex = 0;
@@ -47,9 +52,12 @@ function findBarLinePositions(abc) {
       length: barLine.length
     });
   }
+  const headerLines = headersToStrip && headersToStrip.all
+    ? lines.slice(0, headerEndIndex).filter(s=>"XMLK".indexOf(s[0]) >= 0)
+    : lines.slice(0, headerEndIndex)
 
   return {
-    headerLines: lines.slice(0, headerEndIndex),
+    headerLines,
     musicText,
     musicLines,
     barLines
@@ -81,9 +89,27 @@ function analyzeBarDurations(abc) {
 }
 
 /**
+ * Detect if ABC notation has an anacrusis (pickup bar)
+ * @param {string} abc - ABC notation
+ * @returns {boolean} - True if anacrusis is present
+ */
+function hasAnacrucis(abc) {
+  const analysis = analyzeBarDurations(abc);
+  const {bars, expectedBarDuration} = analysis;
+
+  if (bars.length === 0) {
+    return false;
+  }
+
+  // Check if first bar is incomplete
+  const firstBarDuration = analysis.barDurations[0];
+  return firstBarDuration.compare(expectedBarDuration) < 0;
+}
+
+/**
  * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
  * This is a true inverse operation - going there and back preserves the ABC exactly
- * 
+ * Now handles anacrusis correctly
  */
 function toggleMeter_4_4_to_4_2(abc) {
   const currentMeter = extractMeter(abc);
@@ -112,22 +138,25 @@ function toggleMeter_4_4_to_4_2(abc) {
     return line;
   });
 
+  // Check for anacrusis
+  const hasPickup = hasAnacrucis(abc);
+
   if (is_4_4) {
     // Going from 4/4 to 4/2: remove every other bar line (except final)
-    // In 4/4: Bar0 | Bar1 | Bar2 | Bar3 |]
-    //         barLine[0] barLine[1] barLine[2] barLine[3]
-    // We want to merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
-    // So remove bar lines at indices: 0, 2, 4... (even indices, but not the last)
-
-    // 2025-10-17 Further requirement for 4/4=>4/2 (not yet implemented):
-    // handle anacrucis - if it starts with an anacrucis, then the format is
-    // Anacrucis | Bar0 | Bar1 | Bar2 | Bar3 |] 
-    // We want to merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
-    // So remove bar lines at indices: 0, 2, 4... (even indices, but not the last)
+    // If anacrusis: Anacrusis | Bar0 | Bar1 | Bar2 | Bar3 |]
+    //               barLine[0] barLine[1] barLine[2] barLine[3] barLine[4]
+    // Keep anacrusis, merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
+    // Remove bar lines at indices: 1, 3, ... (odd indices after anacrusis, but not the last)
+    //
+    // If no anacrusis: Bar0 | Bar1 | Bar2 | Bar3 |]
+    //                  barLine[0] barLine[1] barLine[2] barLine[3]
+    // Merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
+    // Remove bar lines at indices: 0, 2, ... (even indices, but not the last)
 
     const barLinesToRemove = new Set();
+    const startIndex = hasPickup ? 1 : 0;
 
-    for (let i = 0; i < barLines.length - 1; i += 2) {
+    for (let i = startIndex; i < barLines.length - 1; i += 2) {
       barLinesToRemove.add(barLines[i].index);
     }
 
@@ -157,23 +186,25 @@ function toggleMeter_4_4_to_4_2(abc) {
     }
     newMusic += musicText.substring(lastPos);
 
-    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
 
   } else {
     // Going from 4/2 to 4/4: add bar line in middle of each bar
     // We need to analyze where to split each bar
+    // If there's an anacrusis, skip it (first bar)
 
     const halfBarDuration = new Fraction(4, 4); // 4 quarter notes = 8 eighth notes = half of 4/2 bar
 
     // Calculate insertion points (middle of each bar)
     const insertionPoints = [];
 
-
     // Track cumulative position in music text
     let musicPos = 0;
     const parsed = parseABCWithBars(abc);
 
-    for (let barIdx = 0; barIdx < parsed.bars.length; barIdx++) {
+    const startBarIndex = hasPickup ? 1 : 0;
+
+    for (let barIdx = startBarIndex; barIdx < parsed.bars.length; barIdx++) {
       const bar = parsed.bars[barIdx];
       let barDuration = new Fraction(0, 1);
       let insertPos = null;
@@ -202,13 +233,12 @@ function toggleMeter_4_4_to_4_2(abc) {
             if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
               insertPos++;
             }
-            break
+            break;
           }
         }
       }
 
-      if (insertPos !== null //&& barIdx < parsed.bars.length - 1
-        ) {
+      if (insertPos !== null) {
         insertionPoints.push(insertPos);
       }
 
@@ -219,6 +249,16 @@ function toggleMeter_4_4_to_4_2(abc) {
           musicPos = barLinePos + barLines[barIdx].length;
         }
       }
+    }
+
+    // Need to account for anacrusis bar line position
+    if (hasPickup && barLines.length > 0) {
+      const anacrusisBarLinePos = musicText.indexOf(barLines[0].type, 0);
+      if (anacrusisBarLinePos >= 0) {
+        musicPos = anacrusisBarLinePos + barLines[0].length;
+      }
+    } else {
+      musicPos = 0;
     }
 
     // Insert bar lines at calculated positions
@@ -238,12 +278,13 @@ function toggleMeter_4_4_to_4_2(abc) {
     }
     newMusic += musicText.substring(lastPos);
 
-    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
   }
 }
 
 /**
  * Toggle between M:6/8 and M:12/8 (similar approach)
+ * Now handles anacrusis correctly
  */
 function toggleMeter_6_8_to_12_8(abc) {
   const currentMeter = extractMeter(abc);
@@ -269,11 +310,16 @@ function toggleMeter_6_8_to_12_8(abc) {
     return line;
   });
 
+  // Check for anacrusis
+  const hasPickup = hasAnacrucis(abc);
+
   if (is_6_8) {
     // Going from 6/8 to 12/8: remove every other bar line
+    // Handle anacrusis similarly to 4/4->4/2
     const barLinesToRemove = new Set();
+    const startIndex = hasPickup ? 1 : 0;
 
-    for (let i = 0; i < barLines.length - 1; i += 2) {
+    for (let i = startIndex; i < barLines.length - 1; i += 2) {
       barLinesToRemove.add(barLines[i].index);
     }
 
@@ -299,16 +345,19 @@ function toggleMeter_6_8_to_12_8(abc) {
     }
     newMusic += musicText.substring(lastPos);
 
-    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
 
   } else {
     // Going from 12/8 to 6/8: add bar line in middle of each bar
+    // Skip anacrusis if present
     const halfBarDuration = new Fraction(6, 1);
     const parsed = parseABCWithBars(abc);
     const insertionPoints = [];
     let musicPos = 0;
 
-    for (let barIdx = 0; barIdx < parsed.bars.length; barIdx++) {
+    const startBarIndex = hasPickup ? 1 : 0;
+
+    for (let barIdx = startBarIndex; barIdx < parsed.bars.length; barIdx++) {
       const bar = parsed.bars[barIdx];
       let barDuration = new Fraction(0, 1);
       let insertPos = null;
@@ -331,14 +380,12 @@ function toggleMeter_6_8_to_12_8(abc) {
             if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
               insertPos++;
             }
-            break
+            break;
           }
         }
       }
 
-      if (insertPos !== null //&& barIdx < parsed.bars.length - 1
-
-      ) {
+      if (insertPos !== null) {
         insertionPoints.push(insertPos);
       }
 
@@ -365,19 +412,20 @@ function toggleMeter_6_8_to_12_8(abc) {
     }
     newMusic += musicText.substring(lastPos);
 
-    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
   }
 }
 
 /**
- * Get the first N complete bars from ABC notation, ignoring anacrusis
+ * Get the first N complete bars from ABC notation, with or without the anacrusis
  * Preserves all formatting, comments, spacing, and line breaks
  * @param {string} abc - ABC notation
- * @param {number} numBars - Number of bars to extract (default: 1)
- * @returns {string} - ABC with only the first N complete bars
+ * @param {number} numBars - Number of bars to extract (default: 1). Todo: handle partial bars - values like 1.5 or new Fraction(3,2)
+ * @param {boolean} withAnacrucis - when flagged, the returned result also includes the anacrusis - incomplete bar (default: false)
+ * @returns {string} - ABC with (optionally) the anacrusis, plus the first `numBars` complete bars
  */
-function getFirstBars(abc, numBars = 1) {
-  const {headerLines, musicText, barLines} = findBarLinePositions(abc);
+function getFirstBars(abc, numBars = 1, withAnacrucis = false, headersToStrip) {
+  const {headerLines, musicText, barLines} = findBarLinePositions(abc, headersToStrip);
   const analysis = analyzeBarDurations(abc);
   const {bars, expectedBarDuration} = analysis;
 
@@ -412,10 +460,11 @@ function getFirstBars(abc, numBars = 1) {
   // End includes the bar line after endBarIdx (which is barLines[endBarIdx])
 
   let startPos = 0;
-  if (startBarIdx > 0) {
+  if (startBarIdx > 0 && !withAnacrucis) {
     // Skip anacrusis - start after its bar line
     startPos = barLines[startBarIdx - 1].index + barLines[startBarIdx - 1].length;
   }
+  // If withAnacrucis is true and startBarIdx > 0, we start from beginning (startPos = 0)
 
   const endPos = barLines[endBarIdx].index + barLines[endBarIdx].length;
 
@@ -426,13 +475,38 @@ function getFirstBars(abc, numBars = 1) {
   selectedMusic = selectedMusic.trimStart();
 
   // Reconstruct ABC
-  return `${headerLines.join('\n')  }\n${  selectedMusic}`;
+
+  return `${headerLines.join('\n')}\n${selectedMusic}`;
+}
+/**
+ * 
+ * @param {*} Object of the form {abc} with optional property: numBars
+ * @returns 
+ */
+function getIncipit({abc, numBars//, part=null
+  } = {}){
+
+  if(!numBars){
+    numBars = 2
+    const currentMeter = extractMeter(abc);
+    const unitLength = extractUnitLength(abc);
+    if(
+      (currentMeter[0] === 4 && currentMeter[1] === 4  && unitLength.den === 16)
+      || (currentMeter[0] === 4 && currentMeter[1] === 2  && unitLength.den === 8)
+      || (currentMeter[0] === 12 && currentMeter[1] === 8 )
+    ) {
+      numBars = 1//new Fraction(3,2)
+    }
+  }
+  return getFirstBars(abc, numBars, true, {all: true} )
 }
 
 module.exports = {
-  getFirstBars,
-  toggleMeter_4_4_to_4_2,
-  toggleMeter_6_8_to_12_8,
+  analyzeBarDurations,
   findBarLinePositions,
-  analyzeBarDurations
+  getFirstBars,
+  getIncipit,
+  hasAnacrucis,
+  toggleMeter_4_4_to_4_2,
+  toggleMeter_6_8_to_12_8
 };

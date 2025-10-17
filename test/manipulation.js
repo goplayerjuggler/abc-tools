@@ -1,13 +1,10 @@
 const {
   getFirstBars,
+  getIncipit,
   toggleMeter_4_4_to_4_2,
-  toggleMeter_6_8_to_12_8,
+  toggleMeter_6_8_to_12_8
   // hornpipeToSwing
 } = require('../src/index.js');
-
-// ============================================================================
-// TEST EXAMPLES
-// ============================================================================
 
 // Example 1: Get first bar (ignoring anacrusis)
 const tuneWithAnacrusis = `X:1
@@ -36,6 +33,13 @@ try {
 } catch (err) {
   console.error('Error:', err.message);
 }
+console.log('\n=== Example 2.1: Get incipit ===');
+try {
+  
+  console.log(getIncipit({abc:tuneWithAnacrusis}));
+} catch (err) {
+  console.error('Error:', err.message);
+}
 
 // Example 3: Toggle M:4/4 to M:4/2
 const tune_4_4 = `X:1
@@ -54,7 +58,7 @@ try {
   const converted = toggleMeter_4_4_to_4_2(tune_4_4);
   console.log(converted);
   console.log('\nConverted back to M:4/4:');
-  const convertedBack = toggleMeter_4_2_to_4_4(converted);
+  const convertedBack = toggleMeter_4_4_to_4_2(converted);
   console.log(convertedBack);
 } catch (err) {
   console.error('Error:', err.message);

@@ -22,23 +22,23 @@ module.exports = [
     ],
     rules: {
       ...js.configs.recommended.rules,
-      "no-console": "off",
-      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      // "arrow-spacing": "error"
+      "curly": ["error", "all"],
+      // "eol-last": ["error", "always"],
       "eqeqeq": ["error", "always"],
+      "no-console": "off",
       "no-eval": "error",
       "no-implied-eval": "error",
-      "no-with": "error",
-      "curly": ["error", "all"],
-      "indent": ["error", 2],
-      "quotes": ["error", "single", { avoidEscape: true }],
-      "semi": ["error", "always"],
-      "comma-dangle": ["error", "never"],
-      "no-trailing-spaces": "error",
-      "eol-last": ["error", "always"],
-      "prefer-const": "error",
+      // "no-trailing-spaces": "error",
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "no-var": "error",
+      "no-with": "error",
+      "prefer-const": "error",
       "prefer-template": "error",
-      "arrow-spacing": "error"
+      // "comma-dangle": ["error", "never"],
+      // "indent": ["error", 2],
+      // "quotes": ["error", "single", { avoidEscape: true }],
+      // "semi": ["error", "always"],
     }
   }
 ];
