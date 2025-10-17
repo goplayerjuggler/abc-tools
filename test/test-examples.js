@@ -1,9 +1,8 @@
 const {
   getFirstBars,
   toggleMeter_4_4_to_4_2,
-  //  toggleMeter_4_2_to_4_4,
   toggleMeter_6_8_to_12_8,
-  hornpipeToSwing
+  // hornpipeToSwing
 } = require('../src/index.js');
 
 // ============================================================================
@@ -54,9 +53,9 @@ console.log('\nConverted to M:4/2:');
 try {
   const converted = toggleMeter_4_4_to_4_2(tune_4_4);
   console.log(converted);
-  // console.log("\nConverted back to M:4/4:")
-  // const convertedBack = toggleMeter_4_2_to_4_4(converted)
-  // console.log(convertedBack)
+  console.log('\nConverted back to M:4/4:');
+  const convertedBack = toggleMeter_4_2_to_4_4(converted);
+  console.log(convertedBack);
 } catch (err) {
   console.error('Error:', err.message);
 }
@@ -81,27 +80,27 @@ try {
   console.error('Error:', err.message);
 }
 
-// Example 5: Hornpipe to swing
-const hornpipe = `X:1
-T:Example Hornpipe
-M:4/4
-L:1/8
-K:D
-D2 FA dA FD | C2 EG cE GC |
-B2 dB AF D2 | E2 GB e2 d2 |]`;
+// // Example 5: Hornpipe to swing
+// const hornpipe = `X:1
+// T:Example Hornpipe
+// M:4/4
+// L:1/8
+// K:D
+// D2 FA dA FD | C2 EG cE GC |
+// B2 dB AF D2 | E2 GB e2 d2 |]`;
 
-console.log('\n=== Example 5: Hornpipe to Swing ===');
-console.log('Original (M:4/4, straight eighth notes):');
-console.log(hornpipe);
-console.log('\nConverted to swing (M:12/8):');
-try {
-  const swing = hornpipeToSwing(hornpipe);
-  console.log(swing);
-  console.log('\nExplanation:');
-  console.log('- Pairs of equal eighth notes (FA) become swing rhythm (F2A)');
-  console.log('- Longer notes (D2) are proportionally extended (D3)');
-} catch (err) {
-  console.error('Error:', err.message);
-}
+// console.log('\n=== Example 5: Hornpipe to Swing ===');
+// console.log('Original (M:4/4, straight eighth notes):');
+// console.log(hornpipe);
+// console.log('\nConverted to swing (M:12/8):');
+// try {
+//   const swing = hornpipeToSwing(hornpipe);
+//   console.log(swing);
+//   console.log('\nExplanation:');
+//   console.log('- Pairs of equal eighth notes (FA) become swing rhythm (F2A)');
+//   console.log('- Longer notes (D2) are proportionally extended (D3)');
+// } catch (err) {
+//   console.error('Error:', err.message);
+// }
 
 console.log('\n=== Tests Complete ===');

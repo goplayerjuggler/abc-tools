@@ -6,76 +6,84 @@ const {parseABCWithBars, extractMeter, extractUnitLength} = require('./abc-parse
 // ============================================================================
 
 /**
- * Calculate the duration of a bar in terms of the unit length
+ * Find all bar line positions in the ABC source
+ * Returns array of {index, type, barNumber} where index is position in music section
  */
-function calculateBarDuration(meter) {
-  // Bar duration = meter / unitLength
-  // e.g., M:4/4, L:1/8 => (4/4) / (1/8) = 4/4 * 8/1 = 8
-  return new Fraction(meter[0], meter[1]);
-}
+function findBarLinePositions(abc) {
+  const lines = abc.split('\n');
+  const musicLines = [];
+  let headerEndIndex = 0;
+  let inHeaders = true;
 
-/**
- * Calculate the total duration of notes in a bar
- */
-function getBarDuration(bar) {
-  let total = new Fraction(0, 1);
-  for (const note of bar) {
-    total = total.add(note.duration);
+  // Separate headers from music
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed === '' || trimmed.startsWith('%')) {
+      continue;
+    }
+    if (inHeaders && trimmed.match(/^[A-Z]:/)) {
+      headerEndIndex = i + 1;
+      continue;
+    }
+    inHeaders = false;
+    musicLines.push({lineIndex: i, content: lines[i]});
   }
-  return total;
+
+  // Join music lines to get continuous music text
+  const musicText = musicLines.map(l => l.content).join('\n');
+
+  // Find all bar lines with their positions
+  const barLines = [];
+  const barLineRegex = /(\|\]|\[\||\|+)/g;
+  let match;
+  let barNumber = 0;
+
+  while ((match = barLineRegex.exec(musicText)) !== null) {
+    const barLine = match[1];
+    barLines.push({
+      index: match.index,
+      type: barLine,
+      barNumber: barNumber++,
+      length: barLine.length
+    });
+  }
+
+  return {
+    headerLines: lines.slice(0, headerEndIndex),
+    musicText,
+    musicLines,
+    barLines
+  };
 }
 
 /**
- * Check if a bar is complete (matches the expected bar duration)
+ * Calculate bar durations to identify which bars to merge/split
  */
-function isBarComplete(bar, expectedDuration) {
-  const barDuration = getBarDuration(bar);
-  return barDuration.compare(expectedDuration) === 0;
-}
-
-/**
- * Get the first N complete bars from ABC notation, ignoring anacrusis
- * @param {string} abc - ABC notation
- * @param {number} numBars - Number of bars to extract (default: 1)
- * @returns {string} - ABC with only the first N complete bars
- */
-function getFirstBars(abc, numBars = 1) {
+function analyzeBarDurations(abc) {
   const parsed = parseABCWithBars(abc);
   const {bars, unitLength, meter} = parsed;
 
-  const expectedBarDuration = calculateBarDuration(meter);
+  const expectedBarDuration = new Fraction(meter[0], meter[1]);
 
-  // Find first complete bar
-  let startIdx = 0;
-  for (let i = 0; i < bars.length; i++) {
-    if (isBarComplete(bars[i], expectedBarDuration)) {
-      startIdx = i;
-      break;
-    }
-  }
-
-  // Collect N complete bars from start
-  const selectedBars = [];
-  let count = 0;
-
-  for (let i = startIdx; i < bars.length && count < numBars; i++) {
-    if (isBarComplete(bars[i], expectedBarDuration)) {
-      selectedBars.push(bars[i]);
-      count++;
-    }
-  }
-
-  if (selectedBars.length === 0) {
-    throw new Error('No complete bars found');
-  }
-
-  // Reconstruct ABC
-  return reconstructABC(unitLength, abc, selectedBars);
+  return {
+    bars,
+    unitLength,
+    meter,
+    expectedBarDuration,
+    barDurations: bars.map(bar => {
+      let total = new Fraction(0, 1);
+      for (const note of bar) {
+        total = total.add(note.duration);
+      }
+      return total;
+    })
+  };
 }
 
 /**
- * Toggle between M:4/4 and M:4/2 (removes/adds every other bar line)
- * Works with L:1/8
+ * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
+ * This is a true inverse operation - going there and back preserves the ABC exactly
+ * 
  */
 function toggleMeter_4_4_to_4_2(abc) {
   const currentMeter = extractMeter(abc);
@@ -86,76 +94,161 @@ function toggleMeter_4_4_to_4_2(abc) {
     throw new Error('This function only works with L:1/8');
   }
 
-  const is_4_4 = currentMeter[0]===4 && currentMeter[1]===4;
-  const is_4_2 = currentMeter[0]===4 && currentMeter[2]===4;
+  const is_4_4 = currentMeter[0] === 4 && currentMeter[1] === 4;
+  const is_4_2 = currentMeter[0] === 4 && currentMeter[1] === 2;
 
   if (!is_4_4 && !is_4_2) {
     throw new Error('Meter must be 4/4 or 4/2');
   }
 
-  const parsed = parseABCWithBars(abc);
-  const {bars//, meter
-  	} = parsed;
+  // Get bar line positions
+  const {headerLines, musicText, barLines} = findBarLinePositions(abc);
+
+  // Change meter in headers
+  const newHeaders = headerLines.map(line => {
+    if (line.match(/^M:/)) {
+      return is_4_4 ? 'M:4/2' : 'M:4/4';
+    }
+    return line;
+  });
 
   if (is_4_4) {
-    // Going from 4/4 to 4/2: remove every other bar line
-    const newBars = [];
-    for (let i = 0; i < bars.length; i += 2) {
-      if (i + 1 < bars.length) {
-        // Merge two bars
-        newBars.push([...bars[i], ...bars[i + 1]]);
+    // Going from 4/4 to 4/2: remove every other bar line (except final)
+    // In 4/4: Bar0 | Bar1 | Bar2 | Bar3 |]
+    //         barLine[0] barLine[1] barLine[2] barLine[3]
+    // We want to merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
+    // So remove bar lines at indices: 0, 2, 4... (even indices, but not the last)
+
+    // 2025-10-17 Further requirement for 4/4=>4/2 (not yet implemented):
+    // handle anacrucis - if it starts with an anacrucis, then the format is
+    // Anacrucis | Bar0 | Bar1 | Bar2 | Bar3 |] 
+    // We want to merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
+    // So remove bar lines at indices: 0, 2, 4... (even indices, but not the last)
+
+    const barLinesToRemove = new Set();
+
+    for (let i = 0; i < barLines.length - 1; i += 2) {
+      barLinesToRemove.add(barLines[i].index);
+    }
+
+    // Reconstruct music by removing marked bar lines
+    let newMusic = '';
+    let lastPos = 0;
+
+    for (let i = 0; i < barLines.length; i++) {
+      const barLine = barLines[i];
+      newMusic += musicText.substring(lastPos, barLine.index);
+
+      if (!barLinesToRemove.has(barLine.index)) {
+        newMusic += barLine.type;
+        lastPos = barLine.index + barLine.length;
       } else {
-        // Odd number of bars, keep the last one
-        newBars.push(bars[i]);
+        // Remove the bar line - skip over it
+        lastPos = barLine.index + barLine.length;
+        // Preserve one space if there was whitespace
+        if (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+          newMusic += ' ';
+          // Skip the whitespace we just added
+          while (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+            lastPos++;
+          }
+        }
       }
     }
-    return reconstructABC(unitLength, abc, newBars, 'M:4/2');
+    newMusic += musicText.substring(lastPos);
+
+    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+
   } else {
-    // Going from 4/2 to 4/4: split each bar in half
-    const newBars = [];
-    const halfBarDuration = new Fraction(8, 1); // 4/4 with L:1/8 = 8 units
+    // Going from 4/2 to 4/4: add bar line in middle of each bar
+    // We need to analyze where to split each bar
 
-    for (const bar of bars) {
-      let currentDuration = new Fraction(0, 1);
-      const firstHalf = [];
-      const secondHalf = [];
-      let inSecondHalf = false;
+    const halfBarDuration = new Fraction(4, 4); // 4 quarter notes = 8 eighth notes = half of 4/2 bar
 
-      for (const note of bar) {
-        if (!inSecondHalf && currentDuration.compare(halfBarDuration) >= 0) {
-          inSecondHalf = true;
+    // Calculate insertion points (middle of each bar)
+    const insertionPoints = [];
+
+
+    // Track cumulative position in music text
+    let musicPos = 0;
+    const parsed = parseABCWithBars(abc);
+
+    for (let barIdx = 0; barIdx < parsed.bars.length; barIdx++) {
+      const bar = parsed.bars[barIdx];
+      let barDuration = new Fraction(0, 1);
+      let insertPos = null;
+      let charCount = 0;
+
+      // Find position where we've accumulated half a bar
+      for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
+        const note = bar[noteIdx];
+        const prevDuration = barDuration.clone();
+        barDuration = barDuration.add(note.duration);
+
+        // Find this note in the source text
+        const searchStart = musicPos + charCount;
+        const notePos = musicText.indexOf(note.token, searchStart);
+
+        if (notePos >= 0) {
+          charCount = notePos - musicPos + note.token.length;
+
+          // Check if we've just crossed the halfway point
+          if (prevDuration.compare(halfBarDuration) < 0 &&
+              barDuration.compare(halfBarDuration) >= 0) {
+            // Insert bar line after this note
+            insertPos = musicPos + charCount;
+
+            // Skip any trailing space that's part of this note
+            if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
+              insertPos++;
+            }
+            break
+          }
         }
-
-        if (inSecondHalf) {
-          secondHalf.push(note);
-        } else {
-          firstHalf.push(note);
-        }
-
-        currentDuration = currentDuration.add(note.duration);
       }
 
-      newBars.push(firstHalf);
-      if (secondHalf.length > 0) {
-        newBars.push(secondHalf);
+      if (insertPos !== null //&& barIdx < parsed.bars.length - 1
+        ) {
+        insertionPoints.push(insertPos);
+      }
+
+      // Move past this bar's bar line
+      if (barIdx < barLines.length) {
+        const barLinePos = musicText.indexOf(barLines[barIdx].type, musicPos);
+        if (barLinePos >= 0) {
+          musicPos = barLinePos + barLines[barIdx].length;
+        }
       }
     }
 
-    return reconstructABC(unitLength, abc, newBars, 'M:4/4');
+    // Insert bar lines at calculated positions
+    let newMusic = '';
+    let lastPos = 0;
+
+    // Sort insertion points and merge with existing bar lines
+    const allPositions = [
+      ...barLines.map(bl => ({pos: bl.index, isExisting: true, type: bl.type})),
+      ...insertionPoints.map(pos => ({pos, isExisting: false, type: '|'}))
+    ].sort((a, b) => a.pos - b.pos);
+
+    for (const item of allPositions) {
+      newMusic += musicText.substring(lastPos, item.pos);
+      newMusic += item.type;
+      lastPos = item.isExisting ? item.pos + item.type.length : item.pos;
+    }
+    newMusic += musicText.substring(lastPos);
+
+    return `${newHeaders.join('\n')  }\n${  newMusic}`;
   }
 }
 
-//todo:inverse function
-
 /**
- * Toggle between M:6/8 and M:12/8 (removes/adds every other bar line)
- * Works with L:1/8
+ * Toggle between M:6/8 and M:12/8 (similar approach)
  */
 function toggleMeter_6_8_to_12_8(abc) {
   const currentMeter = extractMeter(abc);
   const unitLength = extractUnitLength(abc);
 
-  // Check if L:1/8
   if (unitLength.compare(new Fraction(1, 8)) !== 0) {
     throw new Error('This function only works with L:1/8');
   }
@@ -167,233 +260,179 @@ function toggleMeter_6_8_to_12_8(abc) {
     throw new Error('Meter must be 6/8 or 12/8');
   }
 
-  const parsed = parseABCWithBars(abc);
-  const {bars} = parsed;
+  const {headerLines, musicText, barLines} = findBarLinePositions(abc);
+
+  const newHeaders = headerLines.map(line => {
+    if (line.match(/^M:/)) {
+      return is_6_8 ? 'M:12/8' : 'M:6/8';
+    }
+    return line;
+  });
 
   if (is_6_8) {
     // Going from 6/8 to 12/8: remove every other bar line
-    const newBars = [];
-    for (let i = 0; i < bars.length; i += 2) {
-      if (i + 1 < bars.length) {
-        newBars.push([...bars[i], ...bars[i + 1]]);
+    const barLinesToRemove = new Set();
+
+    for (let i = 0; i < barLines.length - 1; i += 2) {
+      barLinesToRemove.add(barLines[i].index);
+    }
+
+    let newMusic = '';
+    let lastPos = 0;
+
+    for (let i = 0; i < barLines.length; i++) {
+      const barLine = barLines[i];
+      newMusic += musicText.substring(lastPos, barLine.index);
+
+      if (!barLinesToRemove.has(barLine.index)) {
+        newMusic += barLine.type;
+        lastPos = barLine.index + barLine.length;
       } else {
-        newBars.push(bars[i]);
+        lastPos = barLine.index + barLine.length;
+        if (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+          newMusic += ' ';
+          while (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+            lastPos++;
+          }
+        }
       }
     }
-    return reconstructABC(unitLength, abc, newBars, 'M:12/8');
+    newMusic += musicText.substring(lastPos);
+
+    return `${newHeaders.join('\n')  }\n${  newMusic}`;
+
   } else {
-    // Going from 12/8 to 6/8: split each bar in half
-    const newBars = [];
-    const halfBarDuration = new Fraction(6, 1); // 6/8 with L:1/8 = 6 units
+    // Going from 12/8 to 6/8: add bar line in middle of each bar
+    const halfBarDuration = new Fraction(6, 1);
+    const parsed = parseABCWithBars(abc);
+    const insertionPoints = [];
+    let musicPos = 0;
 
-    for (const bar of bars) {
-      let currentDuration = new Fraction(0, 1);
-      const firstHalf = [];
-      const secondHalf = [];
-      let inSecondHalf = false;
+    for (let barIdx = 0; barIdx < parsed.bars.length; barIdx++) {
+      const bar = parsed.bars[barIdx];
+      let barDuration = new Fraction(0, 1);
+      let insertPos = null;
+      let charCount = 0;
 
-      for (const note of bar) {
-        if (!inSecondHalf && currentDuration.compare(halfBarDuration) >= 0) {
-          inSecondHalf = true;
+      for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
+        const note = bar[noteIdx];
+        const prevDuration = barDuration.clone();
+        barDuration = barDuration.add(note.duration);
+
+        const searchStart = musicPos + charCount;
+        const notePos = musicText.indexOf(note.token, searchStart);
+
+        if (notePos >= 0) {
+          charCount = notePos - musicPos + note.token.length;
+
+          if (prevDuration.compare(halfBarDuration) < 0 &&
+              barDuration.compare(halfBarDuration) >= 0) {
+            insertPos = musicPos + charCount;
+            if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
+              insertPos++;
+            }
+            break
+          }
         }
-
-        if (inSecondHalf) {
-          secondHalf.push(note);
-        } else {
-          firstHalf.push(note);
-        }
-
-        currentDuration = currentDuration.add(note.duration);
       }
 
-      newBars.push(firstHalf);
-      if (secondHalf.length > 0) {
-        newBars.push(secondHalf);
+      if (insertPos !== null //&& barIdx < parsed.bars.length - 1
+
+      ) {
+        insertionPoints.push(insertPos);
+      }
+
+      if (barIdx < barLines.length) {
+        const barLinePos = musicText.indexOf(barLines[barIdx].type, musicPos);
+        if (barLinePos >= 0) {
+          musicPos = barLinePos + barLines[barIdx].length;
+        }
       }
     }
 
-    return reconstructABC(unitLength, abc, newBars, 'M:6/8');
-  }
-}
+    let newMusic = '';
+    let lastPos = 0;
 
-//todo:inverse function
+    const allPositions = [
+      ...barLines.map(bl => ({pos: bl.index, isExisting: true, type: bl.type})),
+      ...insertionPoints.map(pos => ({pos, isExisting: false, type: '|'}))
+    ].sort((a, b) => a.pos - b.pos);
 
-/**
- * Convert hornpipe (M:4/4) to swing notation (M:12/8)
- * Converts pairs of equal-duration notes to swing rhythm
- * e.g., D2 FA -> D3 F2A (where the pair FA becomes F2A)
- */
-function hornpipeToSwing(abc) {
-  const currentMeter = extractMeter(abc);
-  const unitLength = extractUnitLength(abc);
-
-  // Check if M:4/4 and L:1/8
-  if (!(currentMeter[0]===4 && currentMeter[1]===4)) {
-    throw new Error('This function only works with M:4/4');
-  }
-  if (unitLength.compare(new Fraction(1, 8)) !== 0) {
-    throw new Error('This function only works with L:1/8');
-  }
-
-  const parsed = parseABCWithBars(abc);
-  const {bars} = parsed;
-
-  const swingBars = [];
-
-  for (const bar of bars) {
-    const swingBar = [];
-    let i = 0;
-
-    while (i < bar.length) {
-      const note = bar[i];
-
-      // Check if this note and the next form a pair of equal single-unit notes
-      if (i + 1 < bar.length) {
-        const nextNote = bar[i + 1];
-        const isEqualPair =
-          note.duration.compare(new Fraction(1, 1)) === 0 &&
-          nextNote.duration.compare(new Fraction(1, 1)) === 0;
-
-        if (isEqualPair) {
-          // Convert to swing: first note gets 2 units, second gets 1 unit
-          swingBar.push({
-            ...note,
-            duration: new Fraction(2, 1)
-          });
-          swingBar.push({
-            ...nextNote,
-            duration: new Fraction(1, 1)
-          });
-          i += 2;
-          continue;
-        }
-      }
-
-      // Not a pair, multiply duration by 1.5 (convert 4/4 to 12/8 proportionally)
-      swingBar.push({
-        ...note,
-        duration: note.duration.multiply(new Fraction(3, 2))
-      });
-      i++;
+    for (const item of allPositions) {
+      newMusic += musicText.substring(lastPos, item.pos);
+      newMusic += item.type;
+      lastPos = item.isExisting ? item.pos + item.type.length : item.pos;
     }
+    newMusic += musicText.substring(lastPos);
 
-    swingBars.push(swingBar);
+    return `${newHeaders.join('\n')  }\n${  newMusic}`;
   }
-
-  return reconstructABC(unitLength, abc, swingBars, 'M:12/8');
 }
 
 /**
- * Reconstruct ABC notation from header and bars of notes
+ * Get the first N complete bars from ABC notation, ignoring anacrusis
+ * Preserves all formatting, comments, spacing, and line breaks
+ * @param {string} abc - ABC notation
+ * @param {number} numBars - Number of bars to extract (default: 1)
+ * @returns {string} - ABC with only the first N complete bars
  */
-function reconstructABC(unitLength, originalABC, bars, newMeter = null) {
-  // Extract headers
-  const lines = originalABC.split('\n');
-  const headers = [];
+function getFirstBars(abc, numBars = 1) {
+  const {headerLines, musicText, barLines} = findBarLinePositions(abc);
+  const analysis = analyzeBarDurations(abc);
+  const {bars, expectedBarDuration} = analysis;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.match(/^[A-Z]:/)) {
-      // Replace meter if specified
-      if (newMeter && trimmed.match(/^M:/)) {
-        headers.push(newMeter);
-      } else {
-        headers.push(trimmed);
-      }
-    } else if (trimmed && !trimmed.startsWith('%')) {
+  // Find first complete bar (by bar index in the bars array)
+  let startBarIdx = -1;
+  for (let i = 0; i < bars.length; i++) {
+    const barDuration = analysis.barDurations[i];
+    if (barDuration.compare(expectedBarDuration) === 0) {
+      startBarIdx = i;
       break;
     }
   }
 
-  // Reconstruct music
-  const musicLines = [];
-  let currentLine = '';
-
-  for (let i = 0; i < bars.length; i++) {
-    const bar = bars[i];
-
-    for (const note of bar) {
-      currentLine += formatNote(note, unitLength) + (note.hasFollowingSpace ? ' ' : '');
-    }
-
-    currentLine+='|';
-
-    //todo: detect new lines and store them in bars and notes. Keep original line breaks. No longer do the following line break rule.
-    // Break into lines every 4 bars
-    if ((i + 1) % 4 === 0) {
-      musicLines.push(currentLine);
-      currentLine = [];
-    }
+  if (startBarIdx === -1) {
+    throw new Error('No complete bars found');
   }
 
-  // Add remaining notes
-  if (currentLine.length > 0) {
+  // Count N complete bars from start
+  const endBarIdx = startBarIdx + numBars - 1;
 
-    musicLines.push(currentLine);
-  } else if (musicLines.length > 0) {
-    // Change last bar line to final bar line
-    const lastLine = musicLines[musicLines.length - 1];
-    musicLines[musicLines.length - 1] = lastLine.replace(/\|$/, '|]');
+  if (endBarIdx >= bars.length) {
+    throw new Error(`Not enough complete bars. Found ${bars.length - startBarIdx} complete bars, requested ${numBars}`);
   }
 
-  return `${headers.join('\n')  }\n${  musicLines.join('\n')}`;
-}
+  // Each bar is followed by a bar line at barLines[i]
+  // Bar 0 is followed by barLines[0]
+  // Bar 1 is followed by barLines[1], etc.
 
-/**
- * Format a note object back to ABC notation
- */
-function formatNote(note, unitLength) {
-  if (note.isSilence) {
-    return formatDuration('z', note.duration, unitLength);
+  // We want bars from startBarIdx to endBarIdx (inclusive)
+  // Start after the bar line preceding startBarIdx (which is barLines[startBarIdx - 1])
+  // If startBarIdx is 0 (no anacrusis), start from beginning
+  // End includes the bar line after endBarIdx (which is barLines[endBarIdx])
+
+  let startPos = 0;
+  if (startBarIdx > 0) {
+    // Skip anacrusis - start after its bar line
+    startPos = barLines[startBarIdx - 1].index + barLines[startBarIdx - 1].length;
   }
 
-  let result = note.pitch;
+  const endPos = barLines[endBarIdx].index + barLines[endBarIdx].length;
 
-  // Add octave markers
-  if (note.octave > 0) {
-    result += "'".repeat(note.octave);
-  } else if (note.octave < 0) {
-    result += ','.repeat(-note.octave);
-  }
+  // Extract the music section
+  let selectedMusic = musicText.substring(startPos, endPos);
 
-  return formatDuration(result, note.duration, unitLength);
-}
+  // Remove leading whitespace
+  selectedMusic = selectedMusic.trimStart();
 
-/**
- * Format duration for ABC notation
- * todo: triplets
- */
-function formatDuration(noteStr, duration, unitLength) {
-
-  const durationInUnitLength = duration.divide(unitLength);
-
-  if (durationInUnitLength.num === 1 && durationInUnitLength.den === 1) {
-    return noteStr;
-  }
-
-  if (durationInUnitLength.den === 1) {
-    return noteStr + durationInUnitLength.num;
-  }
-
-  if (durationInUnitLength.num === 1) {
-    if (durationInUnitLength.den === 2) {
-      return `${noteStr  }/`;
-    }
-    if (durationInUnitLength.den === 4) {
-      return `${noteStr  }//`;
-    }
-  }
-
-
-  return `${noteStr + durationInUnitLength.num  }/${  durationInUnitLength.den}`;
+  // Reconstruct ABC
+  return `${headerLines.join('\n')  }\n${  selectedMusic}`;
 }
 
 module.exports = {
   getFirstBars,
   toggleMeter_4_4_to_4_2,
   toggleMeter_6_8_to_12_8,
-  hornpipeToSwing,
-  calculateBarDuration,
-  getBarDuration,
-  isBarComplete
+  findBarLinePositions,
+  analyzeBarDurations
 };

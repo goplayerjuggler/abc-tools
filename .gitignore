@@ -5,6 +5,8 @@ node_modules/
 *.log
 log.txt
 npm-debug.log*
+testOutput.txt
+testResults.txt
 
 ignored/
 tmp/

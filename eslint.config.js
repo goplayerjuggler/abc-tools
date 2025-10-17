@@ -1,17 +1,20 @@
 const js = require("@eslint/js");
 const globals = require("globals");
+const pluginJest = require('eslint-plugin-jest');
 
 module.exports = [
   {
     ...js.configs.recommended,
+    plugins: { jest: pluginJest },
     languageOptions: {
       ...js.configs.recommended.languageOptions,
       globals: {
-        ...globals.node,
+        ...globals.node,...pluginJest.environments.globals.globals
       },
       ecmaVersion: 12,
       sourceType: "module",
     },
+    
     ignores: [
       "**/node_modules/",
       "**/coverage/",
