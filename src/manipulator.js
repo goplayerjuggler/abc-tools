@@ -1,5 +1,5 @@
 const {Fraction} = require('./math.js');
-const {parseABCWithBars, extractMeter, extractUnitLength} = require('./abc-parser.js');
+const {parseABCWithBars, extractMeter, extractUnitLength} = require('./parser.js');
 
 // ============================================================================
 // ABC manipulation functions
@@ -350,7 +350,7 @@ function toggleMeter_6_8_to_12_8(abc) {
   } else {
     // Going from 12/8 to 6/8: add bar line in middle of each bar
     // Skip anacrusis if present
-    const halfBarDuration = new Fraction(6, 1);
+    const halfBarDuration = new Fraction(6, 8);
     const parsed = parseABCWithBars(abc);
     const insertionPoints = [];
     let musicPos = 0;

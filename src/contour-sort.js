@@ -4,7 +4,7 @@ const {
   extractUnitLength,
   parseNote,
   tokeniseABC
-} = require('./abc-parser.js');
+} = require('./parser.js');
 
 /**
  * Tune Contour Sort - Modal melody sorting algorithm

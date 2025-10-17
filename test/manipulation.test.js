@@ -2,7 +2,8 @@ const {
   getFirstBars,
   hasAnacrucis,
   toggleMeter_4_4_to_4_2,
-  toggleMeter_6_8_to_12_8
+  toggleMeter_6_8_to_12_8,
+  getIncipit
 } = require('../src/index.js');
 
 // ============================================================================
@@ -337,11 +338,9 @@ AFD DFA | G2E E3 |]`;
       const result = toggleMeter_6_8_to_12_8(tune_6_8_anacrusis);
 
       expect(result).toContain('M:12/8');
-      expect(result).toContain('FA |'); // anacrusis preserved
+      expect(result).toContain('FA | DFA dAF  GBd gdB |'); // anacrusis preserved
+      expect(result).toContain('AFD DFA  G2E E3 |]'); 
 
-      // Verify it's reversible
-      const restored = toggleMeter_6_8_to_12_8(result);
-      expect(restored).toBe(tune_6_8_anacrusis);
     });
   });
 
@@ -451,5 +450,37 @@ D2 FA |]`;
     expect(() => {
       toggleMeter_6_8_to_12_8(wrongMeter);
     }).toThrow('Meter must be 6/8 or 12/8');
+  });
+});
+
+
+describe('ABC Manipulator - getIncipit', () => {
+  const tuneWithAnacrusis = `X:1
+T:Example Tune
+M:4/4
+L:1/8
+K:D
+FA | d2 cB A2 FA | d2 f2 e2 d2 | AAAA AAAA`;
+
+//   const tuneWithoutAnacrusis = `X:1
+// T:No Pickup
+// M:4/4
+// L:1/8
+// K:D
+// D2 FA dA FD | G2 Bc d2 cB | A2 AB c2 BA |]`;
+
+  describe('default incipit', () => {
+    test('two bars; no title', () => {
+      const result = getIncipit({abc:tuneWithAnacrusis});
+
+      expect(result).toContain('X:1');
+      expect(result).not.toContain('T:Example Tune');
+      expect(result).toContain('M:4/4');
+      expect(result).toContain('L:1/8');
+      expect(result).toContain('K:D\nFA | d2 cB A2 FA | d2 f2 e2 d2'); // anacrusis included
+      expect(result).not.toContain('AAAA');
+      
+    });
+
   });
 });

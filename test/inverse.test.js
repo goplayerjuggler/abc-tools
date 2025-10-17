@@ -105,7 +105,7 @@ M:6/8
 L:1/8
 K:G
 ~D3 EFG | ABc d2e |
-(3fed cBA | G3 G3 |]`;
+A(3fed cBA | G3 G3 |]`;
 
 	  const transformed = toggleMeter_6_8_to_12_8(complex_6_8);
 	  const restored = toggleMeter_6_8_to_12_8(transformed);
@@ -293,8 +293,8 @@ FA | d2 cB A2 FA | d2 f2 e2 d2 |`;
 
 	  const result = getFirstBars(abc, 1, false);
 
-	  expect(result).not.toContain('FA |');
-	  expect(result).toContain('d2 cB A2 FA');
+	  expect(result).not.toContain('K:D\nFA |');
+	  expect(result).toContain('K:D\nd2 cB A2 FA');
 	  expect(result).not.toContain('| d2 f2 e2 d2 |');
     });
 

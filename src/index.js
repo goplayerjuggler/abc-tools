@@ -3,8 +3,8 @@
  * Main entry point for ABC parsing, manipulation, and sorting
  */
 
-const parser = require('./abc-parser.js');
-const manipulator = require('./abc-manipulator.js');
+const parser = require('./parser.js');
+const manipulator = require('./manipulator.js');
 const sort = require('./contour-sort.js');
 
 module.exports = {
