@@ -26,20 +26,59 @@ L:1/8
 K:D
 D2 FA dA FD | G2 Bc d2 cB | A2 AB c2 BA |]`;
 
+  const tuneWithAnacrusisAndChords = `X:1
+T:tuneWithAnacrusisAndChords
+M:4/4
+L:1/8
+K:D
+"F#-"FA | "D"d2 cB "F#-"A2 FA |"D"d2 f2 "A"e2 d2 |]`;
+
+  const tuneWithChordsWithoutAnacrusis = `X:1
+T:tuneWithChordsWithoutAnacrusis
+M:4/4
+L:1/8
+K:D
+"D"d2 cB "F#-"A2 FA |"D"d2 f2 "A"e2 d2 |`;
+
+const cotillon_aComplexMultiFeaturedTune = `%with double stops and phrase marks
+X: 1 %230324
+T: Cotillon de Baie-Ste-Catherine
+R: reel
+S: Laurie Hart
+D: Danse ce soir ! Traditional tunes of Québec • 2001
+F: https://music.youtube.com/watch?v=MIXYs91NGH8
+M: 4/4
+L: 1/16
+Q: 1/4=110
+Z: Transcribed by Malcolm Schonfield
+P:A4.B3
+K: Gmaj
+G3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB | AGFG {AB}A2GB [1,3 dedc BAGA:| [2,4 .d2F2 [2G3A :| [4 G3B |
+| [M:1/4] dcBc  [P:B] |: [M:5/4] d2.g2 .D2.g2 .D2.g2 D2[DB][DB] [Dc][DB][DA][DB] |1,2 c2.a2 [D2A2]a2 .a2.a2 D2[DB][Dc] [Dd][Dc][DB][Dc] :|3 [M: 4/4] c2a2 {ga}[g2A2][f2A2] .g2.g2 G3!D.S.!A|]`
   describe('single bar extraction', () => {
     test('extracts first bar from tune with anacrusis (excluding pickup)', () => {
       const result = getFirstBars(tuneWithAnacrusis, 1, false);
 
-      expect(result).toContain('X:1');
-      expect(result).toContain('T:Example Tune');
-      expect(result).toContain('M:4/4');
-      expect(result).toContain('L:1/8');
-      expect(result).toContain('K:D');
-      expect(result).toContain('K:D\nd2 cB A2 FA');
+      expect(result).toContain(`X:1
+T:Example Tune
+M:4/4
+L:1/8
+K:D\nd2 cB A2 FA`)
       expect(result).not.toContain('K:D\nFA |'); // anacrusis excluded
       expect(result).not.toContain('d2 f2 e2 d2');
     });
+    test('extracts first bar from tune with anacrusis (excluding pickup) - with chords', () => {
+      const result = getFirstBars(tuneWithAnacrusisAndChords, 1, false);
 
+      expect(result).toContain(`X:1
+T:tuneWithAnacrusisAndChords
+M:4/4
+L:1/8
+K:D`);
+      expect(result).toContain('K:D\n"D"d2 cB "F#-"A2 FA');
+      expect(result).not.toContain('K:D\n"F#-"FA |'); // anacrusis excluded
+      expect(result).not.toContain('"D"d2 f2 "A"e2 d2');
+    });
     test('extracts first bar from tune with anacrusis (including pickup)', () => {
       const result = getFirstBars(tuneWithAnacrusis, 1, true);
 
@@ -47,16 +86,46 @@ D2 FA dA FD | G2 Bc d2 cB | A2 AB c2 BA |]`;
       expect(result).toContain('d2 cB A2 FA');
       expect(result).not.toContain('d2 f2 e2 d2');
     });
+    test('extracts first bar from tune with anacrusis (including pickup) - with chords', () => {
+      const result = getFirstBars(tuneWithAnacrusisAndChords, 1, true);
 
+      expect(result).toContain(`X:1
+T:tuneWithAnacrusisAndChords
+M:4/4
+L:1/8
+K:D`);
+      expect(result).toContain('K:D\n"F#-"FA | "D"d2 cB "F#-"A2 FA');
+      expect(result).not.toContain('K:D\n"D"d2 cB'); 
+      expect(result).not.toContain('|"D"d2 f2 "A"e2 d2');
+    });
     test('extracts first bar from tune without anacrusis', () => {
       const result = getFirstBars(tuneWithoutAnacrusis, 1, false);
 
       expect(result).toContain('D2 FA dA FD');
       expect(result).not.toContain('G2 Bc d2 cB');
     });
+    test('extracts first bar from tune with chords without anacrusis', () => {
+      const result = getFirstBars(tuneWithChordsWithoutAnacrusis, 1, false);
+
+      expect(result).toContain('K:D\n"D"d2 cB "F#-"A2 FA');
+      expect(result).not.toContain('|"D"d2 f2 "A"e2 d2');
+    });
+    test.skip(//issue with repeat bar line
+      'extracts first bar from complex tune with anacrusis', () => {
+      const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, false);
+      expect(result).toContain('K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB');
+      expect(result).not.toContain('AGFG');
+    });
   });
 
   describe('multiple bar extraction', () => {
+    test('extracts first bar (including anacrusis)', () => {
+      const result = getFirstBars(tuneWithAnacrusis, 1, true);
+
+      expect(result).toContain('K:D\nFA |'); // anacrusis included
+      expect(result).toContain('d2 cB A2 FA');
+      expect(result).not.toContain('d2 f2 e2 d2');
+    });
     test('extracts first two bars (excluding anacrusis)', () => {
       const result = getFirstBars(tuneWithAnacrusis, 2, false);
 
@@ -71,6 +140,13 @@ D2 FA dA FD | G2 Bc d2 cB | A2 AB c2 BA |]`;
       expect(result).toContain('K:D\nFA |'); // anacrusis included
       expect(result).toContain('d2 cB A2 FA');
       expect(result).toContain('d2 f2 e2 d2');
+    });
+
+    
+    test('extracts first bar from complex tune, including anacrucis', () => {
+      const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, true);
+      expect(result).toContain('K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB');
+      expect(result).not.toContain('AGFG');
     });
 
     test('extracts first three bars from longer tune', () => {

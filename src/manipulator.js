@@ -9,10 +9,7 @@ const {parseABCWithBars, extractMeter, extractUnitLength} = require('./parser.js
  * Returns array of {index, type, barNumber} where index is position in music section
  * @param {string} abc the ABC source to be parsed
  * @param {object} headersToStrip of the form {all:boolean, toKeep:string}. toKeep not yet implemented
- * @returns headerLines,
-    musicText,
-    musicLines,
-    barLines
+ * @returns headerLines, musicText, musicLines, barLines
  */
 function findBarLinePositions(abc, headersToStrip) {
   const lines = abc.split('\n');
@@ -22,16 +19,26 @@ function findBarLinePositions(abc, headersToStrip) {
 
   // Separate headers from music
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
+    let trimmed = lines[i].trim();
+    
+    // Skip empty and comment lines
     if (trimmed === '' || trimmed.startsWith('%')) {
       continue;
     }
+    
     if (inHeaders && trimmed.match(/^[A-Z]:/)) {
       headerEndIndex = i + 1;
       continue;
     }
     inHeaders = false;
-    musicLines.push({lineIndex: i, content: lines[i]});
+    
+    // Remove inline comments and line continuations for processing
+    trimmed = trimmed.replace(/\s*%.*$/, '').trim();
+    trimmed = trimmed.replace(/\\\s*$/, '').trim();
+    
+    if (trimmed) {
+      musicLines.push({lineIndex: i, content: trimmed});
+    }
   }
 
   // Join music lines to get continuous music text
@@ -81,6 +88,10 @@ function analyzeBarDurations(abc) {
     barDurations: bars.map(bar => {
       let total = new Fraction(0, 1);
       for (const note of bar) {
+        // Skip inline fields, standalone chord symbols, and dummy notes
+        if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+          continue;
+        }
         total = total.add(note.duration);
       }
       return total;
@@ -143,16 +154,6 @@ function toggleMeter_4_4_to_4_2(abc) {
 
   if (is_4_4) {
     // Going from 4/4 to 4/2: remove every other bar line (except final)
-    // If anacrusis: Anacrusis | Bar0 | Bar1 | Bar2 | Bar3 |]
-    //               barLine[0] barLine[1] barLine[2] barLine[3] barLine[4]
-    // Keep anacrusis, merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
-    // Remove bar lines at indices: 1, 3, ... (odd indices after anacrusis, but not the last)
-    //
-    // If no anacrusis: Bar0 | Bar1 | Bar2 | Bar3 |]
-    //                  barLine[0] barLine[1] barLine[2] barLine[3]
-    // Merge: (Bar0 + Bar1) | (Bar2 + Bar3) |]
-    // Remove bar lines at indices: 0, 2, ... (even indices, but not the last)
-
     const barLinesToRemove = new Set();
     const startIndex = hasPickup ? 1 : 0;
 
@@ -190,15 +191,8 @@ function toggleMeter_4_4_to_4_2(abc) {
 
   } else {
     // Going from 4/2 to 4/4: add bar line in middle of each bar
-    // We need to analyze where to split each bar
-    // If there's an anacrusis, skip it (first bar)
-
-    const halfBarDuration = new Fraction(4, 4); // 4 quarter notes = 8 eighth notes = half of 4/2 bar
-
-    // Calculate insertion points (middle of each bar)
+    const halfBarDuration = new Fraction(4, 4);
     const insertionPoints = [];
-
-    // Track cumulative position in music text
     let musicPos = 0;
     const parsed = parseABCWithBars(abc);
 
@@ -213,6 +207,17 @@ function toggleMeter_4_4_to_4_2(abc) {
       // Find position where we've accumulated half a bar
       for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
         const note = bar[noteIdx];
+        
+        // Skip inline fields, standalone chord symbols, and dummy notes
+        if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+          const searchStart = musicPos + charCount;
+          const notePos = musicText.indexOf(note.token, searchStart);
+          if (notePos >= 0) {
+            charCount = notePos - musicPos + note.token.length;
+          }
+          continue;
+        }
+        
         const prevDuration = barDuration.clone();
         barDuration = barDuration.add(note.duration);
 
@@ -230,7 +235,7 @@ function toggleMeter_4_4_to_4_2(abc) {
             insertPos = musicPos + charCount;
 
             // Skip any trailing space that's part of this note
-            if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
+            if (note.spacing && note.spacing.whitespace && musicText[insertPos] === ' ') {
               insertPos++;
             }
             break;
@@ -315,7 +320,6 @@ function toggleMeter_6_8_to_12_8(abc) {
 
   if (is_6_8) {
     // Going from 6/8 to 12/8: remove every other bar line
-    // Handle anacrusis similarly to 4/4->4/2
     const barLinesToRemove = new Set();
     const startIndex = hasPickup ? 1 : 0;
 
@@ -349,7 +353,6 @@ function toggleMeter_6_8_to_12_8(abc) {
 
   } else {
     // Going from 12/8 to 6/8: add bar line in middle of each bar
-    // Skip anacrusis if present
     const halfBarDuration = new Fraction(6, 8);
     const parsed = parseABCWithBars(abc);
     const insertionPoints = [];
@@ -365,6 +368,17 @@ function toggleMeter_6_8_to_12_8(abc) {
 
       for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
         const note = bar[noteIdx];
+        
+        // Skip inline fields, standalone chord symbols, and dummy notes
+        if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+          const searchStart = musicPos + charCount;
+          const notePos = musicText.indexOf(note.token, searchStart);
+          if (notePos >= 0) {
+            charCount = notePos - musicPos + note.token.length;
+          }
+          continue;
+        }
+        
         const prevDuration = barDuration.clone();
         barDuration = barDuration.add(note.duration);
 
@@ -377,7 +391,7 @@ function toggleMeter_6_8_to_12_8(abc) {
           if (prevDuration.compare(halfBarDuration) < 0 &&
               barDuration.compare(halfBarDuration) >= 0) {
             insertPos = musicPos + charCount;
-            if (note.hasFollowingSpace && musicText[insertPos] === ' ') {
+            if (note.spacing && note.spacing.whitespace && musicText[insertPos] === ' ') {
               insertPos++;
             }
             break;
@@ -508,7 +522,17 @@ function getFirstBars(abc, numBars = 1, withAnacrucis = false, countAnacrucisInT
         let notePos = 0;
         for (let j = 0; j < bar.length; j++) {
           const note = bar[j];
-          const prevBarAccumulated = barAccumulated.clone();
+          
+          // Skip inline fields, standalone chord symbols, and dummy notes for duration calculation
+          if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+            const searchStart = barStartPos + notePos;
+            const noteIndex = musicText.indexOf(note.token, searchStart);
+            if (noteIndex >= 0) {
+              notePos = noteIndex - barStartPos + note.token.length;
+            }
+            continue;
+          }
+          
           barAccumulated = barAccumulated.add(note.duration);
           
           // Find this note in the source text
@@ -524,7 +548,7 @@ function getFirstBars(abc, numBars = 1, withAnacrucis = false, countAnacrucisInT
               endPos = noteIndex + note.token.length;
               
               // Skip trailing space if present
-              if (note.hasFollowingSpace && endPos < musicText.length && musicText[endPos] === ' ') {
+              if (note.spacing && note.spacing.whitespace && endPos < musicText.length && musicText[endPos] === ' ') {
                 endPos++;
               }
               break;
