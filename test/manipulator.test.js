@@ -110,10 +110,10 @@ K:D`);
       expect(result).toContain('K:D\n"D"d2 cB "F#-"A2 FA');
       expect(result).not.toContain('|"D"d2 f2 "A"e2 d2');
     });
-    test.skip(//issue with repeat bar line
+    test(
       'extracts first bar from complex tune with anacrusis', () => {
       const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, false);
-      expect(result).toContain('K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB');
+      expect(result).toContain('K: Gmaj\n!segno! B2[BE][BE] EBGB dedB cdcB');
       expect(result).not.toContain('AGFG');
     });
   });

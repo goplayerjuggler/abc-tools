@@ -46,7 +46,7 @@ function findBarLinePositions(abc, headersToStrip) {
 
   // Find all bar lines with their positions
   const barLines = [];
-  const barLineRegex = /(\|\]|\[\||\|+)/g;
+  const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|))/g;
   let match;
   let barNumber = 0;
 
