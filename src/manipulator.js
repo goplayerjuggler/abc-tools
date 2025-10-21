@@ -466,7 +466,7 @@ function toggleMeter_6_8_to_12_8(abc) {
     newMusic += musicText.substring(lastPos);
 
     // Restore line breaks using parsed structure
-    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, bars, barLines, 0, newMusic.length);
+    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, 'add');
     
     return `${newHeaders.join('\n')}\n${musicWithLineBreaks}`;
   }
