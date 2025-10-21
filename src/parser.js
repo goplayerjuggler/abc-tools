@@ -1,9 +1,9 @@
-const {Fraction} = require('./math.js');
+const { Fraction } = require("./math.js");
 
 // ============================================================================
 // ABC PARSING UTILITIES
 // ============================================================================
-// 
+//
 // SUPPORTED FEATURES (ABC v2.1):
 // - Basic note notation (pitch, octave markers, accidentals)
 // - Duration modifiers (explicit numbers, fractions, slashes)
@@ -11,7 +11,7 @@ const {Fraction} = require('./math.js');
 // - Dummy note: y (for spacing/alignment)
 // - Back quotes: ` (ignored spacing for legibility, preserved in metadata)
 // - Triplets: (3ABC, (3A/B/C/, (3A2B2C2
-// - Repeat notation: |:, :|, |1, |2, etc. 
+// - Repeat notation: |:, :|, |1, |2, etc.
 // - Bar lines: |, ||, |], [|, etc.
 // - Decorations: symbol decorations (~.MPSTHUV) and !name! decorations
 // - Chord symbols: "Dm7", "G", etc.
@@ -41,10 +41,10 @@ const NOTE_TO_DEGREE = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 /**
  * Extract key signature from ABC header
  */
-function extractTonalBase(abc) {
+function getTonalBase(abc) {
   const keyMatch = abc.match(/^K:\s*([A-G])/m);
   if (!keyMatch) {
-    throw new Error('No key signature found in ABC');
+    throw new Error("No key signature found in ABC");
   }
   return keyMatch[1].toUpperCase();
 }
@@ -52,7 +52,7 @@ function extractTonalBase(abc) {
 /**
  * Extract meter from ABC header
  */
-function extractMeter(abc) {
+function getMeter(abc) {
   const meterMatch = abc.match(/^M:\s*(\d+)\/(\d+)/m);
   if (meterMatch) {
     return [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
@@ -63,7 +63,7 @@ function extractMeter(abc) {
 /**
  * Extract unit note length as a Fraction object
  */
-function extractUnitLength(abc) {
+function getUnitLength(abc) {
   const lengthMatch = abc.match(/^L:\s*(\d+)\/(\d+)/m);
   if (lengthMatch) {
     return new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
@@ -75,12 +75,12 @@ function extractUnitLength(abc) {
  * Process ABC lines: extract music lines with metadata
  * Handles comments, line continuations, and separates headers from music
  * Preserves newline positions for layout tracking
- * 
+ *
  * @param {string} abc - ABC notation string
  * @returns {object} - { musicText, lineMetadata, newlinePositions, headerLines, headerEndIndex }
  */
-function extractMusicLines(abc) {
-  const lines = abc.split('\n');
+function getMusicLines(abc) {
+  const lines = abc.split("\n");
   const musicLines = [];
   const lineMetadata = [];
   const newlinePositions = [];
@@ -92,15 +92,15 @@ function extractMusicLines(abc) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     let trimmed = line.trim();
-    
+
     // Skip empty lines and comment-only lines
-    if (trimmed === '' || trimmed.startsWith('%')) {
+    if (trimmed === "" || trimmed.startsWith("%")) {
       if (inHeaders) {
         headerEndIndex = i + 1;
       }
       continue;
     }
-    
+
     // Check for header lines
     if (inHeaders && trimmed.match(/^[A-Z]:/)) {
       headerLines.push(line);
@@ -108,18 +108,18 @@ function extractMusicLines(abc) {
       continue;
     }
     inHeaders = false;
-    
+
     // Extract inline comment if present
     const commentMatch = trimmed.match(/\s*%(.*)$/);
     const comment = commentMatch ? commentMatch[1].trim() : null;
-    
+
     // Check for line continuation
     const hasContinuation = trimmed.match(/\\\s*(%|$)/) !== null;
-    
+
     // Remove inline comments and line continuation marker
-    trimmed = trimmed.replace(/\s*%.*$/, '').trim();
-    trimmed = trimmed.replace(/\\\s*$/, '').trim();
-    
+    trimmed = trimmed.replace(/\s*%.*$/, "").trim();
+    trimmed = trimmed.replace(/\\\s*$/, "").trim();
+
     if (trimmed) {
       musicLines.push(trimmed);
       lineMetadata.push({
@@ -127,46 +127,63 @@ function extractMusicLines(abc) {
         originalLine: line,
         content: trimmed,
         comment,
-        hasContinuation
+        hasContinuation,
       });
-      
+
       // Track position where newline would be (unless continuation)
       if (!hasContinuation && musicLines.length > 1) {
         newlinePositions.push(currentPos);
       }
-      
+
       currentPos += trimmed.length + 1; // +1 for the space we'll add when joining
     }
   }
 
   return {
-    musicText: musicLines.join('\n'),
+    musicText: musicLines.join("\n"),
     lineMetadata,
     newlinePositions,
     headerLines,
-    headerEndIndex
+    headerEndIndex,
   };
 }
 
-/**
- * Expand triplet notation into fractional durations
- * Converts (3ABC -> A2/3 B2/3 C2/3, etc.
- * Also strips back quotes (`) which are ignored spacing characters
- * 
- * @param {string} music - Music text
- * @returns {string} - Music with expanded triplets and stripped back quotes
- */
-function expandTriplets(music) {
-  return music
-    // Remove back quotes (ignored spacing characters per ABC spec 4.7)
-    .replace(/`/g, '')
-    // Simple triplets: (3CDE -> C2/3 D2/3 E2/3
-    .replace(/\(3:?([A-Ga-g][',]*)([A-Ga-g][',]*)([A-Ga-g][',]*)(?![/0-9])/g, '$12/3$22/3$32/3')
-    // Triplets with slashes: (3C/D/E/ -> C1/3 D1/3 E1/3
-    .replace(/\(3:?([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/(?![/0-9])/g, '$11/3$21/3$31/3')
-    // Triplets with double length: (3C2D2E2 -> C4/3 D4/3 E4/3
-    .replace(/\(3:?([A-Ga-g][',]*)2([A-Ga-g][',]*)2([A-Ga-g][',]*)2(?![/0-9])/g, '$14/3$24/3$34/3');
-}
+// /**
+//  * Expand triplet notation into fractional durations
+//  * Converts (3ABC -> A2/3 B2/3 C2/3, etc.
+//  * Also strips back quotes (`) which are ignored spacing characters
+//  *
+//  * @param {string} music - Music text
+//  * @returns {string} - Music with expanded triplets and stripped back quotes
+//  */
+// function expandTriplets(music) {
+//   return music
+//     // Remove back quotes (ignored spacing characters per ABC spec 4.7)
+//     .replace(/`/g, '')
+//     // Simple triplets: (3CDE -> C2/3 D2/3 E2/3
+//     .replace(/\(3:?([A-Ga-g][',]*)([A-Ga-g][',]*)([A-Ga-g][',]*)(?![/0-9])/g, '$12/3$22/3$32/3')
+//     // Triplets with slashes: (3C/D/E/ -> C1/3 D1/3 E1/3
+//     .replace(/\(3:?([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/([A-Ga-g][',]*)\/(?![/0-9])/g, '$11/3$21/3$31/3')
+//     // Triplets with double length: (3C2D2E2 -> C4/3 D4/3 E4/3
+//     .replace(/\(3:?([A-Ga-g][',]*)2([A-Ga-g][',]*)2([A-Ga-g][',]*)2(?![/0-9])/g, '$14/3$24/3$34/3');
+// }
+
+// /**
+//  * condense fractional durations into triplet notation
+//  * Converts  A2/3 B2/3 C2/3 -> (3ABC  etc.
+//  *
+//  * @param {string} music - Music text
+//  * @returns {string} - Music with condensed triplets
+//  */
+// function condenseTriplets(music) {
+//   return music
+//     // Simple triplets: C2/3D2/3E2/3 -> (3CDE
+//     .replace(/([A-Ga-g][',]*)2\/3([A-Ga-g][',]*)2\/3([A-Ga-g][',]*)2\/3/g, '(3$1$2$3')
+//     // Triplets with slashes:  C1/3D1/3E1/3 -> (3C/D/E/
+//     .replace(/([A-Ga-g][',]*)1\/3([A-Ga-g][',]*)1\/3([A-Ga-g][',]*)1\/3/g, '(3$1/$2/$3/')
+//     // Triplets with double length: (3C2D2E2 <- C4/3D4/3E4/3
+//     .replace(/([A-Ga-g][',]*)1\/3([A-Ga-g][',]*)1\/3([A-Ga-g][',]*)1\/3/g, '(3$12$22$32')
+// }
 
 /**
  * Parse decorations/ornaments from a token
@@ -174,35 +191,35 @@ function expandTriplets(music) {
  */
 function parseDecorations(noteStr) {
   const decorations = [];
-  
+
   // Symbol decorations (prefix the note)
   const symbolDecorations = {
-    '~': 'roll',
-    '.': 'staccato',
-    'M': 'lowermordent',
-    'P': 'uppermordent',
-    'S': 'segno',
-    'T': 'trill',
-    'H': 'fermata',
-    'u': 'upbow',
-    'v': 'downbow'
+    "~": "roll",
+    ".": "staccato",
+    M: "lowermordent",
+    P: "uppermordent",
+    S: "segno",
+    T: "trill",
+    H: "fermata",
+    u: "upbow",
+    v: "downbow",
   };
-  
+
   for (const [symbol, name] of Object.entries(symbolDecorations)) {
     if (noteStr.includes(symbol)) {
       decorations.push(name);
     }
   }
-  
+
   // !decoration! style (can be anywhere in string)
   const bangDecorations = noteStr.match(/!([^!]+)!/g);
   if (bangDecorations) {
-    bangDecorations.forEach(dec => {
+    bangDecorations.forEach((dec) => {
       const name = dec.slice(1, -1); // Remove ! marks
       decorations.push(name);
     });
   }
-  
+
   return decorations.length > 0 ? decorations : null;
 }
 
@@ -225,7 +242,7 @@ function parseAnnotation(noteStr) {
   if (annotationMatch) {
     return {
       position: annotationMatch[1],
-      text: annotationMatch[2]
+      text: annotationMatch[2],
     };
   }
   return null;
@@ -237,9 +254,9 @@ function parseAnnotation(noteStr) {
  */
 function stripExtras(noteStr) {
   return noteStr
-    .replace(/!([^!]+)!/g, '') // Remove !decorations!
-    .replace(/"[^"]*"/g, '') // Remove "chords" and "annotations"
-    .replace(/[~.MPSTHUV]/g, ''); // Remove symbol decorations
+    .replace(/!([^!]+)!/g, "") // Remove !decorations!
+    .replace(/"[^"]*"/g, "") // Remove "chords" and "annotations"
+    .replace(/[~.MPSTHUV]/g, ""); // Remove symbol decorations
 }
 
 /**
@@ -249,31 +266,41 @@ function stripExtras(noteStr) {
  */
 function analyzeSpacing(segment, tokenEndPos) {
   if (tokenEndPos >= segment.length) {
-    return { whitespace: '', backquotes: 0, beamBreak: false, lineBreak: false };
+    return {
+      whitespace: "",
+      backquotes: 0,
+      beamBreak: false,
+      lineBreak: false,
+    };
   }
-  
+
   const remaining = segment.substring(tokenEndPos);
-  
+
   // Match whitespace and/or back quotes
   const spacingMatch = remaining.match(/^([\s`]+)/);
-  
+
   if (!spacingMatch) {
-    return { whitespace: '', backquotes: 0, beamBreak: false, lineBreak: false };
+    return {
+      whitespace: "",
+      backquotes: 0,
+      beamBreak: false,
+      lineBreak: false,
+    };
   }
-  
+
   const fullSpacing = spacingMatch[1];
-  
+
   // Count back quotes
   const backquotes = (fullSpacing.match(/`/g) || []).length;
-  
+
   // Extract just whitespace (no back quotes)
-  const whitespace = fullSpacing.replace(/`/g, '');
-  
+  const whitespace = fullSpacing.replace(/`/g, "");
+
   return {
     whitespace,
     backquotes,
-    beamBreak: whitespace.length > 1 || whitespace.includes('\n'), // Multiple spaces or newline breaks beam
-    lineBreak: whitespace.includes('\n')
+    beamBreak: whitespace.length > 1 || whitespace.includes("\n"), // Multiple spaces or newline breaks beam
+    lineBreak: whitespace.includes("\n"),
   };
 }
 
@@ -281,38 +308,23 @@ function analyzeSpacing(segment, tokenEndPos) {
  * Parse ABC note to extract pitch, octave, duration, and metadata
  * For chords in brackets, extracts the topmost note for melody contour analysis
  */
-function parseNote(noteStr, unitLength) {
+function parseNote(noteStr, unitLength, currentTuple) {
   // Extract metadata before stripping
   const decorations = parseDecorations(noteStr);
   const chordSymbol = parseChordSymbol(noteStr);
   const annotation = parseAnnotation(noteStr);
-  
+
   // Strip extras for core parsing
   const cleanStr = stripExtras(noteStr);
-  
+
   // Handle dummy note 'y' (invisible placeholder)
-  if (cleanStr.match(/^y$/i)) {
-    let duration = unitLength.clone();
-    
-    // Parse duration modifiers for y
-    const fracMatch = noteStr.match(/(\d+)\/(\d+)/);
-    if (fracMatch) {
-      duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
-    } else {
-      const multMatch = noteStr.match(/(\d+)(?![/])/);
-      if (multMatch) {
-        duration = duration.multiply(parseInt(multMatch[1]));
-      }
-      const divMatch = noteStr.match(/\/+/);
-      if (divMatch) {
-        const slashes = divMatch[0].length;
-        duration = duration.divide(Math.pow(2, slashes));
-      }
-    }
-    
-    return { isDummy: true, duration };
+  if (cleanStr.match(/^y$/)) {
+    return {
+      isDummy: true,
+      duration: new Fraction(0, 1, decorations, annotation),
+    };
   }
-  
+
   // Handle chords - extract topmost note for contour sorting
   if (cleanStr.match(/^\[.*\]/)) {
     const chord = parseChord(noteStr, unitLength);
@@ -320,13 +332,30 @@ function parseNote(noteStr, unitLength) {
       // Find topmost note (highest pitch + octave)
       let topNote = chord.notes[0];
       for (const note of chord.notes) {
-        if (note.isSilence) {continue;}
-        const topPos = (topNote.octave || 0) * 7 + (NOTE_TO_DEGREE[topNote.pitch?.toUpperCase()] || 0);
-        const notePos = (note.octave || 0) * 7 + (NOTE_TO_DEGREE[note.pitch?.toUpperCase()] || 0);
+        if (note.isSilence) {
+          continue;
+        }
+        const topPos =
+          (topNote.octave || 0) * 7 +
+          (NOTE_TO_DEGREE[topNote.pitch?.toUpperCase()] || 0);
+        const notePos =
+          (note.octave || 0) * 7 +
+          (NOTE_TO_DEGREE[note.pitch?.toUpperCase()] || 0);
         if (notePos > topPos) {
           topNote = note;
         }
       }
+
+      const duration = getDuration({
+        unitLength,
+        noteString: cleanStr,
+        currentTuple,
+      });
+      topNote.duration = duration;
+      // Apply duration to all notes in chord
+      chord.notes.forEach((note) => {
+        note.duration = duration;
+      });
       // Return top note with chord metadata
       return {
         ...topNote,
@@ -334,78 +363,66 @@ function parseNote(noteStr, unitLength) {
         chordNotes: chord.notes,
         decorations: decorations || chord.decorations,
         chordSymbol: chordSymbol || chord.chordSymbol,
-        annotation
+        annotation,
       };
     }
   }
-  
+
   // Check for rest/silence
-  if (cleanStr.match(/^[zx]/i)) {
-    let duration = unitLength.clone();
-
-    // Handle explicit fractions first (e.g., '3/2', '2/3')
-    const fracMatch = cleanStr.match(/(\d+)\/(\d+)/);
-    if (fracMatch) {
-      duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
-    } else {
-      // Handle explicit multipliers (e.g., '2', '3')
-      const multMatch = cleanStr.match(/(\d+)(?![/])/);
-      if (multMatch) {
-        duration = duration.multiply(parseInt(multMatch[1]));
-      }
-
-      // Handle divisions (e.g., '/', '//', '///')
-      const divMatch = cleanStr.match(/\/+/);
-      if (divMatch) {
-        const slashes = divMatch[0].length;
-        duration = duration.divide(Math.pow(2, slashes));
-      }
+  const silenceMatch = cleanStr.match(/^[zx]/);
+  if (silenceMatch) {
+    const duration = getDuration({
+      unitLength,
+      noteString: cleanStr,
+      currentTuple,
+    });
+    const result = { isSilence: true, duration, text: silenceMatch[0] };
+    if (decorations) {
+      result.decorations = decorations;
     }
-
-    const result = { isSilence: true, duration };
-    if (decorations) {result.decorations = decorations;}
-    if (chordSymbol) {result.chordSymbol = chordSymbol;}
-    if (annotation) {result.annotation = annotation;}
+    if (chordSymbol) {
+      result.chordSymbol = chordSymbol;
+    }
+    if (annotation) {
+      result.annotation = annotation;
+    }
     return result;
   }
 
-  const pitchMatch = cleanStr.match(/[A-Ga-g]/);
-  if (!pitchMatch) {return null;}
+  const { pitch, octave } = getPitch(cleanStr);
+
+  const duration = getDuration({
+    unitLength,
+    noteString: cleanStr,
+    currentTuple,
+  });
+
+  const result = { pitch, octave, duration, isSilence: false };
+  if (decorations) {
+    result.decorations = decorations;
+  }
+  if (chordSymbol) {
+    result.chordSymbol = chordSymbol;
+  }
+  if (annotation) {
+    result.annotation = annotation;
+  }
+  return result;
+}
+
+function getPitch(pitchStr) {
+  const pitchMatch = pitchStr.match(/[A-Ga-g]/);
+  if (!pitchMatch) {
+    return null;
+  }
 
   const pitch = pitchMatch[0];
 
   // Count octave modifiers
-  const upOctaves = (cleanStr.match(/'/g) || []).length;
-  const downOctaves = (cleanStr.match(/,/g) || []).length;
+  const upOctaves = (pitchStr.match(/'/g) || []).length;
+  const downOctaves = (pitchStr.match(/,/g) || []).length;
   const octave = upOctaves - downOctaves;
-
-  // Parse duration as Fraction
-  let duration = unitLength.clone();
-
-  // Handle explicit fractions (e.g., '3/2', '2/3') - check this FIRST
-  const fracMatch = cleanStr.match(/(\d+)\/(\d+)/);
-  if (fracMatch) {
-    duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
-  } else {
-    // Handle explicit multipliers (e.g., '2', '3')
-    const multMatch = cleanStr.match(/(\d+)(?!'[/]')/);
-    if (multMatch) {
-      duration = duration.multiply(parseInt(multMatch[1]));
-    }
-
-    // Handle divisions (e.g., '/', '//', '///')
-    const divMatch = cleanStr.match(/\/+/);
-    if (divMatch) {
-      const slashes = divMatch[0].length;
-      duration = duration.divide(Math.pow(2, slashes));
-    }
-  }
-
-  const result = { pitch, octave, duration, isSilence: false };
-  if (decorations) {result.decorations = decorations;}
-  if (chordSymbol) {result.chordSymbol = chordSymbol;}
-  if (annotation) {result.annotation = annotation;}
-  return result;
+  return { pitch, octave };
 }
 
 /**
@@ -413,75 +430,63 @@ function parseNote(noteStr, unitLength) {
  * Returns array of note objects or null
  */
 function parseChord(chordStr, unitLength) {
-  if (!chordStr.startsWith('[') || !chordStr.endsWith(']')) {
+  if (!chordStr.startsWith("[") || !chordStr.endsWith("]")) {
     return null;
   }
-  
-  // Extract chord symbol if present (before the bracket or inside)
-  const chordSymbol = parseChordSymbol(chordStr);
-  const decorations = parseDecorations(chordStr);
-  
-  // Remove brackets and any chord symbols/decorations
-  const inner = stripExtras(chordStr.slice(1, -1));
-  
+
   // Split into individual notes
-  const noteMatches = inner.match(/[=^_]?[A-Ga-g][',]*/g);
-  if (!noteMatches) {return null;}
-  
+  const noteMatches = chordStr.match(/[=^_]?[A-Ga-g][',]*/g);
+  if (!noteMatches) {
+    return null;
+  }
+
   const notes = [];
+  // const clonedTuple = currentTuple ? {... currentTuple} : undefined
   for (const noteStr of noteMatches) {
-    const note = parseNote(noteStr, unitLength);
+    const note = getPitch(noteStr, unitLength);
     if (note) {
       notes.push(note);
     }
   }
-  
-  // Parse duration modifier after the chord (applies to all notes)
-  const durationMatch = chordStr.match(/\]([0-9]+|\/+|[0-9]+\/[0-9]+)/);
-  if (durationMatch) {
-    const durStr = durationMatch[1];
-    let duration = unitLength.clone();
-    
-    const fracMatch = durStr.match(/(\d+)\/(\d+)/);
-    if (fracMatch) {
-      duration = unitLength.multiply(parseInt(fracMatch[1])).divide(parseInt(fracMatch[2]));
-    } else if (durStr.match(/\d+/)) {
-      duration = duration.multiply(parseInt(durStr));
-    } else if (durStr.match(/\/+/)) {
-      const slashes = durStr.match(/\/+/)[0].length;
-      duration = duration.divide(Math.pow(2, slashes));
-    }
-    
-    // Apply duration to all notes in chord
-    notes.forEach(note => {
-      note.duration = duration;
-    });
-  }
-  
   return {
     isChord: true,
     notes,
-    chordSymbol,
-    decorations,
-    duration: notes[0]?.duration || unitLength
   };
 }
 
-/**
- * Tokenise ABC music notation into individual notes/chords
- * Handles triplets by converting them to fractional durations
- * Handles line continuations (\) and inline comments (%)
- */
-function tokeniseABC(abc) {
-  const { musicText } = extractMusicLines(abc);
-  const expandedMusic = expandTriplets(musicText);
+function getDuration({ unitLength, noteString, currentTuple } = {}) {
+  // Parse duration as Fraction
+  let duration = unitLength.clone();
 
-  // Match notes, rests, chords, and decorations
-  // Updated regex to capture chord symbols, decorations, and chords
-  const tokens = expandedMusic.match(/"[^"]*"?|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*|[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*/g) || [];
+  // Handle explicit fractions (e.g., '3/2', '2/4', '/4')
+  const fracMatch = noteString.match(/(\d+)?\/(\d+)/);
+  if (fracMatch) {
+    const n = fracMatch[1] ? parseInt(fracMatch[1]) : 1;
+    duration = unitLength.multiply(n).divide(parseInt(fracMatch[2]));
+  } else {
+    // Handle explicit multipliers (e.g., '2', '3')
+    const multMatch = noteString.match(/(\d+)(?!'[/]')/);
+    if (multMatch) {
+      duration = duration.multiply(parseInt(multMatch[1]));
+    }
 
-  return tokens;
+    // Handle divisions (e.g., '/', '//', '///')
+    const divMatch = noteString.match(/\/+/);
+    if (divMatch) {
+      const slashes = divMatch[0].length;
+      duration = duration.divide(Math.pow(2, slashes));
+    }
+  }
+
+  if (currentTuple) {
+    duration = duration.divide(currentTuple.p).multiply(currentTuple.q);
+    currentTuple.r--;
+  }
+  return duration;
 }
+
+const getTokenRegex = () =>
+  /\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*/g;
 
 /**
  * Parse inline field from music section
@@ -492,7 +497,61 @@ function parseInlineField(token) {
   if (fieldMatch) {
     return {
       field: fieldMatch[1],
-      value: fieldMatch[2].trim()
+      value: fieldMatch[2].trim(),
+    };
+  }
+  return null;
+}
+
+/**
+ * Parse tuple from music section
+ */
+function parseTuple(token, isCompoundTimeSignature) {
+  const tupleMatch = token.match(/^\(([2-9])(?::(\d)?)?(?::(\d)?)?$/);
+  if (tupleMatch) {
+    const pqr = {
+      p: parseInt(tupleMatch[1]),
+      q: tupleMatch[2],
+      r: tupleMatch[3],
+    };
+    const { p } = pqr;
+    let { q, r } = pqr;
+    if (q) {
+      q = parseInt(q);
+    } else {
+      switch (p) {
+        case 2:
+          q = 3;
+          break;
+        case 3:
+          q = 2;
+          break;
+        case 4:
+          q = 3;
+          break;
+        case 5:
+        case 7:
+        case 9:
+          q = isCompoundTimeSignature ? 3 : 2;
+          break;
+        case 6:
+          q = 2;
+          break;
+        case 8:
+          q = 3;
+          break;
+      }
+    }
+    if (r) {
+      r = parseInt(r);
+    } else {
+      r = p;
+    }
+    return {
+      isTuple: true,
+      p,
+      q,
+      r,
     };
   }
   return null;
@@ -504,82 +563,90 @@ function parseInlineField(token) {
  */
 function classifyBarLine(barLineStr) {
   const trimmed = barLineStr.trim();
-  
+
   // Repeat endings
   if (trimmed.match(/^\|[1-6]$/)) {
     return {
-      type: 'repeat-ending',
+      type: "repeat-ending",
       ending: parseInt(trimmed[1]),
       text: barLineStr,
-      isRepeat: true
+      isRepeat: true,
     };
   }
-  
+
   // Start repeat
   if (trimmed.match(/^\|:/) || trimmed.match(/^\[\|/)) {
     return {
-      type: 'repeat-start',
+      type: "repeat-start",
       text: barLineStr,
-      isRepeat: true
+      isRepeat: true,
     };
   }
-  
+
   // End repeat
-  if (trimmed.match(/^:\|/) || (trimmed.match(/^\|\]/) && !trimmed.match(/^\|\]$/))) {
+  if (
+    trimmed.match(/^:\|/) ||
+    (trimmed.match(/^\|\]/) && !trimmed.match(/^\|\]$/))
+  ) {
     return {
-      type: 'repeat-end',
+      type: "repeat-end",
       text: barLineStr,
-      isRepeat: true
+      isRepeat: true,
     };
   }
-  
+
   // Double repeat
-  if (trimmed.match(/^::/) || trimmed.match(/^:\|:/) || trimmed.match(/^::\|:?/)) {
+  if (
+    trimmed.match(/^::/) ||
+    trimmed.match(/^:\|:/) ||
+    trimmed.match(/^::\|:?/) ||
+    trimmed.match(/^::\|\|:?/)
+  ) {
     return {
-      type: 'repeat-both',
+      type: "repeat-both",
       text: barLineStr,
-      isRepeat: true
+      isRepeat: true,
     };
   }
-  
+
   // Final bar
-  if (trimmed === '|]') {
+  if (trimmed === "|]") {
     return {
-      type: 'final',
+      type: "final",
       text: barLineStr,
-      isRepeat: false
+      isRepeat: false,
     };
   }
-  
+
   // Double bar
-  if (trimmed === '||') {
+  if (trimmed === "||") {
     return {
-      type: 'double',
+      type: "double",
       text: barLineStr,
-      isRepeat: false
+      isRepeat: false,
     };
   }
-  
+
   // Regular bar
-  if (trimmed === '|') {
+  if (trimmed === "|") {
     return {
-      type: 'regular',
+      type: "regular",
       text: barLineStr,
-      isRepeat: false
+      isRepeat: false,
     };
   }
-  
+
   // Unknown/complex bar line
   return {
-    type: 'other',
+    type: "other",
     text: barLineStr,
-    isRepeat: trimmed.includes(':')
+    isRepeat: trimmed.includes(":"),
   };
 }
 
 /**
  * Parse ABC into structured data with bars
- * 
+ *
  * Returns object with:
  * {
  *   bars: Array<Array<NoteObject>>,  // Array of bars, each bar is array of notes/chords/fields
@@ -588,7 +655,7 @@ function classifyBarLine(barLineStr) {
  *   tonalBase: string,                // The tonic from K: field (e.g., 'D', 'G')
  *   lineMetadata: Array<LineMetadata> // Info about original lines (comments, continuations)
  * }
- * 
+ *
  * NoteObject structure (regular note):
  * {
  *   pitch: string,              // 'A'-'G' (uppercase for low octave, lowercase for middle)
@@ -602,7 +669,7 @@ function classifyBarLine(barLineStr) {
  *     beamBreak: boolean,       // True if beam should break (multiple spaces/newline)
  *     lineBreak: boolean        // True if there was a newline after this token
  *   },
- *   
+ *
  *   // Optional properties (only present if applicable):
  *   decorations: Array<string>, // e.g., ['trill', 'staccato']
  *   chordSymbol: string,        // e.g., 'Dm7', 'G'
@@ -613,7 +680,7 @@ function classifyBarLine(barLineStr) {
  *   isChord: true,              // Present if this is a chord [CEG]
  *   chordNotes: Array<NoteObject> // All notes in the chord (when isChord=true)
  * }
- * 
+ *
  * NoteObject structure (silence/rest):
  * {
  *   isSilence: true,
@@ -622,7 +689,7 @@ function classifyBarLine(barLineStr) {
  *   spacing: { ... },           // Same as regular note
  *   // Optional: decorations, chordSymbol, annotation (same as above)
  * }
- * 
+ *
  * NoteObject structure (dummy note):
  * {
  *   isDummy: true,
@@ -630,7 +697,7 @@ function classifyBarLine(barLineStr) {
  *   token: string,
  *   spacing: { ... }
  * }
- * 
+ *
  * NoteObject structure (inline field change):
  * {
  *   isInlineField: true,
@@ -639,7 +706,7 @@ function classifyBarLine(barLineStr) {
  *   token: string               // Original token (e.g., '[K:G]')
  *   spacing: { ... }
  * }
- * 
+ *
  * NoteObject structure (standalone chord symbol):
  * {
  *   isChordSymbol: true,
@@ -647,19 +714,19 @@ function classifyBarLine(barLineStr) {
  *   token: string,
  *   spacing: { ... }
  * }
- * 
+ *
  * LineMetadata structure:
  * {
  *   originalLine: string,       // Complete original line from ABC
  *   comment: string | null,     // Text after % (null if no comment)
  *   hasContinuation: boolean    // Whether line had \ continuation marker
  * }
- * 
+ *
  * @param {string} abc - ABC notation string
  * @param {object} options - Parsing options
  * @param {number} options.maxBars - Maximum number of bars to parse (optional)
  * @returns {object} - Parsed structure as described above
- * 
+ *
  * Example:
  *   parseABCWithBars('X:1\nL:1/4\nK:D\n"Dm"D2 [DF]A | ~B4 |]')
  *   // Returns:
@@ -683,13 +750,18 @@ function classifyBarLine(barLineStr) {
  */
 function parseABCWithBars(abc, options = {}) {
   const { maxBars = Infinity } = options;
-  
-  let unitLength = extractUnitLength(abc);
-  let meter = extractMeter(abc);
-  let tonalBase = extractTonalBase(abc);
 
-  const { musicText, lineMetadata, headerLines, headerEndIndex, newlinePositions } = extractMusicLines(abc);
-  const expandedMusic = expandTriplets(musicText);
+  let unitLength = getUnitLength(abc);
+  let meter = getMeter(abc);
+  let tonalBase = getTonalBase(abc);
+
+  const {
+    musicText,
+    lineMetadata,
+    headerLines,
+    headerEndIndex,
+    newlinePositions,
+  } = getMusicLines(abc);
 
   // Create a Set of newline positions for O(1) lookup
   const newlineSet = new Set(newlinePositions);
@@ -705,98 +777,131 @@ function parseABCWithBars(abc, options = {}) {
   // Split music text by bar lines while preserving positions
   let lastBarPos = 0;
   let match;
-  
-  while ((match = barLineRegex.exec(expandedMusic)) !== null) {
-    const barLineText = match[0];
-    const barLinePos = match.index;
-    
+  let first = true;
+
+  while ((match = barLineRegex.exec(musicText)) !== null || first) {
+    first = false;
+    const { barLineText, barLinePos } =
+      match === null
+        ? { barLineText: musicText, barLinePos: musicText.length }
+        : {
+            barLineText: match[0],
+            barLinePos: match.index,
+          };
+
     // Process segment before this bar line
-    const segment = expandedMusic.substring(lastBarPos, barLinePos);
-    
+    const segment = musicText.substring(lastBarPos, barLinePos);
+
     if (segment.trim()) {
-    // Parse tokens in this segment
-    // Match: inline fields, chord symbols, chords in brackets, decorations, notes/rests/dummy
-    const tokenRegex = /\[([KLMP]):[^\]]+\]|"[^"]+"|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*|[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*/g;
-    
+      // Parse tokens in this segment
+      // Match: inline fields, chord symbols, chords in brackets, decorations, notes/rests/dummy
+      const tokenRegex = getTokenRegex();
+
       let tokenMatch;
       // let segmentPos = lastBarPos;
-      
+
+      let currentTuple = null;
+
       while ((tokenMatch = tokenRegex.exec(segment)) !== null) {
+        //check if all notes of the tuple have been parsed
+        if (currentTuple && currentTuple.r === 0) {
+          currentTuple = null;
+        }
         const fullToken = tokenMatch[0];
         const tokenStartPos = lastBarPos + tokenMatch.index;
         // const tokenEndPos = tokenStartPos + fullToken.length;
-        const spacing = analyzeSpacing(segment, tokenMatch.index + fullToken.length);
-      
-      // Check for inline field
-      const inlineField = parseInlineField(fullToken);
-      if (inlineField) {
-        // Update context based on inline field
-        if (inlineField.field === 'L') {
-          const lengthMatch = inlineField.value.match(/(\d+)\/(\d+)/);
-          if (lengthMatch) {
-            unitLength = new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
+        const spacing = analyzeSpacing(
+          segment,
+          tokenMatch.index + fullToken.length
+        );
+
+        // Check for inline field
+        const inlineField = parseInlineField(fullToken);
+        if (inlineField) {
+          // Update context based on inline field
+          if (inlineField.field === "L") {
+            const lengthMatch = inlineField.value.match(/1\/(\d+)/);
+            if (lengthMatch) {
+              unitLength = new Fraction(1, parseInt(lengthMatch[1]));
+            }
+          } else if (inlineField.field === "M") {
+            const meterMatch = inlineField.value.match(/(\d+)\/(\d+)/);
+            if (meterMatch) {
+              meter = [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
+            }
+          } else if (inlineField.field === "K") {
+            const keyMatch = inlineField.value.match(/^([A-G])/);
+            if (keyMatch) {
+              tonalBase = keyMatch[1].toUpperCase();
+            }
           }
-        } else if (inlineField.field === 'M') {
-          const meterMatch = inlineField.value.match(/(\d+)\/(\d+)/);
-          if (meterMatch) {
-            meter = [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
-          }
-        } else if (inlineField.field === 'K') {
-          const keyMatch = inlineField.value.match(/^([A-G])/);
-          if (keyMatch) {
-            tonalBase = keyMatch[1].toUpperCase();
-          }
+
+          currentBar.push({
+            isInlineField: true,
+            field: inlineField.field,
+            value: inlineField.value,
+            token: fullToken,
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
+            spacing,
+          });
+          continue;
         }
-        
-        currentBar.push({
-          isInlineField: true,
-          field: inlineField.field,
-          value: inlineField.value,
-          token: fullToken,
-            sourceIndex: tokenStartPos,
-            sourceLength: fullToken.length,
-          spacing
-        });
-        continue;
-      }
-      
-        // Standalone chord symbol
-      if (fullToken.match(/^"[^"]+"$/)) {
-        currentBar.push({
-          isChordSymbol: true,
-          chordSymbol: fullToken.slice(1, -1),
-          token: fullToken,
-            sourceIndex: tokenStartPos,
-            sourceLength: fullToken.length,
-          spacing
-        });
-        continue;
-      }
-      
-        // Chord in brackets
-      if (fullToken.match(/\[[^\]]+\]/)) {
-        const chord = parseChord(fullToken, unitLength);
-        if (chord) {
-            currentBar.push({ 
-              ...chord, 
-              token: fullToken, 
+
+        // tuples
+        if (fullToken.match(/\(\d(?::\d?){0,2}/g)) {
+          const tuple = parseTuple(fullToken);
+          if (tuple) {
+            if (currentTuple) {
+              throw new Error("nested tuples not handled");
+            }
+            // Update context based on inline field
+            currentTuple = tuple;
+            currentBar.push({
+              ...tuple,
+              token: fullToken,
               sourceIndex: tokenStartPos,
               sourceLength: fullToken.length,
-              spacing 
             });
+            continue;
+          }
         }
-        continue;
-      }
-      
-      // Regular note, rest, or dummy
-      const note = parseNote(fullToken, unitLength);
-      if (note) {
-          currentBar.push({ 
-            ...note, 
-            token: fullToken, 
+
+        // Standalone chord symbol
+        if (fullToken.match(/^"[^"]+"$/)) {
+          currentBar.push({
+            isChordSymbol: true,
+            chordSymbol: fullToken.slice(1, -1),
+            token: fullToken,
             sourceIndex: tokenStartPos,
             sourceLength: fullToken.length,
-            spacing 
+            spacing,
+          });
+          continue;
+        }
+
+        // Standalone decoration
+        if (fullToken.match(/^!([^!]+)!$/)) {
+          currentBar.push({
+            isDecoration: true,
+            decoration: fullToken.slice(1, -1),
+            token: fullToken,
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
+            spacing,
+          });
+          continue;
+        }
+
+        // Regular note, rest, or dummy, or chord in brackets
+        const note = parseNote(fullToken, unitLength, currentTuple);
+        if (note) {
+          currentBar.push({
+            ...note,
+            token: fullToken,
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
+            spacing,
           });
         }
       }
@@ -804,9 +909,9 @@ function parseABCWithBars(abc, options = {}) {
 
     // Check if bar line has a newline after it
     const barLineEndPos = barLinePos + barLineText.length;
-    const hasLineBreakAfterBar = newlineSet.has(barLineEndPos + 1) || 
-                                  (barLineEndPos < expandedMusic.length && 
-                                   expandedMusic[barLineEndPos] === '\n');
+    const hasLineBreakAfterBar =
+      newlineSet.has(barLineEndPos + 1) ||
+      (barLineEndPos < musicText.length && musicText[barLineEndPos] === "\n");
 
     // Store bar line information
     const barLineInfo = classifyBarLine(barLineText);
@@ -815,7 +920,7 @@ function parseABCWithBars(abc, options = {}) {
       sourceIndex: barLinePos,
       sourceLength: barLineText.length,
       barNumber: barCount,
-      hasLineBreak: hasLineBreakAfterBar
+      hasLineBreak: hasLineBreakAfterBar,
     });
 
     // Update the last token in current bar to mark lineBreak if bar line has one
@@ -831,7 +936,7 @@ function parseABCWithBars(abc, options = {}) {
       bars.push(currentBar);
       barCount++;
       currentBar = [];
-      
+
       // Check if we've reached max bars
       if (barCount >= maxBars) {
         break;
@@ -846,16 +951,16 @@ function parseABCWithBars(abc, options = {}) {
     bars.push(currentBar);
   }
 
-  return { 
-    bars, 
+  return {
+    bars,
     barLines,
-    unitLength, 
-    meter, 
+    unitLength,
+    meter,
     tonalBase,
     lineMetadata,
     headerLines,
     headerEndIndex,
-    musicText: expandedMusic
+    musicText,
   };
 }
 
@@ -865,11 +970,11 @@ function parseABCWithBars(abc, options = {}) {
  */
 function calculateBarDurations(parsedData) {
   const { bars } = parsedData;
-  
-  return bars.map(bar => {
+
+  return bars.map((bar) => {
     let total = new Fraction(0, 1);
     for (const note of bar) {
-      if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+      if (!note.duration) {
         continue;
       }
       total = total.add(note.duration);
@@ -879,22 +984,13 @@ function calculateBarDurations(parsedData) {
 }
 
 module.exports = {
-  extractTonalBase,
-  extractMeter,
-  extractUnitLength,
-  extractMusicLines,
-  expandTriplets,
-  parseNote,
-  parseChord,
-  parseDecorations,
-  parseChordSymbol,
-  parseAnnotation,
-  parseInlineField,
-  stripExtras,
+  getTonalBase,
+  getMeter,
+  getUnitLength,
+  getMusicLines,
   analyzeSpacing,
-  tokeniseABC,
   parseABCWithBars,
   classifyBarLine,
   calculateBarDurations,
-  NOTE_TO_DEGREE
+  NOTE_TO_DEGREE,
 };

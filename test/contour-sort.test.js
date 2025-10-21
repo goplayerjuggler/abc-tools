@@ -1,4 +1,4 @@
-const { getSortObject: getContour, sort, sortArray, decodeChar } = require('../src/index.js');
+const {  getContour, sort, sortArray, decodeChar } = require('../src/index.js');
 
 describe('ABC Tools - Sorting', () => {
   describe('Basic encoding', () => {

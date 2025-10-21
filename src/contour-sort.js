@@ -1,10 +1,10 @@
-const { Fraction } = require('./math.js');
+const { Fraction } = require("./math.js");
 const {
-  extractTonalBase,
-  extractUnitLength,
-  parseNote,
-  tokeniseABC, NOTE_TO_DEGREE
-} = require('./parser.js');
+  getTonalBase,
+  getUnitLength,
+  parseABCWithBars,
+  NOTE_TO_DEGREE,
+} = require("./parser.js");
 
 /**
  * Tune Contour Sort - Modal melody sorting algorithm
@@ -17,10 +17,8 @@ const {
 
 const OCTAVE_SHIFT = 7; // 7 scale degrees per octave
 
-
-
 const baseChar = 0x0420; // middle of cyrillic
-const silenceChar = '_'; // silence character
+const silenceChar = "_"; // silence character
 
 // ============================================================================
 // ENCODING FUNCTIONS
@@ -50,8 +48,11 @@ function calculateModalPosition(tonalBase, pitch, octaveShift) {
 
 /**
  * Encode position and played/held status as a single character
- * Format: baseChar + (position * 2) + (isHeld ? 0 : 1)
  * This ensures held notes (even codes) sort before played notes (odd codes)
+ *
+ * @param {number} position - encodes the degree + octave
+ * @param {boolean} isHeld - if the note is held or not
+ * @returns the encoded modal degree information (MDI). Format: baseChar + (position * 2) + (isHeld ? 0 : 1)
  */
 function encodeToChar(position, isHeld) {
   const code = baseChar + position * 2 + (isHeld ? 0 : 1);
@@ -81,106 +82,99 @@ function decodeChar(char) {
  * @returns { sortKey: string, durations: Array, version: string, part: string }
  */
 function getContour(abc, options = {}) {
-  const { nbBars = Infinity, part = 'A' } = options;
-
-  const tonalBase = extractTonalBase(abc);
-  const unitLength = extractUnitLength(abc);
-  const tokens = tokeniseABC(abc);
+  const tonalBase = getTonalBase(abc);
+  const unitLength = getUnitLength(abc);
+  const { bars } = parseABCWithBars(abc, options);
 
   const sortKey = [];
   const durations = [];
-
-  let barCount = 0;
   let index = 0;
-
-  for (const token of tokens) {
-    if (token === '|' || token === '||' || token === '|]') {
-      barCount++;
-      if (barCount >= nbBars) {
-        break;
-      }
-      continue;
-    }
-
-    const note = parseNote(token, unitLength);
-    if (!note) {
-      continue;
-    }
-
-    const { duration, isSilence } = note;
-    const comparison = duration.compare(unitLength);
-
-    if (isSilence) {
-      // Handle silence
-      if (comparison > 0) {
-        // Long silence: split into multiple silence characters
-        const ratio = duration.divide(unitLength);
-        const durationRatio = Math.round(ratio.num / ratio.den);
-
-        for (let i = 0; i < durationRatio; i++) {
-          sortKey.push(silenceChar);
-        }
-        index += durationRatio;
-      } else if (comparison < 0) {
-        // Short silence: duration < unitLength
-        const relativeDuration = duration.divide(unitLength);
-
-        durations.push({
-          i: index,
-          n: relativeDuration.num,
-          d: relativeDuration.den
-        });
-        sortKey.push(silenceChar);
-        index++;
-      } else {
-        // Normal silence
-        sortKey.push(silenceChar);
-        index++;
-      }
-    } else {
-      // Handle pitched note
-      const { pitch, octave } = note;
-      const position = calculateModalPosition(tonalBase, pitch, octave);
-
-      if (comparison > 0) {
-        // Held note: duration > unitLength
-        const ratio = duration.divide(unitLength);
-        const durationRatio = Math.round(ratio.num / ratio.den);
-
-        // First note is played
-        sortKey.push(encodeToChar(position, false));
-
-        // Subsequent notes are held
-        for (let i = 1; i < durationRatio; i++) {
-          sortKey.push(encodeToChar(position, true));
-        }
-
-        index += durationRatio;
-      } else if (comparison < 0) {
-        // Subdivided note: duration < unitLength
-        const relativeDuration = duration.divide(unitLength);
-
-        durations.push({
-          i: index,
-          n: relativeDuration.num,
-          d: relativeDuration.den
-        });
-        sortKey.push(encodeToChar(position, false));
-        index++;
-      } else {
-        // Normal note: duration === unitLength
-        sortKey.push(encodeToChar(position, false));
-        index++;
+  // get the parsed notes - notes are tokens with a duration
+  const notes = [];
+  for (let i = 0; i < bars.length; i++) {
+    const bar = bars[i];
+    for (let j = 0; j < bar.length; j++) {
+      const token = bar[j];
+      if (token.duration) {
+        notes.push(token);
       }
     }
   }
 
+  notes.forEach((note) => {
+    const { duration, isSilence } = note;
+    const comparison = duration.compare(unitLength);
+    const { encoded, encodedHeld } = isSilence
+      ? { encoded: silenceChar, encodedHeld: silenceChar }
+      : getEncodedFromNote(note, tonalBase);
+
+    if (comparison > 0) {
+      // Held note: duration > unitLength
+      const ratio = duration.divide(unitLength);
+      const nbUnitLengths = Math.floor(ratio.num / ratio.den);
+      const remainingDuration = duration.subtract(
+        unitLength.multiply(nbUnitLengths)
+      );
+
+      // const durationRatio = Math.round(ratio.num / ratio.den);
+
+      // First note is played
+      sortKey.push(encoded);
+
+      // Subsequent notes are held
+      for (let i = 1; i < nbUnitLengths; i++) {
+        sortKey.push(encodedHeld);
+      }
+
+      index += nbUnitLengths;
+      if (remainingDuration.num !== 0) {
+        pushShortNote(encoded, unitLength, duration, index, durations, sortKey);
+        index++;
+      }
+    } else if (comparison < 0) {
+      pushShortNote(encoded, unitLength, duration, index, durations, sortKey);
+
+      index++;
+    } else {
+      // Normal note: duration === unitLength
+      sortKey.push(encoded);
+      index++;
+    }
+  });
+
   return {
-    sortKey: sortKey.join(''),
+    sortKey: sortKey.join(""),
     durations: durations.length > 0 ? durations : undefined,
-    version: '1.0',
-    part
+    // version: "1.0",
+    // part,
   };
+}
+
+/**
+ * Adds a short note (duration < unitLength) to the contour
+ * @param {string} encoded - the encoded representation of the note’s modal degree information (MDI)
+ * @param {Fraction} unitLength - the unit length
+ * @param {Fraction} duration - the duration of the note
+ * @param {number} index - the index of the note
+ * @param {Array<object>} durations - the durations array
+ * @param {Array<string>} sortKey - array of MDIs
+ */
+function pushShortNote(
+  encoded,
+  unitLength,
+  duration,
+  index,
+  durations,
+  sortKey
+) {
+  const relativeDuration = duration.divide(unitLength);
+
+  durations.push({
+    i: index,
+    n: relativeDuration.num === 1 ? undefined : relativeDuration.num,
+    d: relativeDuration.den,
+  });
+  sortKey.push(encoded);
 }
 
 // ============================================================================
@@ -188,7 +182,7 @@ function getContour(abc, options = {}) {
 // ============================================================================
 
 /**
- * Compare two sort objects using simplified expansion algorithm
+ * Compare two sort objects using expansion algorithm
  */
 function sort(objA, objB) {
   let keyA = objA.sortKey;
@@ -217,7 +211,7 @@ function sort(objA, objB) {
 
   while (posA < keyA.length && posB < keyB.length) {
     if (counter++ > 10000) {
-      throw new Error('Sort algorithm iteration limit exceeded');
+      throw new Error("Sort algorithm iteration limit exceeded");
     }
 
     const durA = durMapA[logicalIndex];
@@ -367,15 +361,24 @@ function sortArray(arr) {
   return arr;
 }
 
+function getEncodedFromNote(note, tonalBase) {
+  // Handle pitched note
+  const { pitch, octave } = note;
+  const position = calculateModalPosition(tonalBase, pitch, octave);
+  const encodedHeld = encodeToChar(position, true);
+  const encoded = encodeToChar(position, false);
+  return { encoded, encodedHeld };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
 
 module.exports = {
-  getSortObject: getContour,
+  getContour,
   sort,
   sortArray,
   decodeChar,
   encodeToChar,
-  calculateModalPosition
+  calculateModalPosition,
 };

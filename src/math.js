@@ -4,7 +4,9 @@
 
 class Fraction {
   constructor(numerator, denominator = 1) {
-    if (denominator === 0) {throw new Error('Denominator cannot be zero');}
+    if (denominator === 0) {
+      throw new Error("Denominator cannot be zero");
+    }
 
     const g = gcd(Math.abs(numerator), Math.abs(denominator));
     this.num = numerator / g;
@@ -22,28 +24,28 @@ class Fraction {
   }
 
   multiply(n) {
-    if (typeof n === 'number') {
+    if (typeof n === "number") {
       return new Fraction(this.num * n, this.den);
     }
     return new Fraction(this.num * n.num, this.den * n.den);
   }
 
   divide(n) {
-    if (typeof n === 'number') {
+    if (typeof n === "number") {
       return new Fraction(this.num, this.den * n);
     }
     return new Fraction(this.num * n.den, this.den * n.num);
   }
 
   add(n) {
-    if (typeof n === 'number') {
+    if (typeof n === "number") {
       return new Fraction(this.num + n * this.den, this.den);
     }
     return new Fraction(this.num * n.den + n.num * this.den, this.den * n.den);
   }
 
   subtract(n) {
-    if (typeof n === 'number') {
+    if (typeof n === "number") {
       return new Fraction(this.num - n * this.den, this.den);
     }
     return new Fraction(this.num * n.den - n.num * this.den, this.den * n.den);
@@ -79,10 +81,10 @@ function gcd(a, b) {
 // function lcm(a, b) {
 //   return Math.abs(a * b) / gcd(a, b);
 // }
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     // lcm,
     // gcd,
-    Fraction
+    Fraction,
   };
 }
