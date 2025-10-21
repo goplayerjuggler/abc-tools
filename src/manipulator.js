@@ -100,148 +100,91 @@ function hasAnacrucis(abc) {
   const parsed = parseABCWithBars(abc, { maxBars: 2 });
   return hasAnacrucisFromParsed(parsed);
 }
-
 /**
- * Reconstruct music text with line breaks based on original structure
- * Maps line breaks from original to modified music, accounting for bar transformations
- * @param {object} originalParsed - Original parsed ABC source
- * @param {string} modifiedMusic - Modified music text (single line)
- * @param {string} direction - Transformation direction: 'remove' (4/4->4/2) or 'add' (4/2->4/4)
- * @returns {string} - Music text with line breaks inserted
+ * Inserts a specified character at multiple positions within a string.
+ * Optimised for performance with long strings and repeated usage.
+ *
+ * @param {string} originalString - The original string to modify.
+ * @param {string} charToInsert - The character to insert at the specified positions.
+ * @param {number[]} indexes - An array of positions (zero-based) where the character should be inserted.
+ * @returns {string} The modified string with characters inserted at the specified positions.
+ * 
+* // Example usage:
+* const originalString = "hello world";
+* const charToInsert = "!";
+* const indexes = [2, 5, 8, 2, 15];
+* const result = insertCharsAtIndexes(originalString, charToInsert, indexes);
+* console.log(result); // Output: "he!l!lo! world!"
+* 
  */
-function reconstructMusicWithLineBreaks(originalParsed, modifiedMusic, direction) {
-  
-  
-  // Build set of bar indices that have line breaks after them
-  const originalLineBreakBars = new Set();
-  for (let i = 0; i < originalParsed.barLines.length; i++) {
-    if (originalParsed.barLines[i].hasLineBreak) {
-      originalLineBreakBars.add(i);
+function insertCharsAtIndexes(originalString, charToInsert, indexes) {
+    // Filter and sort indexes only once: remove duplicates and invalid positions
+    const validIndexes = [...new Set(indexes)]
+        .filter(index => index >= 0 && index <= originalString.length)
+        .sort((a, b) => a-b);
+
+    const result = [];
+    let prevIndex = 0;
+
+    for (const index of validIndexes) {
+        // Push the substring up to the current index
+        result.push(originalString.slice(prevIndex, index));
+        // Push the character to insert
+        result.push(charToInsert);
+        // Update the previous index
+        prevIndex = index;
     }
-  }
-  
-  // If no line breaks in original, return as-is
-  if (originalLineBreakBars.size === 0) {
-    return modifiedMusic.trim();
-  }
-  
-  // Map original bar indices to modified bar indices based on transformation
-  const modifiedLineBreakBars = new Set();
-  
-  if (direction === 'remove') {
-    // Removing every other bar: bar 0,1,2,3,4 -> bar 0,2,4 (bars 1,3 removed)
-    // If original had break after bar 2, modified should have break after bar 1
-    for (const origBar of originalLineBreakBars) {
-      const modifiedBar = Math.floor(origBar / 2);
-      modifiedLineBreakBars.add(modifiedBar);
-      }
-  } else if (direction === 'add') {
-    // Adding bars in middle: bar 0,1,2 -> bar 0,1,2,3,4 (new bars at 1,3)
-    // If original had break after bar 1, modified should have break after bar 2
-    for (const origBar of originalLineBreakBars) {
-      const modifiedBar = origBar * 2 + 1; // Map to the second half of split bar
-      modifiedLineBreakBars.add(modifiedBar);
-    }
-  } else {
-    // No transformation, use original positions
-    for (const bar of originalLineBreakBars) {
-      modifiedLineBreakBars.add(bar);
-    }
-  }
-  
-  // Find bar lines in modified music
-  const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|)|::|(\|[1-6]))/g;
-  const modifiedBarPositions = [];
-  let match;
-  
-  while ((match = barLineRegex.exec(modifiedMusic)) !== null) {
-    modifiedBarPositions.push({
-      index: match.index,
-      length: match[0].length,
-      text: match[0]
-    });
-      }
-      
-  // Build result with line breaks at mapped positions
-  const lines = [];
-  let lastPos = 0;
-  
-  for (let i = 0; i < modifiedBarPositions.length; i++) {
-    const barPos = modifiedBarPositions[i];
-    
-    // Add content up to and including this bar line
-    const segment = modifiedMusic.substring(lastPos, barPos.index + barPos.length);
-    lastPos = barPos.index + barPos.length;
-    
-    // Skip whitespace after bar line
-    while (lastPos < modifiedMusic.length && modifiedMusic[lastPos] === ' ') {
-      lastPos++;
-    }
-    
-    // Check if we should add line break after this bar
-    if (modifiedLineBreakBars.has(i)) {
-      lines.push(segment.trim());
-    } else {
-      // Accumulate into current line
-      if (lines.length === 0) {
-        lines.push(segment.trim());
-      } else {
-        lines[lines.length - 1] += ' ' + segment.trim();
-      }
-          }
-        }
-  
-  // Add any remaining content
-  if (lastPos < modifiedMusic.length) {
-    const remaining = modifiedMusic.substring(lastPos).trim();
-    if (remaining) {
-      if (lines.length === 0) {
-        lines.push(remaining);
-      } else {
-        lines[lines.length - 1] += ' ' + remaining;
-      }
-    }
-  }
-  
-  return lines.join('\n');
+
+    // Push the remaining part of the string
+    result.push(originalString.slice(prevIndex));
+
+    return result.join('');
 }
 
 /**
- * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
- * This is a true inverse operation - going there and back preserves the ABC exactly
- * Handles anacrusis correctly
+ * Toggle meter by doubling or halving bar length
+ * Supports 4/4↔4/2 and 6/8↔12/8 transformations
+ * This is neary a true inverse operation - going there and back preserves the ABC except for some
+ * edge cases involving spaces around the bar lines. No need to handle them.
+ * Handles anacrusis correctly and preserves line breaks
+ * 
+ * @param {string} abc - ABC notation
+ * @param {Array<number>} smallMeter - The smaller meter signature [num, den]
+ * @param {Array<number>} largeMeter - The larger meter signature [num, den]
+ * @returns {string} - ABC with toggled meter
  */
-function toggleMeter_4_4_to_4_2(abc) {
+function toggleMeterDoubling(abc, smallMeter, largeMeter) {
   const currentMeter = extractMeter(abc);
-  const unitLength = extractUnitLength(abc);
 
-  // Check if L:1/8
-  if (unitLength.compare(new Fraction(1, 8)) !== 0) {
-    throw new Error('This function only works with L:1/8');
+  const isSmall = currentMeter[0] === smallMeter[0] && currentMeter[1] === smallMeter[1];
+  const isLarge = currentMeter[0] === largeMeter[0] && currentMeter[1] === largeMeter[1];
+
+  if (!isSmall && !isLarge) {
+    throw new Error(`Meter must be ${smallMeter[0]}/${smallMeter[1]} or ${largeMeter[0]}/${largeMeter[1]}`);
   }
 
-  const is_4_4 = currentMeter[0] === 4 && currentMeter[1] === 4;
-  const is_4_2 = currentMeter[0] === 4 && currentMeter[1] === 2;
-
-  if (!is_4_4 && !is_4_2) {
-    throw new Error('Meter must be 4/4 or 4/2');
+  if (isSmall)
+    // We're going to remove some bars, so ensure every bar line (pipe / `|`) has a space preceding it
+    // Regex handles bars like :| and [|]
+  {
+    abc = abc.replaceAll(/([^\s])([[:]?\|)/g,'$1 $2')
   }
 
   const parsed = parseABCWithBars(abc);
-  const {bars, headerLines, barLines, musicText} = parsed;
+  const {headerLines, barLines, musicText} = parsed;
 
   // Change meter in headers
   const newHeaders = headerLines.map(line => {
     if (line.match(/^M:/)) {
-      return is_4_4 ? 'M:4/2' : 'M:4/4';
+      return isSmall ? `M:${largeMeter[0]}/${largeMeter[1]}` : `M:${smallMeter[0]}/${smallMeter[1]}`;
     }
     return line;
   });
 
   const hasPickup = hasAnacrucisFromParsed(parsed);
 
-  if (is_4_4) {
-    // Going from 4/4 to 4/2: remove every other bar line (except final)
+  if (isSmall) {
+    // Going from small to large: remove every other bar line (except final)
     const barLinesToRemove = new Set();
     const startIndex = hasPickup ? 1 : 0;
 
@@ -258,31 +201,30 @@ function toggleMeter_4_4_to_4_2(abc) {
       newMusic += musicText.substring(lastPos, barLine.sourceIndex);
 
       if (!barLinesToRemove.has(barLine.sourceIndex)) {
-        newMusic += barLine.text;
-        lastPos = barLine.sourceIndex + barLine.sourceLength;
+        // newMusic += barLine.text;
+        // if(barLine.hasLineBreak) {newMusic += '\n'}
+        // lastPos = barLine.sourceIndex + barLine.sourceLength;
+        lastPos = barLine.sourceIndex;
       } else {
         // Remove the bar line - skip over it
         lastPos = barLine.sourceIndex + barLine.sourceLength;
-        // Preserve one space if there was whitespace
-        if (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
-          newMusic += ' ';
-          // Skip the whitespace we just added
-          while (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
-            lastPos++;
-          }
-        }
+        // // Preserve one space if there was whitespace
+        // if (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+        //   newMusic += ' ';
+        //   // Skip the whitespace we just added
+        //   while (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
+        //     lastPos++;
+        //   }
+        // }
       }
     }
     newMusic += musicText.substring(lastPos);
-
-    // Restore line breaks (removing bars, so direction is 'remove')
-    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, 'remove');
     
-    return `${newHeaders.join('\n')}\n${musicWithLineBreaks}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
 
   } else {
-    // Going from 4/2 to 4/4: add bar line in middle of each bar
-    const halfBarDuration = new Fraction(4, 4);
+    // Going from large to small: add bar line in middle of each bar
+    const halfBarDuration = new Fraction(smallMeter[0], smallMeter[1]);
     const insertionPoints = [];
     const startBarIndex = hasPickup ? 1 : 0;
 
@@ -309,8 +251,8 @@ function toggleMeter_4_4_to_4_2(abc) {
           // Insert bar line after this note
           insertPos = note.sourceIndex + note.sourceLength;
           // Skip any trailing space that's part of this note
-          if (note.spacing && note.spacing.whitespace && musicText[insertPos] === ' ') {
-            insertPos++;
+          if (note.spacing && note.spacing.whitespace) {
+            insertPos+= note.spacing.whitespace.length;
           }
           break;
         }
@@ -322,154 +264,48 @@ function toggleMeter_4_4_to_4_2(abc) {
     }
 
     // Insert bar lines at calculated positions
-    let newMusic = '';
-    let lastPos = 0;
+    const newMusic = insertCharsAtIndexes(musicText,'| ',insertionPoints)
 
-    // Sort insertion points and merge with existing bar lines
-    const allPositions = [
-      ...barLines.map(bl => ({pos: bl.sourceIndex, isExisting: true, type: bl.text})),
-      ...insertionPoints.map(pos => ({pos, isExisting: false, type: '|'}))
-    ].sort((a, b) => a.pos - b.pos);
+    // let newMusic = '';
+    // let lastPos = 0;
 
-    for (const item of allPositions) {
-      newMusic += musicText.substring(lastPos, item.pos);
-      newMusic += item.type;
-      lastPos = item.isExisting ? item.pos + item.type.length : item.pos;
-    }
-    newMusic += musicText.substring(lastPos);
+    // // Sort insertion points and merge with existing bar lines
+    // const allPositions = [
+    //   ...barLines.map(bl => ({pos: bl.sourceIndex, isExisting: true, type: bl.text})),
+    //   ...insertionPoints.map(pos => ({pos, isExisting: false, type: '|'}))
+    // ].sort((a, b) => a.pos - b.pos);
 
-    // Restore line breaks (adding bars, so direction is 'add')
-    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, 'add');
+    // // let nbAdded = 0
+    // for (const item of allPositions) {
+
+    //   newMusic += musicText.substring(lastPos, item.pos);
+    //   newMusic += item.type;
+    //   lastPos = item.isExisting ? item.pos + item.type.length : item.pos;
+    //   // if(!item.isExisting) {nbAdded++;}
+    //   // lastPos+=nbAdded
+    // }
+    // newMusic += musicText.substring(lastPos);
     
-    return `${newHeaders.join('\n')}\n${musicWithLineBreaks}`;
+    return `${newHeaders.join('\n')}\n${newMusic}`;
   }
 }
 
 /**
- * Toggle between M:6/8 and M:12/8 (similar approach)
- * Handles anacrusis correctly
+ * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
+ * This is a true inverse operation - going there and back preserves the ABC exactly
+ * Handles anacrusis correctly and preserves line breaks
+ */
+function toggleMeter_4_4_to_4_2(abc) {
+  return toggleMeterDoubling(abc, [4, 4], [4, 2]);
+}
+
+/**
+ * Toggle between M:6/8 and M:12/8 by surgically adding/removing bar lines
+ * This is a true inverse operation - going there and back preserves the ABC exactly
+ * Handles anacrusis correctly and preserves line breaks
  */
 function toggleMeter_6_8_to_12_8(abc) {
-  const currentMeter = extractMeter(abc);
-  const unitLength = extractUnitLength(abc);
-
-  if (unitLength.compare(new Fraction(1, 8)) !== 0) {
-    throw new Error('This function only works with L:1/8');
-  }
-
-  const is_6_8 = currentMeter[0] === 6 && currentMeter[1] === 8;
-  const is_12_8 = currentMeter[0] === 12 && currentMeter[1] === 8;
-
-  if (!is_6_8 && !is_12_8) {
-    throw new Error('Meter must be 6/8 or 12/8');
-  }
-
-  const parsed = parseABCWithBars(abc);
-  const {bars, headerLines, barLines, musicText} = parsed;
-
-  const newHeaders = headerLines.map(line => {
-    if (line.match(/^M:/)) {
-      return is_6_8 ? 'M:12/8' : 'M:6/8';
-    }
-    return line;
-  });
-
-  // Check for anacrusis
-  const hasPickup = hasAnacrucisFromParsed(parsed);
-
-  if (is_6_8) {
-    // Going from 6/8 to 12/8: remove every other bar line
-    const barLinesToRemove = new Set();
-    const startIndex = hasPickup ? 1 : 0;
-
-    for (let i = startIndex; i < barLines.length - 1; i += 2) {
-      barLinesToRemove.add(barLines[i].sourceIndex);
-    }
-
-    let newMusic = '';
-    let lastPos = 0;
-
-    for (let i = 0; i < barLines.length; i++) {
-      const barLine = barLines[i];
-      newMusic += musicText.substring(lastPos, barLine.sourceIndex);
-
-      if (!barLinesToRemove.has(barLine.sourceIndex)) {
-        newMusic += barLine.text;
-        lastPos = barLine.sourceIndex + barLine.sourceLength;
-      } else {
-        lastPos = barLine.sourceIndex + barLine.sourceLength;
-        if (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
-          newMusic += ' ';
-          while (lastPos < musicText.length && /\s/.test(musicText[lastPos])) {
-            lastPos++;
-          }
-        }
-      }
-    }
-    newMusic += musicText.substring(lastPos);
-
-    // Restore line breaks (removing bars, so direction is 'remove')
-    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, 'remove');
-    
-    return `${newHeaders.join('\n')}\n${musicWithLineBreaks}`;
-
-  } else {
-    // Going from 12/8 to 6/8: add bar line in middle of each bar
-    const halfBarDuration = new Fraction(6, 8);
-    const insertionPoints = [];
-    const startBarIndex = hasPickup ? 1 : 0;
-
-    for (let barIdx = startBarIndex; barIdx < parsed.bars.length; barIdx++) {
-      const bar = parsed.bars[barIdx];
-      let barDuration = new Fraction(0, 1);
-      let insertPos = null;
-
-      for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
-        const note = bar[noteIdx];
-        
-        // Skip inline fields, standalone chord symbols, and dummy notes
-        if (note.isInlineField || note.isChordSymbol || note.isDummy) {
-          continue;
-        }
-        
-        const prevDuration = barDuration.clone();
-        barDuration = barDuration.add(note.duration);
-
-        if (prevDuration.compare(halfBarDuration) < 0 &&
-            barDuration.compare(halfBarDuration) >= 0) {
-          insertPos = note.sourceIndex + note.sourceLength;
-          if (note.spacing && note.spacing.whitespace && musicText[insertPos] === ' ') {
-            insertPos++;
-          }
-          break;
-        }
-      }
-
-      if (insertPos !== null) {
-        insertionPoints.push(insertPos);
-      }
-    }
-
-    let newMusic = '';
-    let lastPos = 0;
-
-    const allPositions = [
-      ...barLines.map(bl => ({pos: bl.sourceIndex, isExisting: true, type: bl.text})),
-      ...insertionPoints.map(pos => ({pos, isExisting: false, type: '|'}))
-    ].sort((a, b) => a.pos - b.pos);
-
-    for (const item of allPositions) {
-      newMusic += musicText.substring(lastPos, item.pos);
-      newMusic += item.type;
-      lastPos = item.isExisting ? item.pos + item.type.length : item.pos;
-    }
-    newMusic += musicText.substring(lastPos);
-
-    // Restore line breaks using parsed structure
-    const musicWithLineBreaks = reconstructMusicWithLineBreaks(parsed, newMusic, 'add');
-    
-    return `${newHeaders.join('\n')}\n${musicWithLineBreaks}`;
-  }
+  return toggleMeterDoubling(abc, [6, 8], [12, 8]);
 }
 
 /**
@@ -591,10 +427,10 @@ function getFirstBars(abc, numBars = 1, withAnacrucis = false, countAnacrucisInT
   }
 
   // Extract the music section with line breaks restored (no transformation)
-  const selectedMusic = reconstructMusicWithLineBreaks(parsed, musicText.substring(startPos, endPos), null);
+  // const selectedMusic = reconstructMusicWithLineBreaks(parsed, musicText.substring(startPos, endPos), null);
 
   // Reconstruct ABC
-  return `${filteredHeaders.join('\n')}\n${selectedMusic}`;
+  return `${filteredHeaders.join('\n')}\n${musicText.substring(startPos, endPos)}`;
 }
 
 /**

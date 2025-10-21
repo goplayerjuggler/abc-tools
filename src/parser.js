@@ -140,7 +140,7 @@ function extractMusicLines(abc) {
   }
 
   return {
-    musicText: musicLines.join(' '),
+    musicText: musicLines.join('\n'),
     lineMetadata,
     newlinePositions,
     headerLines,
@@ -510,7 +510,7 @@ function classifyBarLine(barLineStr) {
     return {
       type: 'repeat-ending',
       ending: parseInt(trimmed[1]),
-      text: trimmed,
+      text: barLineStr,
       isRepeat: true
     };
   }
@@ -519,7 +519,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed.match(/^\|:/) || trimmed.match(/^\[\|/)) {
     return {
       type: 'repeat-start',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: true
     };
   }
@@ -528,7 +528,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed.match(/^:\|/) || (trimmed.match(/^\|\]/) && !trimmed.match(/^\|\]$/))) {
     return {
       type: 'repeat-end',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: true
     };
   }
@@ -537,7 +537,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed.match(/^::/) || trimmed.match(/^:\|:/) || trimmed.match(/^::\|:?/)) {
     return {
       type: 'repeat-both',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: true
     };
   }
@@ -546,7 +546,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed === '|]') {
     return {
       type: 'final',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: false
     };
   }
@@ -555,7 +555,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed === '||') {
     return {
       type: 'double',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: false
     };
   }
@@ -564,7 +564,7 @@ function classifyBarLine(barLineStr) {
   if (trimmed === '|') {
     return {
       type: 'regular',
-      text: trimmed,
+      text: barLineStr,
       isRepeat: false
     };
   }
@@ -572,7 +572,7 @@ function classifyBarLine(barLineStr) {
   // Unknown/complex bar line
   return {
     type: 'other',
-    text: trimmed,
+    text: barLineStr,
     isRepeat: trimmed.includes(':')
   };
 }
@@ -694,8 +694,8 @@ function parseABCWithBars(abc, options = {}) {
   // Create a Set of newline positions for O(1) lookup
   const newlineSet = new Set(newlinePositions);
 
-  // Comprehensive bar line regex
-  const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|)|::|(\|[1-6]))/g;
+  // Comprehensive bar line regex - includes trailing spaces
+  const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|)|::|(\|[1-6])) */g;
 
   const bars = [];
   const barLines = [];
@@ -804,7 +804,7 @@ function parseABCWithBars(abc, options = {}) {
 
     // Check if bar line has a newline after it
     const barLineEndPos = barLinePos + barLineText.length;
-    const hasLineBreakAfterBar = newlineSet.has(barLineEndPos) || 
+    const hasLineBreakAfterBar = newlineSet.has(barLineEndPos + 1) || 
                                   (barLineEndPos < expandedMusic.length && 
                                    expandedMusic[barLineEndPos] === '\n');
 

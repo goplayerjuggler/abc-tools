@@ -23,19 +23,34 @@ A2 AB c2 BA | G2 FE D4 |]`;
 	  expect(restored).toBe(simple_4_4);
     });
 
-    test('4/4 with varied spacing inverse', () => {
+    test('4/4 with varied spacing inverse; one space is added before each bar line which was previously preceded by a note; one space added after toggled bar lines', () => {
 	  const varied_spacing = `X:1
 T:Varied Spacing
 M:4/4
 L:1/8
 K:D
-D2FA dAFD|G2 Bc   d2cB|
-A2 AB c2 BA|G2FE D4|]`;
+D2FA dAFD  |G2 Bc   d2cB|
+A2 AB c2 BA| G2FE D4 |
+D2FA dAFD  |  G2 Bc   d2cB|
+A2 AB c2 BA|   G2FE D4 |
+D2FA dAFD  |      G2 Bc   d2cB|
+A2 AB c2 BA| G2FE D4|]`;
+const expected = `X:1
+T:Varied Spacing
+M:4/4
+L:1/8
+K:D
+D2FA dAFD  | G2 Bc   d2cB |
+A2 AB c2 BA | G2FE D4 |
+D2FA dAFD  | G2 Bc   d2cB |
+A2 AB c2 BA | G2FE D4 |
+D2FA dAFD  | G2 Bc   d2cB |
+A2 AB c2 BA | G2FE D4 |]`;
 
 	  const transformed = toggleMeter_4_4_to_4_2(varied_spacing);
 	  const restored = toggleMeter_4_4_to_4_2(transformed);
 
-	  expect(restored).toBe(varied_spacing);
+	  expect(restored).toBe(expected);
     });
 
     test('4/4 with anacrusis inverse', () => {
