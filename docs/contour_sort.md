@@ -1,19 +1,14 @@
 # Melody modal contour sorting algorithm - “contour sort for tunes”
 
-version 1.0
-
 ## Overview
 
 A system for sorting or indexing tunes or melodies. Key and mode agnostic. It takes short phrases, or parts of modal melodies, and sorts or indexes them by their contour within their modal scale, independent of key. So tunes may be in different keys, or modes, but will get sorted together if they have the same modal contour.
-
-Similar but different to the ordering/sorting system used for Jianpu (numbered musical notation).
 
 Typically the algorithm will apply to sort tunes based on their incipit (opening phrase), but for tunes with multiple parts/sections, it could also be applied to the incipits of the other sections.
 
 Sometimes the same tune can be played differently; so a single tune can be represented by N different incipits. In that case this sort algorithm could be used to place the same tune N times in a list.
 
 A noteworthy general feature is that held notes are sorted before the repeated notes, when they are in the same position in the tone contour - details below.
-
 
 This system resembles the sort system used for [Jianpu](https://en.wikipedia.org/wiki/Jianpu) (numbered musical notation used in China and elsewhere), but with a key difference: Jianpu sorting is mode-specific (usually major scale) and modern Jianpu also specifies the key; this sorting algorithm abstracts away the key and the mode.
 
@@ -22,7 +17,14 @@ This system resembles the sort system used for [Jianpu](https://en.wikipedia.org
 This system is applicable to single-voice melodies in a modal system, where there is a regular beat and a pulse, and a common subdivision of the beat. Examples: reels, jigs and other tune types in Irish traditional music. In both cases the common subdivision is a quaver (aka an eighth note).
 
 So for instance this system can compare any two reels, whatever their key and mode.
-
+### A few practical considerations
+#### Like with like
+It makes sense to compare two reels using this system; less so to compare a reel with a jig. However, comparing jigs and slides with each other makes sense – both can be written using triplets.
+#### Anacrucis
+Tunes may have an anacrucis, aka a pickup. This is a short phrase at the beginning of the tune whose length (duration) is less than the length of a full bar. 
+As the length of the anacrucis can vary, and often there is no anacrucis at all, it seems reasonable to **ignore the anacrucis** when comparing tunes.
+#### Chords
+Sometimes tunes may be written with chords (i.e. more than one note head on a single stem). When this happens, the algorithm only takes the topmost note (the note of the highest pitch) and ignores the others.
 
 ## Musical implications
 

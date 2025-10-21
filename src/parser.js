@@ -11,6 +11,8 @@ const {Fraction} = require('./math.js');
 // - Dummy note: y (for spacing/alignment)
 // - Back quotes: ` (ignored spacing for legibility, preserved in metadata)
 // - Triplets: (3ABC, (3A/B/C/, (3A2B2C2
+// - Repeat notation: |:, :|, |1, |2, etc. 
+// - Bar lines: |, ||, |], [|, etc.
 // - Decorations: symbol decorations (~.MPSTHUV) and !name! decorations
 // - Chord symbols: "Dm7", "G", etc.
 // - Chords (multiple notes): [CEG], [CEG]2, etc.
@@ -18,12 +20,10 @@ const {Fraction} = require('./math.js');
 // - Inline fields: [K:...], [L:...], [M:...], [P:...]
 // - Inline comments: % comment text
 // - Line continuations: \ at end of line
-// - Bar lines: |, ||, |], [|, etc.
 // - Beaming: tracks whitespace between notes for beam grouping
 // - Line breaks: preserves information about newlines in music
 //
 // NOT YET SUPPORTED:
-// - Repeat notation: |:, :|, |1, |2, etc. (recognized as bar lines but not parsed structurally)
 // - Grace notes: {ABC}
 // - Slurs and ties: (), -
 // - Lyrics: w: lines
@@ -77,26 +77,34 @@ function extractUnitLength(abc) {
  * Preserves newline positions for layout tracking
  * 
  * @param {string} abc - ABC notation string
- * @returns {object} - { musicText, lineMetadata, newlinePositions }
+ * @returns {object} - { musicText, lineMetadata, newlinePositions, headerLines, headerEndIndex }
  */
 function extractMusicLines(abc) {
   const lines = abc.split('\n');
   const musicLines = [];
   const lineMetadata = [];
-  const newlinePositions = []; // Track where newlines occur in joined text
+  const newlinePositions = [];
+  const headerLines = [];
+  let headerEndIndex = 0;
   let inHeaders = true;
   let currentPos = 0;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     let trimmed = line.trim();
     
     // Skip empty lines and comment-only lines
     if (trimmed === '' || trimmed.startsWith('%')) {
+      if (inHeaders) {
+        headerEndIndex = i + 1;
+      }
       continue;
     }
     
-    // Skip header lines
+    // Check for header lines
     if (inHeaders && trimmed.match(/^[A-Z]:/)) {
+      headerLines.push(line);
+      headerEndIndex = i + 1;
       continue;
     }
     inHeaders = false;
@@ -115,7 +123,9 @@ function extractMusicLines(abc) {
     if (trimmed) {
       musicLines.push(trimmed);
       lineMetadata.push({
+        lineIndex: i,
         originalLine: line,
+        content: trimmed,
         comment,
         hasContinuation
       });
@@ -132,7 +142,9 @@ function extractMusicLines(abc) {
   return {
     musicText: musicLines.join(' '),
     lineMetadata,
-    newlinePositions
+    newlinePositions,
+    headerLines,
+    headerEndIndex
   };
 }
 
@@ -487,6 +499,85 @@ function parseInlineField(token) {
 }
 
 /**
+ * Classify bar line type
+ * Returns object with type classification and properties
+ */
+function classifyBarLine(barLineStr) {
+  const trimmed = barLineStr.trim();
+  
+  // Repeat endings
+  if (trimmed.match(/^\|[1-6]$/)) {
+    return {
+      type: 'repeat-ending',
+      ending: parseInt(trimmed[1]),
+      text: trimmed,
+      isRepeat: true
+    };
+  }
+  
+  // Start repeat
+  if (trimmed.match(/^\|:/) || trimmed.match(/^\[\|/)) {
+    return {
+      type: 'repeat-start',
+      text: trimmed,
+      isRepeat: true
+    };
+  }
+  
+  // End repeat
+  if (trimmed.match(/^:\|/) || (trimmed.match(/^\|\]/) && !trimmed.match(/^\|\]$/))) {
+    return {
+      type: 'repeat-end',
+      text: trimmed,
+      isRepeat: true
+    };
+  }
+  
+  // Double repeat
+  if (trimmed.match(/^::/) || trimmed.match(/^:\|:/) || trimmed.match(/^::\|:?/)) {
+    return {
+      type: 'repeat-both',
+      text: trimmed,
+      isRepeat: true
+    };
+  }
+  
+  // Final bar
+  if (trimmed === '|]') {
+    return {
+      type: 'final',
+      text: trimmed,
+      isRepeat: false
+    };
+  }
+  
+  // Double bar
+  if (trimmed === '||') {
+    return {
+      type: 'double',
+      text: trimmed,
+      isRepeat: false
+    };
+  }
+  
+  // Regular bar
+  if (trimmed === '|') {
+    return {
+      type: 'regular',
+      text: trimmed,
+      isRepeat: false
+    };
+  }
+  
+  // Unknown/complex bar line
+  return {
+    type: 'other',
+    text: trimmed,
+    isRepeat: trimmed.includes(':')
+  };
+}
+
+/**
  * Parse ABC into structured data with bars
  * 
  * Returns object with:
@@ -565,6 +656,8 @@ function parseInlineField(token) {
  * }
  * 
  * @param {string} abc - ABC notation string
+ * @param {object} options - Parsing options
+ * @param {number} options.maxBars - Maximum number of bars to parse (optional)
  * @returns {object} - Parsed structure as described above
  * 
  * Example:
@@ -588,42 +681,51 @@ function parseInlineField(token) {
  *     lineMetadata: [...]
  *   }
  */
-function parseABCWithBars(abc) {
+function parseABCWithBars(abc, options = {}) {
+  const { maxBars = Infinity } = options;
+  
   let unitLength = extractUnitLength(abc);
   let meter = extractMeter(abc);
   let tonalBase = extractTonalBase(abc);
 
-  const { musicText, lineMetadata } = extractMusicLines(abc);
+  const { musicText, lineMetadata, headerLines, headerEndIndex, newlinePositions } = extractMusicLines(abc);
   const expandedMusic = expandTriplets(musicText);
 
-  // Split by bar lines, keeping the bar line markers
-  const barSegments = expandedMusic.split(/(\|+|\[?\|]?)/);
+  // Create a Set of newline positions for O(1) lookup
+  const newlineSet = new Set(newlinePositions);
+
+  // Comprehensive bar line regex
+  const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|)|::|(\|[1-6]))/g;
 
   const bars = [];
+  const barLines = [];
   let currentBar = [];
+  let barCount = 0;
 
-  for (const segment of barSegments) {
-    const trimmed = segment.trim();
-    if (!trimmed) {continue;}
-
-    // Check if this is a bar line
-    if (trimmed.match(/^\|+$/) || trimmed.match(/^\[?\|]?$/)) {
-      if (currentBar.length > 0) {
-        bars.push(currentBar);
-        currentBar = [];
-      }
-      continue;
-    }
-
+  // Split music text by bar lines while preserving positions
+  let lastBarPos = 0;
+  let match;
+  
+  while ((match = barLineRegex.exec(expandedMusic)) !== null) {
+    const barLineText = match[0];
+    const barLinePos = match.index;
+    
+    // Process segment before this bar line
+    const segment = expandedMusic.substring(lastBarPos, barLinePos);
+    
+    if (segment.trim()) {
     // Parse tokens in this segment
     // Match: inline fields, chord symbols, chords in brackets, decorations, notes/rests/dummy
     const tokenRegex = /\[([KLMP]):[^\]]+\]|"[^"]+"|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*|[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*/g;
     
-    let match;
-    while ((match = tokenRegex.exec(segment)) !== null) {
-      const fullToken = match[0];
-      const tokenEndPos = match.index + fullToken.length;
-      const spacing = analyzeSpacing(segment, tokenEndPos);
+      let tokenMatch;
+      // let segmentPos = lastBarPos;
+      
+      while ((tokenMatch = tokenRegex.exec(segment)) !== null) {
+        const fullToken = tokenMatch[0];
+        const tokenStartPos = lastBarPos + tokenMatch.index;
+        // const tokenEndPos = tokenStartPos + fullToken.length;
+        const spacing = analyzeSpacing(segment, tokenMatch.index + fullToken.length);
       
       // Check for inline field
       const inlineField = parseInlineField(fullToken);
@@ -651,27 +753,37 @@ function parseABCWithBars(abc) {
           field: inlineField.field,
           value: inlineField.value,
           token: fullToken,
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
           spacing
         });
         continue;
       }
       
-      // Check if it's a standalone chord symbol (not attached to a note)
+        // Standalone chord symbol
       if (fullToken.match(/^"[^"]+"$/)) {
         currentBar.push({
           isChordSymbol: true,
           chordSymbol: fullToken.slice(1, -1),
           token: fullToken,
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
           spacing
         });
         continue;
       }
       
-      // Check if it's a chord (notes in brackets)
+        // Chord in brackets
       if (fullToken.match(/\[[^\]]+\]/)) {
         const chord = parseChord(fullToken, unitLength);
         if (chord) {
-          currentBar.push({ ...chord, token: fullToken, spacing });
+            currentBar.push({ 
+              ...chord, 
+              token: fullToken, 
+              sourceIndex: tokenStartPos,
+              sourceLength: fullToken.length,
+              spacing 
+            });
         }
         continue;
       }
@@ -679,23 +791,91 @@ function parseABCWithBars(abc) {
       // Regular note, rest, or dummy
       const note = parseNote(fullToken, unitLength);
       if (note) {
-        currentBar.push({ ...note, token: fullToken, spacing });
+          currentBar.push({ 
+            ...note, 
+            token: fullToken, 
+            sourceIndex: tokenStartPos,
+            sourceLength: fullToken.length,
+            spacing 
+          });
+        }
       }
     }
+
+    // Check if bar line has a newline after it
+    const barLineEndPos = barLinePos + barLineText.length;
+    const hasLineBreakAfterBar = newlineSet.has(barLineEndPos) || 
+                                  (barLineEndPos < expandedMusic.length && 
+                                   expandedMusic[barLineEndPos] === '\n');
+
+    // Store bar line information
+    const barLineInfo = classifyBarLine(barLineText);
+    barLines.push({
+      ...barLineInfo,
+      sourceIndex: barLinePos,
+      sourceLength: barLineText.length,
+      barNumber: barCount,
+      hasLineBreak: hasLineBreakAfterBar
+    });
+
+    // Update the last token in current bar to mark lineBreak if bar line has one
+    if (currentBar.length > 0 && hasLineBreakAfterBar) {
+      const lastToken = currentBar[currentBar.length - 1];
+      if (lastToken.spacing) {
+        lastToken.spacing.lineBreak = true;
+      }
+    }
+
+    // Save current bar if it has content
+    if (currentBar.length > 0) {
+      bars.push(currentBar);
+      barCount++;
+      currentBar = [];
+      
+      // Check if we've reached max bars
+      if (barCount >= maxBars) {
+        break;
+      }
+    }
+
+    lastBarPos = barLineEndPos;
   }
 
-  // Add final bar if it has content
-  if (currentBar.length > 0) {
+  // Add final bar if it has content and we haven't reached max
+  if (currentBar.length > 0 && barCount < maxBars) {
     bars.push(currentBar);
   }
 
   return { 
     bars, 
+    barLines,
     unitLength, 
     meter, 
     tonalBase,
-    lineMetadata // Store all line-level metadata for reconstruction
+    lineMetadata,
+    headerLines,
+    headerEndIndex,
+    musicText: expandedMusic
   };
+}
+
+/**
+ * Calculate bar durations from parsed ABC data
+ * Returns duration for each bar
+ */
+function calculateBarDurations(parsedData) {
+  const { bars } = parsedData;
+  
+  return bars.map(bar => {
+    let total = new Fraction(0, 1);
+    for (const note of bar) {
+      if (note.isInlineField || note.isChordSymbol || note.isDummy) {
+        continue;
+      }
+      total = total.add(note.duration);
+    }
+    return total;
+  });
 }
 
 module.exports = {
@@ -714,4 +894,7 @@ module.exports = {
   analyzeSpacing,
   tokeniseABC,
   parseABCWithBars,
+  classifyBarLine,
+  calculateBarDurations,
+  NOTE_TO_DEGREE
 };

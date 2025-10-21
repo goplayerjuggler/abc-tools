@@ -3,7 +3,7 @@ const {
   extractTonalBase,
   extractUnitLength,
   parseNote,
-  tokeniseABC
+  tokeniseABC, NOTE_TO_DEGREE
 } = require('./parser.js');
 
 /**
@@ -17,18 +17,7 @@ const {
 
 const OCTAVE_SHIFT = 7; // 7 scale degrees per octave
 
-// Tonal base to its degree offset from C
-const TONAL_BASE_OFFSET = {
-  C: 0,
-  D: 1,
-  E: 2,
-  F: 3,
-  G: 4,
-  A: 5,
-  B: 6
-};
 
-const NOTE_TO_DEGREE = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
 const baseChar = 0x0420; // middle of cyrillic
 const silenceChar = '_'; // silence character
@@ -42,7 +31,7 @@ const silenceChar = '_'; // silence character
  * Returns a compact representation: octave * 7 + degree (both 0-indexed)
  */
 function calculateModalPosition(tonalBase, pitch, octaveShift) {
-  const tonalDegree = TONAL_BASE_OFFSET[tonalBase];
+  const tonalDegree = NOTE_TO_DEGREE[tonalBase];
   const noteDegree = NOTE_TO_DEGREE[pitch.toUpperCase()];
 
   // Calculate relative degree (how many scale steps from tonic)
@@ -84,7 +73,7 @@ function decodeChar(char) {
 }
 
 // ============================================================================
-// SORT OBJECT GENERATION
+// SORT OBJECT (contour) GENERATION
 // ============================================================================
 
 /**

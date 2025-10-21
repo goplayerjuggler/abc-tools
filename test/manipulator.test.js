@@ -3,13 +3,36 @@ const {
   hasAnacrucis,
   toggleMeter_4_4_to_4_2,
   toggleMeter_6_8_to_12_8,
-  getIncipit
+  getIncipit, normaliseKey
 } = require('../src/index.js');
 
 // ============================================================================
 // ABC MANIPULATION TESTS
 // Based on manipulation.js - comprehensive tests for ABC manipulations
 // ============================================================================
+
+describe('normaliseKey', ()=> {
+  test('gives an array of two elements', ()=>{
+    let result, keyHeader
+    keyHeader="D"
+    result = normaliseKey(keyHeader)
+    expect(result.length).toBe(2)
+    expect(result[0]).toBe("D")
+    expect(result[1]).toBe("major")
+    keyHeader="Aaeol"
+    result = normaliseKey(keyHeader)
+    expect(result.length).toBe(2)
+    expect(result[0]).toBe("A")
+    expect(result[1]).toBe("minor")
+    keyHeader="D#mixo"
+    result = normaliseKey(keyHeader)
+    expect(result.length).toBe(2)
+    expect(result[0]).toBe("D♯")
+    expect(result[1]).toBe("mixolydian")
+
+  })
+
+});
 
 describe('ABC Manipulator - getFirstBars functionality', () => {
   const tuneWithAnacrusis = `X:1
@@ -111,7 +134,7 @@ K:D`);
       expect(result).not.toContain('|"D"d2 f2 "A"e2 d2');
     });
     test(
-      'extracts first bar from complex tune with anacrusis', () => {
+      'extracts first bar from complex tune with anacrusis - cotillon', () => {
       const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, false);
       expect(result).toContain('K: Gmaj\n!segno! B2[BE][BE] EBGB dedB cdcB');
       expect(result).not.toContain('AGFG');
@@ -272,7 +295,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
     test('extracts 2.25 bars', () => {
       const result = getFirstBars(tuneWithAnacrusis, 2.25, false);
 
-      expect(result).toContain('K:D\nd2 cB A2 FA | d2 f2 e2 d2 | c2 '); // bar 1-2; bar 3 (2 eighth notes)
+      expect(result).toContain('K:D\nd2 cB A2 FA | d2 f2 e2 d2 | c2'); // bar 1-2; bar 3 (2 eighth notes)
       expect(result).not.toContain('BA G2 FE |]');
     });
   });
@@ -771,7 +794,7 @@ FA | d2 cB A2 FA | d2 f2 e2 d2 | AAAA AAAA`;
       expect(result).not.toContain('T:Example Tune');
       expect(result).toContain('M:4/4');
       expect(result).toContain('L:1/8');
-      expect(result).toContain('K:D\nFA | d2 cB A2 FA | d2 f2 e2 '); // anacrusis included
+      expect(result).toContain('K:D\nFA | d2 cB A2 FA | d2 f2 e2'); // anacrusis included
       expect(result).not.toContain('d2 | AAAA');
       
     });
