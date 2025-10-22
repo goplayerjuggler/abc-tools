@@ -91,6 +91,7 @@ function getContour(abc, options = {}) {
   let index = 0;
   // get the parsed notes - notes are tokens with a duration
   const notes = [];
+  let tied = false, previousPosition = null
   for (let i = 0; i < bars.length; i++) {
     const bar = bars[i];
     for (let j = 0; j < bar.length; j++) {
@@ -104,9 +105,18 @@ function getContour(abc, options = {}) {
   notes.forEach((note) => {
     const { duration, isSilence } = note;
     const comparison = duration.compare(unitLength);
-    const { encoded, encodedHeld } = isSilence
-      ? { encoded: silenceChar, encodedHeld: silenceChar }
-      : getEncodedFromNote(note, tonalBase);
+    const { encoded, encodedHeld, position } = isSilence
+      ? { encoded: silenceChar, encodedHeld: silenceChar, position:0 }
+      : getEncodedFromNote(note, tonalBase, tied, previousPosition);
+
+    if (note.tied) {
+      tied = true
+      previousPosition = position
+    }
+    else {
+      tied = false
+      previousPosition = null
+    }
 
     if (comparison > 0) {
       // Held note: duration > unitLength
@@ -361,13 +371,21 @@ function sortArray(arr) {
   return arr;
 }
 
-function getEncodedFromNote(note, tonalBase) {
+function getEncodedFromNote(note, tonalBase, tied, previousPosition) {
+
   // Handle pitched note
   const { pitch, octave } = note;
   const position = calculateModalPosition(tonalBase, pitch, octave);
   const encodedHeld = encodeToChar(position, true);
   const encoded = encodeToChar(position, false);
-  return { encoded, encodedHeld };
+
+  return { 
+    encoded : 
+      tied && position === previousPosition 
+      ? encodedHeld
+      : encoded, 
+    encodedHeld, 
+    position };
 }
 
 // ============================================================================

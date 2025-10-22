@@ -347,7 +347,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
     return result;
   }
 
-  const tied = cleanStr.match(/-$/) ? true : undefined
+  const tied = !!cleanStr.match(/-$/)
   // Handle chords - extract topmost note for contour sorting
   if (cleanStr.match(/^\[.*\]/)) {
     const chord = parseChord(noteStr, unitLength);
@@ -490,7 +490,7 @@ function getDuration({ unitLength, noteString, currentTuple } = {}) {
 }
 
 const getTokenRegex = () =>
-  /\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*-?/g;
+  /\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?(?:[A-Ga-gzxy]|\[[A-Ga-gzxy]+\])[',]*[0-9]*\/?[0-9]*-?|!([^!]+)!/g;
 
 /**
  * Parse inline field from music section

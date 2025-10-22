@@ -21,7 +21,7 @@ G2B`;
     });
   });
 
-  describe('Held vs repeated notes', () => {
+  describe('Held vs repeated notes; ties', () => {
     test('held note vs repeated note', () => {
       const abcHeld = 'X:1\nL:1/8\nK:C\nC2';
       const abcRepeated = 'X:1\nL:1/8\nK:C\nCC';
@@ -35,6 +35,23 @@ G2B`;
       expect(decodedHeld[1].isHeld).toBe(true);
       expect(decodedRep[1].isHeld).toBe(false);
       expect(sort(objHeld, objRepeated)).toBe(-1);
+    });
+    
+    test('ties', () => {
+      const 
+      t1 = 'X:1\nL:1/8\nK:D\nD2',
+      t2 = 'X:1\nL:1/8\nK:D\nD-D',
+      t3 = 'X:1\nL:1/8\nK:D\nD-E',
+      t4 = 'X:1\nL:1/8\nK:D\nDE',
+      c1 = getContour(t1),
+      c2 = getContour(t2),
+      c3 = getContour(t3),
+      c4 = getContour(t4)
+      expect(sort(c1, c2)).toBe(0);
+      expect(sort(c3, c4)).toBe(0);
+
+      
+      expect(sort(c1, c3)).toBe(-1);
     });
   });
 
@@ -149,7 +166,7 @@ G2B AGA B2d gdB`;
     });
   });
 
-  describe('The Flogging vs The Colliers', () => {
+  describe('The Flogging vs The Colliers’', () => {
     const theFlogging = {
       name: 'The Flogging',
       abc: `X: 12
@@ -266,19 +283,6 @@ FDE/F/G A2AB cAdB cAG2 |`//L:1/16
       expect(objShortSilence.durations).toBeDefined();
       expect(objShortSilence.durations.length).toBe(1);
       expect(objShortSilence.durations[0].d).toBe(2);
-    });
-    test('ties', () => {
-      const 
-      t1 = 'X:1\nL:1/8\nK:D\nD2',
-      t2 = 'X:1\nL:1/8\nK:D\nD-D',
-      t3 = 'X:1\nL:1/8\nK:D\nD-E',
-      t4 = 'X:1\nL:1/8\nK:D\nDE',
-      c1 = getContour(t1),
-      c2 = getContour(t2),
-      c3 = getContour(t3),
-      c4 = getContour(t4)
-      expect(sort(c1, c2)).toBe(0);
-      expect(sort(c3, c4)).toBe(0);
     });
   });
 });
