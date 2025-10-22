@@ -11,12 +11,12 @@
 
 /**
  * Get regex for matching ABC music tokens
- * Matches: tuplets, inline fields, chord symbols, notes, rests, chords in brackets, decorations
+ * Matches: tuplets, inline fields, chord symbols, notes, rests, chords in brackets, decorations, broken rhythms
  *
  * @returns {RegExp} - Regular expression for tokenising ABC music
  */
 const getTokenRegex = () =>
-	/\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?(?:[A-Ga-gzxy]|\[[A-Ga-gzxy]+\])[',]*[0-9]*\/?[0-9]*-?|!([^!]+)!/g;
+	/\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?(?:[A-Ga-gzxy]|\[[A-Ga-gzxy]+\])[',]*[0-9]*\/?[0-9]*(?:-|\s*(?:<{1,3}|>{1,3}))?|!([^!]+)!/g;
 
 /**
  * Parse inline field from music section

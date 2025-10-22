@@ -11,6 +11,7 @@ const { Fraction } = require("../math.js");
 // - Decorations/ornaments
 // - Chord symbols and annotations
 // - Tuplets/triplets
+// - Broken rhythms
 //
 // ============================================================================
 
@@ -190,6 +191,86 @@ function parseChord(chordStr, unitLength) {
 		isChord: true,
 		notes,
 	};
+}
+
+/**
+ * Parse broken rhythm from a token
+ * Broken rhythms modify the duration of two adjacent notes (e.g., A>B, C<<D)
+ *
+ * @param {string} token - Broken rhythm token (e.g., '>', '>>', '<<<')
+ * @returns {object|null} - { isBrokenRhythm: true, direction, dots } or null if not a broken rhythm
+ *
+ * Direction:
+ * - '>' means first note is lengthened, second is shortened
+ * - '<' means first note is shortened, second is lengthened
+ *
+ * Dots (number of < or > characters):
+ * - 1: dotted rhythm (3:1 multiplier)
+ * - 2: double-dotted rhythm (7:1 multiplier)
+ * - 3: triple-dotted rhythm (15:1 multiplier)
+ */
+function parseBrokenRhythm(token) {
+	const brokenMatch = token.match(/^(.+?)\s*(<{1,3}|>{1,3})$/);
+	if (brokenMatch) {
+		const firstNoteToken = brokenMatch[1],
+			symbol = brokenMatch[2];
+		return {
+			firstNoteToken,
+			isBrokenRhythm: true,
+			direction: symbol[0],
+			dots: symbol.length,
+		};
+	}
+	return null;
+}
+
+/**
+ * Apply broken rhythm adjustments to two notes
+ * Modifies the duration of both notes according to the broken rhythm pattern
+ *
+ * @param {object} firstNote - First note object (will be modified in place)
+ * @param {object} secondNote - Second note object (will be modified in place)
+ * @param {object} brokenRhythm - Broken rhythm object from parseBrokenRhythm
+ */
+function applyBrokenRhythm(firstNote, secondNote, brokenRhythm) {
+	if (
+		!firstNote.duration ||
+		!secondNote.duration ||
+		// Not equal durations, don't apply broken rhythm
+		firstNote.duration.compare(secondNote.duration) !== 0
+	) {
+		return;
+	}
+	const { direction, dots } = brokenRhythm;
+
+	// Calculate the multiplier based on dots
+	// 1 dot: 3:1, 2 dots: 7:1, 3 dots: 15:1
+
+	// Broken rhythms work on EQUAL durations only
+	// If A and B are both 1/8 notes, then A>B means:
+	// A gets lengthened by a dot: 1/8 + 1/16 = 3/16
+	// B gets shortened by the same amount: 1/16
+	//
+	// The maths: multiplier = 2^(dots+1) - 1, divisor = 2^dots
+	// 1 dot: multiplier=3, divisor=2 → 3/2 and 1/2 of original
+	// 2 dots: multiplier=7, divisor=4 → 7/4 and 1/4 of original
+	// 3 dots: multiplier=15, divisor=8 → 15/8 and 1/8 of original
+
+	const multiplier = Math.pow(2, dots + 1) - 1;
+	const divisor = Math.pow(2, dots);
+	const initialDuration = firstNote.duration.clone();
+	const changeDurations = (toLengthen, toShorten) => {
+		toLengthen.duration = initialDuration.multiply(multiplier).divide(divisor);
+		toShorten.duration = initialDuration.divide(divisor);
+	};
+	if (direction === ">") {
+		// First note gets longer, second gets shorter
+		changeDurations(firstNote, secondNote);
+	} else {
+		// direction === '<'
+		// First note gets shorter, second gets longer
+		changeDurations(secondNote, firstNote);
+	}
 }
 
 /**
@@ -376,5 +457,7 @@ module.exports = {
 	parseChord,
 	parseNote,
 	parseTuplet,
+	parseBrokenRhythm,
+	applyBrokenRhythm,
 	NOTE_TO_DEGREE,
 };
