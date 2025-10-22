@@ -2,7 +2,6 @@ const { Fraction } = require("./math.js");
 const {
   parseABCWithBars,
   getMeter,
-  getUnitLength,
   calculateBarDurations,
 } = require("./parser.js");
 
@@ -439,39 +438,9 @@ function getFirstBars(
   )}`;
 }
 
-/**
- * Get incipit (opening bars) of a tune for display/search purposes
- * @param {object} Object of the form {abc} with optional property: numBars
- * @param {string} params.abc - ABC notation
- * @param {number|Fraction} params.numBars - Number of bars to return, counting the anacrucis if there is one. (default:2)
- * @returns {string} - ABC incipit
- */
-function getIncipit({
-  abc,
-  numBars, //, part=null
-} = {}) {
-  if (!numBars) {
-    numBars = 2;
-    const currentMeter = getMeter(abc);
-    const unitLength = getUnitLength(abc);
-    if (
-      (currentMeter[0] === 4 &&
-        currentMeter[1] === 4 &&
-        unitLength.den === 16) ||
-      (currentMeter[0] === 4 &&
-        currentMeter[1] === 2 &&
-        unitLength.den === 8) ||
-      (currentMeter[0] === 12 && currentMeter[1] === 8)
-    ) {
-      numBars = new Fraction(3, 2);
-    }
-  }
-  return getFirstBars(abc, numBars, true, true, { all: true });
-}
 
 module.exports = {
   getFirstBars,
-  getIncipit,
   hasAnacrucis,
   toggleMeter_4_4_to_4_2,
   toggleMeter_6_8_to_12_8,

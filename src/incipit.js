@@ -1,0 +1,271 @@
+"use strict";
+const { Fraction } = require("./math.js");
+const {getFirstBars} = require("./manipulator.js")
+
+const {
+	getUnitLength,
+  getMeter
+} = require("./parser.js");
+
+//const incipitLength = 35;
+//
+// Clean an incipit line
+//
+// function cleanIncipitLine(theTextIncipit) {
+//   //console.log("Starting incipit:");
+//   //console.log(theTextIncipit);
+
+//   // Strip any embedded voice [V:*]
+//   let searchRegExp = /\[V:\s*\d+\]/gm;
+//   theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+//   //console.log(theTextIncipit);
+
+//   // Strip any embedded voice V: *
+//   //searchRegExp = /V: [^ ]+ /gm
+//   searchRegExp = /V:\s+\S+\s/gm;
+//   theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+//   //console.log(theTextIncipit);
+
+//   // Strip any embedded voice V:*
+//   searchRegExp = /V:[^ ]+ /gm;
+//   theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+//   //console.log(theTextIncipit);
+
+//   // Sanitize !*! style annotations, but keep !fermata!
+//   searchRegExp = /!(?!fermata!)[^!\n]*!/gm;
+//   theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+//   //console.log(theTextIncipit);
+
+//   // Strip out repeat marks
+//   theTextIncipit = theTextIncipit.replaceAll("|:", "|");
+//   theTextIncipit = theTextIncipit.replaceAll(":|", "|");
+
+//   // strip out 1st 2nd etc time repeats
+//   searchRegExp = /\[\d(,\d)*/gm;
+//   theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+
+//   //console.log(theTextIncipit);
+
+//   // Strip out brackets
+//   //   theTextIncipit = theTextIncipit.replaceAll("[", "");
+//   //console.log(theTextIncipit);
+
+//   // Strip out brackets
+//   //   theTextIncipit = theTextIncipit.replaceAll("]", "");
+//   //console.log(theTextIncipit);
+
+// //   // Strip out continuations
+// //   theTextIncipit = theTextIncipit.replaceAll("\\", "");
+
+//   // Segno
+//   theTextIncipit = theTextIncipit.replaceAll("S", "");
+
+//   // Strip out comments
+//   theTextIncipit = theTextIncipit.replace(/"[^"]+"/gm, "");
+//   // Strip out inline parts
+//   theTextIncipit = theTextIncipit.replace(/\[P:[Ⅰ\w]\]/gm, "");
+
+//   //console.log("Final raw incipit :");
+//   //console.log(theTextIncipit);
+
+//   return theTextIncipit;
+// }
+
+function StripAnnotationsOneForIncipits(theNotes) {
+  // Strip out tempo markings
+  let searchRegExp = /^Q:.*[\r\n]*/gm;
+
+  // Strip out tempo markings
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out Z: annotation
+  searchRegExp = /^Z:.*[\r\n]*/gm;
+
+  // Strip out Z: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out R: annotation
+  searchRegExp = /^R:.*[\r\n]*/gm;
+
+  // Strip out R: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out S: annotation
+  searchRegExp = /^S:.*[\r\n]*/gm;
+
+  // Strip out S: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out N: annotation
+  searchRegExp = /^N:.*[\r\n]*/gm;
+
+  // Strip out N: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out D: annotation
+  searchRegExp = /^D:.*[\r\n]*/gm;
+
+  // Strip out D: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out H: annotation
+  searchRegExp = /^H:.*[\r\n]*/gm;
+
+  // Strip out H: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out B: annotation
+  searchRegExp = /^B:.*[\r\n]*/gm;
+
+  // Strip out B: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out C: annotation
+  searchRegExp = /^C:.*[\r\n]*/gm;
+
+  // Strip out C: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out O: annotation
+  searchRegExp = /^O:.*[\r\n]*/gm;
+
+  // Strip out O: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out A: annotation
+  searchRegExp = /^A:.*[\r\n]*/gm;
+
+  // Strip out A: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out P: annotation
+  searchRegExp = /^P:.*[\r\n]*/gm;
+
+  // Strip out P: annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  return theNotes;
+}
+
+//
+// Strip all the text annotations in the ABC
+//
+function StripTextAnnotationsOne(theNotes) {
+  // Strip out text markings
+  let searchRegExp = /%%text .*[\r\n]*/gm;
+
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  searchRegExp = /%%text[\r\n]/gm;
+
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out %%center annotation
+  searchRegExp = /%%center.*[\r\n]*/gm;
+
+  // Strip out %%center annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out %%right annotation
+  searchRegExp = /%%right.*[\r\n]*/gm;
+
+  // Strip out %%right annotation
+  theNotes = theNotes.replace(searchRegExp, "");
+
+  // Strip out %%begintext / %%endtext blocks
+  theNotes = theNotes.replace(/^%%begintext[\s\S]*?^%%endtext.*(\r?\n)?/gm, "");
+
+  return theNotes;
+}
+
+//
+// Strip all the chords in the ABC
+//
+function StripChordsOne(theNotes) {
+  function match_callback(match) {
+    // Don't strip tab annotations, only chords
+    if (match.indexOf('"_') === -1 && match.indexOf('"^') === -1) {
+      // Try and avoid stripping long text strings that aren't chords
+      if (match.length > 9) {
+        return match;
+      }
+      // If there are spaces in the match, also probably not a chord
+      else if (match.indexOf(" ") !== -1) {
+        return match;
+      } else {
+        return "";
+      }
+    } else {
+      return match;
+    }
+  }
+
+  // Strip out chord markings and not text annotations
+  const searchRegExp = /"[^"]*"/gm;
+
+  const output = theNotes
+    .split("\n")
+    .map((line) => {
+      // If line starts with one of the forbidden prefixes, skip replacement
+      if (/^[XTMKLQWZRCAOPNGHBDFSIV]:/.test(line) || /^%/.test(line)) {
+        return line;
+      } else {
+        return line.replace(searchRegExp, match_callback);
+      }
+    })
+    .join("\n");
+
+  // Replace the ABC
+  return output;
+}
+
+function sanitise (theTune) {
+
+  // Strip out annotations
+  theTune = StripAnnotationsOneForIncipits(theTune);
+
+  // Strip out textnnotations
+  theTune = StripTextAnnotationsOne(theTune);
+
+  // Strip out chord markings
+  theTune = StripChordsOne(theTune);
+
+  return theTune;
+};
+
+
+/**
+ * Get incipit (opening bars) of a tune for display/search purposes
+ * @param {object} Object of the form {abc} with optional property: numBars
+ * @param {string} params.abc - ABC notation
+ * @param {number|Fraction} params.numBars - Number of bars to return, counting the anacrucis if there is one. (default:2)
+ * @returns {string} - ABC incipit
+ */
+function getIncipit({
+  abc,
+  numBars, //, part=null
+} = {}) {
+  if (!numBars) {
+    numBars = 2;
+    const currentMeter = getMeter(abc);
+    const unitLength = getUnitLength(abc);
+    if (
+      (currentMeter[0] === 4 &&
+        currentMeter[1] === 4 &&
+        unitLength.den === 16) ||
+      (currentMeter[0] === 4 &&
+        currentMeter[1] === 2 &&
+        unitLength.den === 8) ||
+      (currentMeter[0] === 12 && currentMeter[1] === 8)
+    ) {
+      numBars = new Fraction(3, 2);
+    }
+	else if (currentMeter[0]===3 && currentMeter[1] === 4){
+		numBars = 3
+	}
+  }
+  abc = sanitise(abc)
+  return getFirstBars(abc, numBars, true, true, { all: true });
+}
+
+module.exports = {getIncipit}

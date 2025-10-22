@@ -1,7 +1,7 @@
 {
-  "name": "abc-tools",
-  "version": "1.0.0",
-  "description": "sorting algorithm and implementation for ABC tunes; plus other tools to come later",
+  "name": "@goplayerjuggler/abc-tools",
+  "version": "1.0.2",
+  "description": "sorting algorithm and implementation for ABC tunes; plus other tools for parsing and manipulating ABC tunes",
   "main": "src/index.js",
   "scripts": {
     "test": "jest",
@@ -15,6 +15,7 @@
     "music",
     "melody",
     "sorting",
+    "parsing",
     "modal",
     "tune",
     "traditional",

@@ -190,6 +190,11 @@ d2 fd e2 ce | B2 GB A4 |]`;
       expect(result).not.toContain('G2 FE D4');
       expect(result).not.toContain('d2 fd e2 ce');
     });
+    test('ignores first bar symbol when nothing precedes it', () =>{
+      const abc= "X: 1\nT: The Silver Slipper\nM: 2/2\nL: 1/8\nK: D\n|:FD ~D2 FD ~D2|AFdA FD ~D2|FDFA B<GEA:|\nM: 3/4\n|:FA dc d2|FA dA (3Bcd|FA dc ~d2|BG EF GE|\nFA dc d2|FA dA (3Bcd|ec dA FA|1 BG EF GE:|2 [M: 1/2]BG E!D.C.!G ||"
+      const result = getFirstBars(abc, 2, true, true, { all: true });
+      expect (result).toContain('|AFdA FD ~D2')
+    })
   });
 
   describe('different time signatures', () => {

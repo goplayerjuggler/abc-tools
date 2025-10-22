@@ -969,9 +969,12 @@ function parseABCWithBars(abc, options = {}) {
  * Returns duration for each bar
  */
 function calculateBarDurations(parsedData) {
-  const { bars } = parsedData;
-
-  return bars.map((bar) => {
+  const { bars, barLines } = parsedData;
+  const result = []
+  if(barLines && barLines[0] && barLines[0].sourceIndex === 0){
+    result.push(new Fraction(0,1))
+  }
+  bars.forEach((bar) => {
     let total = new Fraction(0, 1);
     for (const note of bar) {
       if (!note.duration) {
@@ -979,8 +982,9 @@ function calculateBarDurations(parsedData) {
       }
       total = total.add(note.duration);
     }
-    return total;
+    result.push(total);
   });
+  return result
 }
 
 module.exports = {

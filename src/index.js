@@ -6,6 +6,7 @@
 const parser = require('./parser.js');
 const manipulator = require('./manipulator.js');
 const sort = require('./contour-sort.js');
+const incipit = require('./incipit.js');
 
 module.exports = {
   // Parser functions
@@ -15,5 +16,8 @@ module.exports = {
   ...manipulator,
 
   // Sort functions
-  ...sort
+  ...sort,
+
+  // Incipit functions
+  ...incipit
 };
