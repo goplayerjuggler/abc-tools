@@ -5,7 +5,7 @@ const {
 	getUnitLength,
 	getMusicLines,
 } = require("./header-parser.js");
-const { parseNote, parseTuple, NOTE_TO_DEGREE } = require("./note-parser.js");
+const { parseNote, parseTuplet, NOTE_TO_DEGREE } = require("./note-parser.js");
 const { classifyBarLine } = require("./barline-parser.js");
 const {
 	getTokenRegex,
@@ -295,7 +295,7 @@ function parseABCWithBars(abc, options = {}) {
 
 				// Tuplets
 				if (fullToken.match(/\(\d(?::\d?){0,2}/g)) {
-					const tuple = parseTuple(fullToken);
+					const tuple = parseTuplet(fullToken);
 					if (tuple) {
 						if (currentTuple) {
 							throw new Error("nested tuples not handled");
