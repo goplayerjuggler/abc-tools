@@ -267,5 +267,18 @@ FDE/F/G A2AB cAdB cAG2 |`//L:1/16
       expect(objShortSilence.durations.length).toBe(1);
       expect(objShortSilence.durations[0].d).toBe(2);
     });
+    test('ties', () => {
+      const 
+      t1 = 'X:1\nL:1/8\nK:D\nD2',
+      t2 = 'X:1\nL:1/8\nK:D\nD-D',
+      t3 = 'X:1\nL:1/8\nK:D\nD-E',
+      t4 = 'X:1\nL:1/8\nK:D\nDE',
+      c1 = getContour(t1),
+      c2 = getContour(t2),
+      c3 = getContour(t3),
+      c4 = getContour(t4)
+      expect(sort(c1, c2)).toBe(0);
+      expect(sort(c3, c4)).toBe(0);
+    });
   });
 });

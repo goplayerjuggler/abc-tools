@@ -9,8 +9,6 @@ const { Fraction } = require("./math.js");
 // - Duration modifiers (explicit numbers, fractions, slashes)
 // - Rests/silences (z, x)
 // - Dummy note: y (for spacing/alignment)
-// - Back quotes: ` (ignored spacing for legibility, preserved in metadata)
-// - Triplets: (3ABC, (3A/B/C/, (3A2B2C2
 // - Repeat notation: |:, :|, |1, |2, etc.
 // - Bar lines: |, ||, |], [|, etc.
 // - Decorations: symbol decorations (~.MPSTHUV) and !name! decorations
@@ -22,10 +20,13 @@ const { Fraction } = require("./math.js");
 // - Line continuations: \ at end of line
 // - Beaming: tracks whitespace between notes for beam grouping
 // - Line breaks: preserves information about newlines in music
+// - Ties: -
+// - Triplets and general tuples (`(p:q:r` format): (3ABC, (3A/B/C/, (3A2B2C2; 
+// - Back quotes: ` (ignored spacing for legibility, preserved in metadata)
 //
 // NOT YET SUPPORTED:
 // - Grace notes: {ABC}
-// - Slurs and ties: (), -
+// - Slurs: ()
 // - Lyrics: w: lines
 // - Multiple voices: V: fields
 // - Macros and user-defined symbols
@@ -317,7 +318,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
   // Strip extras for core parsing
   const cleanStr = stripExtras(noteStr);
 
-  // Handle dummy note 'y' (invisible placeholder)
+  // dummy note 'y' (invisible placeholder)
   if (cleanStr.match(/^y$/)) {
     return {
       isDummy: true,
@@ -325,6 +326,28 @@ function parseNote(noteStr, unitLength, currentTuple) {
     };
   }
 
+  // rest/silence
+  const silenceMatch = cleanStr.match(/^[zx]/);
+  if (silenceMatch) {
+    const duration = getDuration({
+      unitLength,
+      noteString: cleanStr,
+      currentTuple,
+    });
+    const result = { isSilence: true, duration, text: silenceMatch[0] };
+    if (decorations) {
+      result.decorations = decorations;
+    }
+    if (chordSymbol) {
+      result.chordSymbol = chordSymbol;
+    }
+    if (annotation) {
+      result.annotation = annotation;
+    }
+    return result;
+  }
+
+  const tied = cleanStr.match(/-$/) ? true : undefined
   // Handle chords - extract topmost note for contour sorting
   if (cleanStr.match(/^\[.*\]/)) {
     const chord = parseChord(noteStr, unitLength);
@@ -359,36 +382,17 @@ function parseNote(noteStr, unitLength, currentTuple) {
       // Return top note with chord metadata
       return {
         ...topNote,
-        isChord: true,
-        chordNotes: chord.notes,
-        decorations: decorations || chord.decorations,
-        chordSymbol: chordSymbol || chord.chordSymbol,
         annotation,
+        chordNotes: chord.notes,
+        chordSymbol: chordSymbol || chord.chordSymbol,
+        decorations: decorations || chord.decorations,
+        isChord: true,
+        tied,
       };
     }
   }
 
-  // Check for rest/silence
-  const silenceMatch = cleanStr.match(/^[zx]/);
-  if (silenceMatch) {
-    const duration = getDuration({
-      unitLength,
-      noteString: cleanStr,
-      currentTuple,
-    });
-    const result = { isSilence: true, duration, text: silenceMatch[0] };
-    if (decorations) {
-      result.decorations = decorations;
-    }
-    if (chordSymbol) {
-      result.chordSymbol = chordSymbol;
-    }
-    if (annotation) {
-      result.annotation = annotation;
-    }
-    return result;
-  }
-
+  // single note
   const { pitch, octave } = getPitch(cleanStr);
 
   const duration = getDuration({
@@ -397,7 +401,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
     currentTuple,
   });
 
-  const result = { pitch, octave, duration, isSilence: false };
+  const result = { pitch, octave, duration, tied };
   if (decorations) {
     result.decorations = decorations;
   }
@@ -486,7 +490,7 @@ function getDuration({ unitLength, noteString, currentTuple } = {}) {
 }
 
 const getTokenRegex = () =>
-  /\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*/g;
+  /\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?[A-Ga-gzxy][',]*[0-9]*\/?[0-9]*|!([^!]+)!|[~.MPSTHUV]*\[[^\]]+\][0-9/]*-?/g;
 
 /**
  * Parse inline field from music section
