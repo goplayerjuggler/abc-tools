@@ -53,6 +53,16 @@ G2B`;
 
 			expect(sort(c1, c3)).toBe(-1);
 		});
+		test("broken rhythms", () => {
+			const t1 = "X:1\nL:1/8\nK:D\nDE",
+				t2 = "X:1\nL:1/8\nK:D\nD>E",
+				t3 = "X:1\nL:1/8\nK:D\nD<E",
+				c1 = getContour(t1),
+				c2 = getContour(t2),
+				c3 = getContour(t3);
+			expect(sort(c2, c1)).toBe(-1);
+			expect(sort(c1, c3)).toBe(-1);
+		});
 	});
 
 	describe("Durations", () => {
