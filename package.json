@@ -1,6 +1,6 @@
 {
   "name": "@goplayerjuggler/abc-tools",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "sorting algorithm and implementation for ABC tunes; plus other tools for parsing and manipulating ABC tunes",
   "main": "src/index.js",
   "scripts": {
@@ -12,15 +12,16 @@
   },
   "keywords": [
     "abc",
-    "music",
-    "melody",
-    "sorting",
-    "parsing",
-    "modal",
-    "tune",
-    "traditional",
+    "folk",
     "irish",
-    "folk"
+    "melody",
+    "modal",
+    "music",
+    "parsing",
+    "sort",
+    "sorting",
+    "traditional",
+    "tune"
   ],
   "author": "Malcolm Schonfield",
   "license": "GPL-3.0-or-later",
