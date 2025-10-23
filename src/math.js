@@ -1,11 +1,16 @@
-// ============================================================================
-// FRACTION CLASS (to avoid floating point errors)
-// ============================================================================
-
 class Fraction {
 	constructor(numerator, denominator = 1) {
 		if (denominator === 0) {
 			throw new Error("Denominator cannot be zero");
+		}
+
+		if (
+			isNaN(numerator) ||
+			isNaN(denominator) ||
+			numerator === null ||
+			denominator === null
+		) {
+			throw new Error("invalid argument");
 		}
 
 		const g = gcd(Math.abs(numerator), Math.abs(denominator));
