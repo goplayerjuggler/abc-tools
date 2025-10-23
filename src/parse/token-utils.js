@@ -9,14 +9,83 @@
 //
 // ============================================================================
 
+const TokenRegexComponents = {
+	// Tuplet notation: (3, (3:2, (3:2:4
+	tuplet: String.raw`\(\d(?::\d?){0,2}`,
+
+	// Inline field changes: [K:D], [L:1/4], [M:3/4], [P:A]
+	inlineField: String.raw`\[(?:[KLMP]):[^\]]+\]`,
+
+	// Text in quotes: chord symbols "Dm7" or annotations "^text"
+	quotedText: String.raw`"[^"]+"`,
+
+	// Bang decoration: !trill!, !fermata!, etc.
+	bangDecoration: String.raw`![^!]+!`,
+
+	// Symbol decorations before note: ~, ., M, P, S, T, H, U, V
+	// 0..N of them, with optional following white space
+	symbolDecoration: String.raw`[~.MPSTHUV]`,
+
+	symbolDecorations() {
+		return String.raw`(?:${this.symbolDecoration}\s*)*`;
+	},
+	bangDecorations() {
+		return String.raw`(?:${this.bangDecoration}\s*)*`;
+	},
+
+	// Accidental: :, ^, _ (natural, sharp, flat)
+	accidental: String.raw`[:^_]?`,
+
+	// Note pitch: A-G (lower octave), a-g (middle octave), z/x (rest), y (dummy)
+	// Or chord in brackets: [CEG], [DF#A]
+	pitch: String.raw`(?:[A-Ga-gzxy]|\[[A-Ga-g]+\])`,
+
+	// Octave modifiers: ' (up), , (down)
+	octave: String.raw`[',]*`,
+
+	// Duration: 2, /2, 3/4, /, //, etc.
+	// include all digits, even though things like A0, A5,... are not allowed
+	// but we could have A16, or z10 (full bar rest for M:5/4; L:1/8)
+	duration: String.raw`[0-9]*\/?[0-9]*`,
+
+	// Tie (-) or broken rhythm (>, >>, >>>, <, <<, <<<)
+	// Optional: may have neither, or may have whitespace before broken rhythm
+	tieOrBroken: String.raw`(?:-|\s*(?:<{1,3}|>{1,3}))?`,
+};
+
 /**
  * Get regex for matching ABC music tokens
- * Matches: tuplets, inline fields, chord symbols, notes, rests, chords in brackets, decorations, broken rhythms
+ * Built from documented components for maintainability
+ *
+ * Matches: tuplets, inline fields, chord symbols, notes, rests, chords in brackets,
+ * decorations, ties, and broken rhythms
  *
  * @returns {RegExp} - Regular expression for tokenising ABC music
  */
-const getTokenRegex = () =>
-	/\(\d(?::\d?){0,2}|\[([KLMP]):[^\]]+\]|"[^"]+"|(?:!([^!]+)!\s*)?[~.MPSTHUV]*[=^_]?(?:[A-Ga-gzxy]|\[[A-Ga-gzxy]+\])[',]*[0-9]*\/?[0-9]*(?:-|\s*(?:<{1,3}|>{1,3}))?|!([^!]+)!/g;
+const getTokenRegex = () => {
+	const s = TokenRegexComponents;
+	// Complete note/rest/chord pattern with optional leading decoration
+	const notePattern =
+		s.bangDecorations() +
+		s.symbolDecorations() +
+		s.accidental +
+		s.pitch +
+		s.octave +
+		s.duration +
+		s.tieOrBroken;
+
+	// Combine all patterns with alternation
+	const fullPattern = [
+		s.tuplet,
+		s.inlineField,
+		s.quotedText,
+		//allow standalone bang and symbol decorations (?)
+		notePattern,
+		s.bangDecoration,
+	].join("|");
+
+	return new RegExp(fullPattern, "g");
+};
 
 /**
  * Parse inline field from music section
