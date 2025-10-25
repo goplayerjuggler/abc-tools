@@ -20,7 +20,7 @@ module.exports = [
 		rules: {
 			...js.configs.recommended.rules,
 			// "arrow-spacing": "error"
-			curly: ["error", "all"],
+			//curly: ["error", "all"],
 			// "eol-last": ["error", "always"],
 			eqeqeq: ["error", "always"],
 			"no-console": "off",

@@ -1,7 +1,27 @@
-const { getContour, sort, sortArray, decodeChar } = require("../src/index.js");
+const {
+	getContour,
+	compare,
+	sortArray,
+	decodeChar,
+} = require("../src/index.js");
 
-describe("ABC Tools - Sorting", () => {
+describe("ABC Tools - comparing", () => {
 	describe("Basic encoding", () => {
+		test("G major low note", () => {
+			const abc1 = `X:1
+R: jig
+L:1/8
+M:1/8
+K:G major
+DG`;
+
+			const obj1 = getContour(abc1);
+			const decoded1 = Array.from(obj1.sortKey).map((c) => decodeChar(c));
+
+			expect(decoded1[0].isHeld).toBe(false);
+			expect(decoded1[0].position).toBeLessThan(decoded1[1].position);
+			expect(obj1.sortKey.length).toBe(2);
+		});
 		test("G major held note", () => {
 			const abc1 = `X:1
 T: Test 1
@@ -36,7 +56,7 @@ G2B`;
 
 			expect(decodedHeld[1].isHeld).toBe(true);
 			expect(decodedRep[1].isHeld).toBe(false);
-			expect(sort(objHeld, objRepeated)).toBe(-1);
+			expect(compare(objHeld, objRepeated)).toBe(-1);
 		});
 
 		test("ties", () => {
@@ -48,10 +68,10 @@ G2B`;
 				c2 = getContour(t2),
 				c3 = getContour(t3),
 				c4 = getContour(t4);
-			expect(sort(c1, c2)).toBe(0);
-			expect(sort(c3, c4)).toBe(0);
+			expect(compare(c1, c2)).toBe(0);
+			expect(compare(c3, c4)).toBe(0);
 
-			expect(sort(c1, c3)).toBe(-1);
+			expect(compare(c1, c3)).toBe(-1);
 		});
 		test("broken rhythms", () => {
 			const t1 = "X:1\nL:1/8\nK:D\nDE",
@@ -60,8 +80,8 @@ G2B`;
 				c1 = getContour(t1),
 				c2 = getContour(t2),
 				c3 = getContour(t3);
-			expect(sort(c2, c1)).toBe(-1);
-			expect(sort(c1, c3)).toBe(-1);
+			expect(compare(c2, c1)).toBe(-1);
+			expect(compare(c1, c3)).toBe(-1);
 		});
 	});
 
@@ -96,7 +116,7 @@ G2B`;
 			expect(objTriplet.durations[0].d).toBe(3);
 			expect(objSixteenth.durations[0].d).toBe(2);
 
-			const comparison = sort(objTriplet, objSixteenth);
+			const comparison = compare(objTriplet, objSixteenth);
 			expect(typeof comparison).toBe("number");
 		});
 
@@ -121,7 +141,7 @@ FDE/F/G A2AB cAdB cAG2 |`,
 	});
 
 	describe("Octave shifts", () => {
-		test("different octaves sort correctly", () => {
+		test("different octaves compare correctly", () => {
 			const abcOctaves = "X:1\nL:1/8\nK:C\nC, C c c'";
 			const objOctaves = getContour(abcOctaves);
 
@@ -151,7 +171,7 @@ G2B AGA B2d gdB`;
 	});
 
 	describe("Different keys, same contour", () => {
-		test("same modal contour produces same sort key", () => {
+		test("same modal contour produces same compare key", () => {
 			const abcG = "X:1\nL:1/8\nK:G\nGAB";
 			const abcD = "X:1\nL:1/8\nK:D\nDEF";
 
@@ -162,8 +182,8 @@ G2B AGA B2d gdB`;
 		});
 	});
 
-	describe("Array sorting", () => {
-		test("sorts array correctly", () => {
+	describe("Array compareing", () => {
+		test("compares array correctly", () => {
 			const tunes = [
 				{ name: "Tune 1", abc: "X:1\nL:1/8\nK:C\nccc" },
 				{ name: "Tune 2", abc: "X:1\nL:1/8\nK:C\nCCC" },
@@ -212,7 +232,7 @@ K:D mixo
 FD(3EFG A2AB cAdB cAG2 |`,
 		};
 
-		test("sorts two tunes correctly (original order)", () => {
+		test("compares two tunes correctly (original order)", () => {
 			const tunes = [theFlogging, theColliers];
 			sortArray(tunes);
 
@@ -220,7 +240,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 			expect(tunes[1].name).toBe("The Colliers");
 		});
 
-		test("sorts two tunes correctly (reversed order)", () => {
+		test("compares two tunes correctly (reversed order)", () => {
 			const tunes = [theColliers, theFlogging];
 			sortArray(tunes);
 
@@ -228,7 +248,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 			expect(tunes[1].name).toBe("The Colliers");
 		});
 
-		test("sorts three tunes with triplet variation", () => {
+		test("compares three tunes with triplet variation", () => {
 			const tunes = [theColliers2, theColliers, theFlogging];
 			sortArray(tunes);
 
@@ -237,7 +257,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 			expect(tunes[2].name).toBe("The Colliers");
 		});
 
-		test("same tune with different CSB sorts together", () => {
+		test("same tune with different CSB compares together", () => {
 			const theColliers14 = {
 				name: "The Colliers",
 				abc: `X:1
@@ -250,7 +270,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			};
 
 			const objSub14 = getContour(theColliers14.abc);
-			expect(sort(objSub14, theColliers.sortObject)).toBe(0);
+			expect(compare(objSub14, theColliers.contour)).toBe(0);
 		});
 	});
 
@@ -268,14 +288,14 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			expect(decodedSilence[2].isSilence).toBe(false);
 		});
 
-		test("silence sorts before notes", () => {
+		test("silence compares before notes", () => {
 			const abcSilenceFirst = "X:1\nL:1/8\nK:C\nzC";
 			const abcNoteFirst = "X:1\nL:1/8\nK:C\nCC";
 
 			const objSilenceFirst = getContour(abcSilenceFirst);
 			const objNoteFirst = getContour(abcNoteFirst);
 
-			expect(sort(objSilenceFirst, objNoteFirst)).toBe(-1);
+			expect(compare(objSilenceFirst, objNoteFirst)).toBe(-1);
 		});
 
 		test("long silence", () => {

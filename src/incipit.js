@@ -4,6 +4,8 @@ const { getFirstBars } = require("./manipulator.js");
 
 const { getUnitLength, getMeter } = require("./parse/parser.js");
 
+const { getContour } = require("./contour-sort.js");
+
 function StripAnnotationsOneForIncipits(theNotes) {
 	// Strip out tempo markings
 	let searchRegExp = /^Q:.*[\r\n]*/gm;
@@ -167,15 +169,21 @@ function sanitise(theTune) {
 
 /**
  * Get incipit (opening bars) of a tune for display/search purposes
- * @param {object} Object of the form {abc} with optional property: numBars
+ * @param {object|string} Object of the form {abc} with optional property: numBars, or a string in ABC format
  * @param {string} params.abc - ABC notation
- * @param {number|Fraction} params.numBars - Number of bars to return, counting the anacrucis if there is one. (default:2)
+ * @param {number|Fraction} params.numBars - Number of bars to return, counting the anacrucis if there is one.
+ * (default: 1.5 for some cases like M:4/4 L:1/16; 3 for M:3/4; otherwise 2)
  * @returns {string} - ABC incipit
  */
-function getIncipit({
-	abc,
-	numBars, //, part=null
-} = {}) {
+function getIncipit(data) {
+	let {
+		abc,
+		numBars, //, part=null
+	} = typeof data === "string" ? { abc: data } : data;
+
+	const { withAnacrucis = true } =
+		typeof data === "string" ? { abc: data } : data;
+
 	if (!numBars) {
 		numBars = 2;
 		const currentMeter = getMeter(abc);
@@ -195,7 +203,27 @@ function getIncipit({
 		}
 	}
 	abc = sanitise(abc);
-	return getFirstBars(abc, numBars, true, true, { all: true });
+	return getFirstBars(abc, numBars, withAnacrucis, true, { all: true });
 }
 
-module.exports = { getIncipit };
+function getIncipitForContourGeneration(abc) {
+	return getIncipit({
+		abc,
+		withAnacrucis: false,
+		numBars: 1,
+	});
+}
+
+function getContourFromFullAbc(abc) {
+	if (Array.isArray(abc)) {
+		if (abc.length === 0) return null;
+		abc = abc[0];
+	}
+	return getContour(getIncipitForContourGeneration(abc));
+}
+
+module.exports = {
+	getIncipit,
+	getIncipitForContourGeneration,
+	getContourFromFullAbc,
+};

@@ -5,12 +5,31 @@ const {
 	toggleMeter_6_8_to_12_8,
 	getIncipit,
 	normaliseKey,
+	getIncipitForContourGeneration,
 } = require("../src/index.js");
 
 // ============================================================================
 // ABC MANIPULATION TESTS
 // Based on manipulation.js - comprehensive tests for ABC manipulations
 // ============================================================================
+
+describe("getIncipitForContourGeneration", () => {
+	test("handles initial double bars and inline P:", () => {
+		const abc = `X:1
+M: 12/8
+L: 1/8
+K: D minor
+[P:A] D2SE || FEF GFG  AGA dA^F | G/G/^FG A2g  fed cAG |
+^FDD ADD  CDD A,DD | [(GG,3]FG) ABG AFD D2E |`;
+		const expected = `X:1
+M: 12/8
+L: 1/8
+K: D minor
+FEF GFG  AGA dA^F | `;
+		const result = getIncipitForContourGeneration(abc);
+		expect(result).toBe(expected);
+	});
+});
 
 describe("normaliseKey", () => {
 	test("gives an array of two elements", () => {
@@ -33,7 +52,7 @@ describe("normaliseKey", () => {
 	});
 });
 
-describe("ABC Manipulator - getFirstBars functionality", () => {
+describe("getFirstBars functionality", () => {
 	const tuneWithAnacrusis = `X:1
 T:Example Tune
 M:4/4
@@ -254,7 +273,7 @@ FA |]`;
 	});
 });
 
-describe("ABC Manipulator - getFirstBars with partial bars", () => {
+describe("getFirstBars with partial bars", () => {
 	const tuneWithAnacrusis = `X:1
 T:Example Tune
 M:4/4
@@ -438,7 +457,7 @@ D2 FA  dA FD | G2 Bc  d2 cB |]`;
 	});
 });
 
-describe("ABC Manipulator - getFirstBars parameter combinations", () => {
+describe("getFirstBars parameter combinations", () => {
 	const tuneWithAnacrusis = `X:1
 T:Test
 M:4/4
@@ -477,7 +496,7 @@ FA | d2 cB A2 FA | d2 f2 e2 d2 |]`;
 	});
 });
 
-describe("ABC Manipulator - hasAnacrucis detection", () => {
+describe("hasAnacrucis detection", () => {
 	test("detects anacrusis in various meters", () => {
 		const cases = [
 			{
@@ -518,7 +537,7 @@ describe("ABC Manipulator - hasAnacrucis detection", () => {
 	});
 });
 
-describe("ABC Manipulator - meter toggles (4/4 ↔ 4/2)", () => {
+describe("meter toggles (4/4 ↔ 4/2)", () => {
 	describe("4/4 to 4/2 conversion", () => {
 		test("converts simple 4/4 to 4/2", () => {
 			const tune_4_4 = `X:1
@@ -631,7 +650,7 @@ D2 FA dA FD G2 Bc d2 cB |A2 AB c2 BA G2 FE D4 |]`;
 	});
 });
 
-describe("ABC Manipulator - meter toggles (6/8 ↔ 12/8)", () => {
+describe("meter toggles (6/8 ↔ 12/8)", () => {
 	describe("6/8 to 12/8 conversion", () => {
 		test("converts simple 6/8 to 12/8", () => {
 			const tune_6_8 = `X:1
@@ -743,7 +762,7 @@ DFA dAF GBd gdB |AFD DFA G2E E3 |]`;
 	});
 });
 
-describe("ABC Manipulator - error handling", () => {
+describe("meter toggle error handling", () => {
 	//   test('throws error for wrong unit length in 4/4 toggle', () => {
 	//     const wrongUnitLength = `X:1
 	// M:4/4
@@ -781,7 +800,7 @@ D2 FA |]`;
 	});
 });
 
-describe("ABC Manipulator - getIncipit", () => {
+describe("getIncipit", () => {
 	const tuneWithAnacrusis = `X:1
 T:Example Tune
 M:4/4

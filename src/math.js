@@ -58,7 +58,10 @@ class Fraction {
 
 	compare(other) {
 		// Returns -1 if this < other, 0 if equal, 1 if this > other
-		const diff = this.num * other.den - other.num * this.den;
+		const diff =
+			typeof n === "number"
+				? this.num - other * this.den
+				: this.num * other.den - other.num * this.den;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
 

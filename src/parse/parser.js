@@ -233,7 +233,7 @@ function parseABCWithBars(abc, options = {}) {
 	const newlineSet = new Set(newlinePositions);
 
 	// Comprehensive bar line regex - includes trailing spaces
-	const barLineRegex = /(\|\]|\[\||(\|:?)|(:?\|)|::|(\|[1-6])) */g;
+	const barLineRegex = /(\|\||\|\]|\[\|\]|(\|:?)|(:?\|)|:\|\|:) */g;
 
 	const bars = [];
 	const barLines = [];

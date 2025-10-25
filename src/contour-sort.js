@@ -33,7 +33,7 @@ function calculateModalPosition(tonalBase, pitch, octaveShift) {
 	const noteDegree = NOTE_TO_DEGREE[pitch.toUpperCase()];
 
 	// Calculate relative degree (how many scale steps from tonic)
-	const relativeDegree = (noteDegree - tonalDegree + 7) % 7;
+	const relativeDegree = noteDegree - tonalDegree;
 
 	// Adjust octave: lowercase notes are one octave higher
 	let octave = octaveShift;
@@ -48,7 +48,7 @@ function calculateModalPosition(tonalBase, pitch, octaveShift) {
 
 /**
  * Encode position and played/held status as a single character
- * This ensures held notes (even codes) sort before played notes (odd codes)
+ * This ensures held notes (even codes) compare before played notes (odd codes)
  *
  * @param {number} position - encodes the degree + octave
  * @param {boolean} isHeld - if the note is held or not
@@ -74,11 +74,11 @@ function decodeChar(char) {
 }
 
 // ============================================================================
-// Contour (sort object) generation
+// Contour (compare object) generation
 // ============================================================================
 
 /**
- * Generate contour (sort object) from ABC notation
+ * Generate contour (compare object) from ABC notation
  * @returns { sortKey: string, durations: Array, version: string, part: string }
  */
 function getContour(abc, options = {}) {
@@ -88,6 +88,7 @@ function getContour(abc, options = {}) {
 
 	const sortKey = [];
 	const durations = [];
+	// const debugPositions = [];
 	let index = 0;
 	// get the parsed notes - notes are tokens with a duration
 	const notes = [];
@@ -97,7 +98,7 @@ function getContour(abc, options = {}) {
 		const bar = bars[i];
 		for (let j = 0; j < bar.length; j++) {
 			const token = bar[j];
-			if (token.duration) {
+			if (token.duration && token.duration.num > 0) {
 				notes.push(token);
 			}
 		}
@@ -130,34 +131,47 @@ function getContour(abc, options = {}) {
 
 			// First note is played
 			sortKey.push(encoded);
+			//debugPositions.push(position);
 
 			// Subsequent notes are held
 			for (let i = 1; i < nbUnitLengths; i++) {
 				sortKey.push(encodedHeld);
+				//debugPositions.push(position);
 			}
 
 			index += nbUnitLengths;
 			if (remainingDuration.num !== 0) {
-				pushShortNote(encoded, unitLength, duration, index, durations, sortKey);
+				pushShortNote(
+					encodedHeld,
+					unitLength,
+					duration,
+					index,
+					durations,
+					sortKey
+				);
+				//debugPositions.push(position);
 				index++;
 			}
 		} else if (comparison < 0) {
 			pushShortNote(encoded, unitLength, duration, index, durations, sortKey);
-
+			//debugPositions.push(position);
 			index++;
 		} else {
 			// Normal note: duration === unitLength
 			sortKey.push(encoded);
+			//debugPositions.push(position);
 			index++;
 		}
 	});
 
-	return {
+	const result = {
 		sortKey: sortKey.join(""),
-		durations: durations.length > 0 ? durations : undefined,
-		// version: "1.0",
-		// part,
+		//debugPositions: debugPositions.join(","),
 	};
+	if (durations.length > 0) {
+		result.durations = durations;
+	}
+	return result;
 }
 
 /**
@@ -177,13 +191,16 @@ function pushShortNote(
 	durations,
 	sortKey
 ) {
-	const relativeDuration = duration.divide(unitLength);
+	const relativeDuration = duration.divide(unitLength),
+		d = {
+			i: index,
+			d: relativeDuration.den,
+		};
+	if (relativeDuration.num !== 1) {
+		d.n = relativeDuration.num;
+	}
 
-	durations.push({
-		i: index,
-		n: relativeDuration.num === 1 ? undefined : relativeDuration.num,
-		d: relativeDuration.den,
-	});
+	durations.push(d);
 	sortKey.push(encoded);
 }
 
@@ -192,9 +209,9 @@ function pushShortNote(
 // ============================================================================
 
 /**
- * Compare two sort objects using expansion algorithm
+ * Compare two compare objects using expansion algorithm
  */
-function sort(objA, objB) {
+function compare(objA, objB) {
 	let keyA = objA.sortKey;
 	let keyB = objB.sortKey;
 
@@ -345,27 +362,27 @@ function sort(objA, objB) {
  */
 function sortArray(arr) {
 	for (const item of arr) {
-		if (!item.sortObject && item.abc) {
+		if (!item.contour && item.abc) {
 			try {
-				item.sortObject = getContour(item.abc);
+				item.contour = getContour(item.abc);
 			} catch (err) {
-				console.error(`Failed to generate sort object: ${err.message}`);
-				item.sortObject = null;
+				console.error(`Failed to generate compare object: ${err.message}`);
+				item.contour = null;
 			}
 		}
 	}
 
 	arr.sort((a, b) => {
-		if (!a.sortObject && !b.sortObject) {
+		if (!a.contour && !b.contour) {
 			return 0;
 		}
-		if (!a.sortObject) {
+		if (!a.contour) {
 			return 1;
 		}
-		if (!b.sortObject) {
+		if (!b.contour) {
 			return -1;
 		}
-		return sort(a.sortObject, b.sortObject);
+		return compare(a.contour, b.contour);
 	});
 
 	return arr;
@@ -391,7 +408,7 @@ function getEncodedFromNote(note, tonalBase, tied, previousPosition) {
 
 module.exports = {
 	getContour,
-	sort,
+	compare,
 	sortArray,
 	decodeChar,
 	encodeToChar,
