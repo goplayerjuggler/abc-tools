@@ -13,6 +13,7 @@ const { decodeChar } = require("./encode.js");
  * @property {number} paddingBottom - Bottom padding in pixels
  * @property {number} paddingLeft - Left padding in pixels
  * @property {number} paddingRight - Right padding in pixels
+ * @property {boolean} forceBaseline - ensures the baseline at zero is displayed
  * @property {number|null} minDegree - Minimum degree for vertical range (null for auto)
  * @property {number|null} maxDegree - Maximum degree for vertical range (null for auto)
  * @property {string} class - CSS class name for the SVG element
@@ -33,13 +34,14 @@ const contourToSvg_defaultConfig = {
 	// strokeWidth: 3,
 	playedColor: "#2563eb", // blue
 	heldColor: "#93c5fd", // lighter blue (held notes)
-	baselineColor: "#e5e7eb", // light grey
+	baselineColor: "#555555", // Davy's grey
 	// paddingTop: 20,
 	// paddingBottom: 20,
 	paddingLeft: 10,
 	paddingRight: 10,
 	minDegree: null, // null means auto-calculate from contour
 	maxDegree: null, // null means auto-calculate from contour
+	forceBaseline: true,
 	class: "contour-svg",
 	ariaLabel: "Tune contour",
 };
@@ -139,6 +141,11 @@ function contourToSvg(contour, userConfig = {}) {
 	}
 	if (config.maxDegree !== null) {
 		maxPosition = config.maxDegree;
+	}
+
+	if (config.forceBaseline) {
+		minPosition = Math.min(minPosition, 0);
+		maxPosition = Math.max(maxPosition, 0);
 	}
 
 	// Calculate SVG dimensions

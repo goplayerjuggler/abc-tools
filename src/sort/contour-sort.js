@@ -30,9 +30,9 @@ const {
  * todo: complete this header. options.withSvg; options.maxNbUnitLengths
  */
 function getContour(abc, options = {}) {
+	const { withSvg = true, maxNbUnitLengths = 10 } = { options };
 	const tonalBase = getTonalBase(abc);
 	const unitLength = getUnitLength(abc);
-	const maxNbUnitLengths = options.maxNbUnitLengths || 10;
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);
 	const { bars } = parseABCWithBars(abc, options);
 	let cumulatedDuration = new Fraction(0, 1);
@@ -123,7 +123,7 @@ function getContour(abc, options = {}) {
 	if (durations.length > 0) {
 		result.durations = durations;
 	}
-	if (options.withSvg) {
+	if (withSvg) {
 		result.svg = contourToSvg(result);
 	}
 	return result;
