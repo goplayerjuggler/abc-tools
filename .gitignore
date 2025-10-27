@@ -8,7 +8,6 @@ npm-debug.log*
 test-output/
 testOutput.txt
 testResults.txt
-
 ignored/
 tmp/
 

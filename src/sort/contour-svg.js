@@ -60,7 +60,7 @@ const contourToSvg_defaultConfig = {
  * @param {Object} contour - The contour object containing sortKey and optional durations
  * @param {string} contour.sortKey - Encoded string of modal degree information
  * @param {Array<{i: number, n?: number, d: number}>} [contour.durations] - Array of duration modifications
- * @param {Partial<SvgConfig>} [userConfig] - Optional configuration overrides
+ * @param {Partial<SvgConfig>} [svgConfig] - Optional configuration overrides
  * @returns {string} SVG markup as a string
  *
  * @example
@@ -90,8 +90,8 @@ const contourToSvg_defaultConfig = {
  *   maxDegree: null //maxDegree will auto-calculate
  * });
  */
-function contourToSvg(contour, userConfig = {}) {
-	const config = { ...contourToSvg_defaultConfig, ...userConfig };
+function contourToSvg(contour, svgConfig = {}) {
+	const config = { ...contourToSvg_defaultConfig, ...svgConfig };
 
 	if (!contour || !contour.sortKey) {
 		throw new Error("Invalid contour object: missing sortKey");

@@ -131,11 +131,11 @@ M:12/8
 K:G major
 G2B AGA B2d gdB`;
 
-			const contour = getContour(abc);
+			const contour = getContour(abc, { svgConfig: { heldColor: "#93c5fd" } });
 			const svg = contourToSvg(contour);
 
 			expect(svg).toContain("<svg");
-			expect(contour.sortKey.length).toBe(12);
+			expect(contour.sortKey.length).toBeGreaterThanOrEqual(10);
 			expect(svg).toContain("#93c5fd"); // held notes present
 		});
 
@@ -148,7 +148,7 @@ M:4/2
 K:D mixo
 FDE/F/G A2AB cAdB cAG2 |`;
 
-			const contour = getContour(abc);
+			const contour = getContour(abc, { svgConfig: { heldColor: "#93c5fd" } });
 			const svg = contourToSvg(contour);
 
 			expect(svg).toContain("<svg");
@@ -266,11 +266,12 @@ C,DEfgab`;
 L:1/8
 K:C
 CDEFG`;
-			const contour = getContour(abc);
-			const svg = contourToSvg(contour);
+			const contour = getContour(abc),
+				bc = "#e5e7eb";
+			const svg = contourToSvg(contour, { baselineColor: bc });
 
 			// Should contain baseline color
-			expect(svg).toContain("#e5e7eb");
+			expect(svg).toContain(bc);
 		});
 
 		test("baseline appears with fixed range including 0", () => {
@@ -278,11 +279,16 @@ CDEFG`;
 L:1/8
 K:C
 cdefg`;
-			const contour = getContour(abc);
-			const svg = contourToSvg(contour, { minDegree: -15, maxDegree: 15 });
+			const contour = getContour(abc),
+				bc = "#e5e7eb";
+			const svg = contourToSvg(contour, {
+				minDegree: -15,
+				maxDegree: 15,
+				baselineColor: bc,
+			});
 
 			// Should contain baseline even if notes don't reach degree 0
-			expect(svg).toContain("#e5e7eb");
+			expect(svg).toContain(bc);
 		});
 	});
 

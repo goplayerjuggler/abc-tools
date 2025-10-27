@@ -220,8 +220,8 @@ function StripChordsOne(theNotes) {
 
 function sanitise(theTune) {
 	let j,
-		k, //theTextIncipits = [],
-		theTextIncipit;
+		k,
+		theTextIncipits = [];
 	// Strip out annotations
 	theTune = StripAnnotationsOneForIncipits(theTune);
 
@@ -267,24 +267,22 @@ function sanitise(theTune) {
 			break;
 		}
 	}
-
-	// Find the first line of the tune that has measure separators
+	// Find at most the first three lines that have measure separators
+	let added = 0;
 	for (k = indexOfTheKey + 1; k < nLines; ++k) {
-		theTextIncipit = theLines[k];
+		const theTextIncipit = theLines[k];
 
 		// Skip lines that don't have bar lines
 		if (theTextIncipit.indexOf("|") === -1) {
 			continue;
 		}
-
 		// Clean out the incipit line of any annotations besides notes and bar lines
-		theTextIncipit = cleanIncipitLine(theTextIncipit);
-
-		break;
-		//theTextIncipits.push(theTextIncipit);
+		theTextIncipits.push(cleanIncipitLine(theTextIncipit));
+		added++;
+		if (added === 3) break;
 	}
 
-	return `X:1\n${theM}\n${theL}\n${theKey}\n${theTextIncipit}`;
+	return `X:1\n${theM}\n${theL}\n${theKey}\n${theTextIncipits.join("\n")}`;
 }
 
 /**

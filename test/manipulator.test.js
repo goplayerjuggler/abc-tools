@@ -838,18 +838,43 @@ M:C|
 L:1/8
 K:C
 "Am"A2 a4 gf|e4 c4|"G"B2 g4 fe|"(Em)"d2 ed "G"edcB|\
-"Am"A2 a4 gf|e4 c4|"G"dcBA "E"^GA B2|[1 "Am"c2 A2 A2 cB:|\
-[2 "Am"c2 A2 A2 cd|]
-|:"Am"edcB ABcd|e4 c4|\
-"G"dcBA GABc|d4 B4|"Am"edcB ABcd|\
-e4 c4|"G"dcBA "E"^GA B2|"Am"c2 A2 A2 cd:|
-|:"Am"e2 e2 e2 cd|e2 e2 e2 Bc|"G"d2 d2 d2 Bc|\
-d2 d2 d2 cd|"Am"e2 e2 e2 cd|e2 e2 e2 Bc|\
-"G"dcBA "E"^GAB2|[1 "Am"c2 A2 A2 cd:|[2 "Am"c2 A2 A2|]`,
+"Am"A2 a4 gf|e4 c4|`,
 			1,
 			true
 		);
 
 		expect(result).toContain(`A2`);
+	});
+
+	test("line continuations", () => {
+		const result = getIncipit(
+			`X: 3
+T:The Bank of Ireland
+R:Reel
+M:C|
+L:1/8
+K:D
+(ed)|:\
+"A"cAAB cABG|"G"(EG)DG (EG)DB|
+`,
+			1,
+			true
+		);
+
+		expect(result).toContain(`(ed)|cAAB cABG`);
+	});
+
+	test("grace notes", () => {
+		const result = getIncipit(
+			`X: 3
+M:2/4
+L:1/4
+K:D
+D{E}D|A{B}A|B/c/d/B/|A2|]`,
+			2,
+			true
+		);
+
+		expect(result).toContain(`D{E}D|A{B}A`);
 	});
 });
