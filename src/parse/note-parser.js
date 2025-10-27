@@ -459,5 +459,4 @@ module.exports = {
 	parseTuplet,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
-	NOTE_TO_DEGREE,
 };

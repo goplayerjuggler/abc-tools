@@ -5,7 +5,10 @@
 
 const parser = require("./parse/parser.js");
 const manipulator = require("./manipulator.js");
-const sort = require("./contour-sort.js");
+const sort = require("./sort/contour-sort.js");
+const contourToSvg = require("./sort/contour-svg.js");
+const displayContour = require("./sort/display-contour.js");
+
 const incipit = require("./incipit.js");
 const javascriptify = require("./javascriptify.js");
 
@@ -18,6 +21,8 @@ module.exports = {
 
 	// Sort functions
 	...sort,
+	...displayContour,
+	...contourToSvg,
 
 	// Incipit functions
 	...incipit,

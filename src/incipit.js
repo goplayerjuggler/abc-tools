@@ -4,7 +4,71 @@ const { getFirstBars } = require("./manipulator.js");
 
 const { getUnitLength, getMeter } = require("./parse/parser.js");
 
-const { getContour } = require("./contour-sort.js");
+const { getContour } = require("./sort/contour-sort.js");
+
+//this file has code that's a fork of some code in  Michael Eskin's abctools
+
+//
+// Clean an incipit line
+//
+function cleanIncipitLine(theTextIncipit) {
+	//console.log("Starting incipit:");
+	//console.log(theTextIncipit);
+
+	// Strip any embedded voice [V:*]
+	let searchRegExp = /\[V:\s*\d+\]/gm;
+	theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+	//console.log(theTextIncipit);
+
+	// Strip any embedded voice V: *
+	//searchRegExp = /V: [^ ]+ /gm
+	searchRegExp = /V:\s+\S+\s/gm;
+	theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+	//console.log(theTextIncipit);
+
+	// Strip any embedded voice V:*
+	searchRegExp = /V:[^ ]+ /gm;
+	theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+	//console.log(theTextIncipit);
+
+	// Sanitize !*! style annotations, but keep !fermata!
+	searchRegExp = /!(?!fermata!)[^!\n]*!/gm;
+	theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+	//console.log(theTextIncipit);
+
+	// Strip out repeat marks
+	theTextIncipit = theTextIncipit.replaceAll("|:", "|");
+	theTextIncipit = theTextIncipit.replaceAll(":|", "|");
+
+	// strip out 1st 2nd etc time repeats
+	searchRegExp = /\[\d(,\d)*/gm;
+	theTextIncipit = theTextIncipit.replace(searchRegExp, "");
+
+	//console.log(theTextIncipit);
+
+	// Strip out brackets
+	//   theTextIncipit = theTextIncipit.replaceAll("[", "");
+	//console.log(theTextIncipit);
+
+	// Strip out brackets
+	//   theTextIncipit = theTextIncipit.replaceAll("]", "");
+	//console.log(theTextIncipit);
+
+	// Strip out continuations
+	theTextIncipit = theTextIncipit.replaceAll("\\", "");
+
+	// Segno
+	theTextIncipit = theTextIncipit.replaceAll("S", "");
+
+	// Strip out comments
+	theTextIncipit = theTextIncipit.replace(/"[^"]+"/gm, "");
+	// Strip out inline parts
+	theTextIncipit = theTextIncipit.replace(/\[P:[Ⅰ\w]\]/gm, "");
+
+	//
+	theTextIncipit = theTextIncipit.replace(/^\|[:|]?/, "");
+	return theTextIncipit;
+}
 
 function StripAnnotationsOneForIncipits(theNotes) {
 	// Strip out tempo markings
@@ -155,16 +219,72 @@ function StripChordsOne(theNotes) {
 }
 
 function sanitise(theTune) {
+	let j,
+		k, //theTextIncipits = [],
+		theTextIncipit;
 	// Strip out annotations
 	theTune = StripAnnotationsOneForIncipits(theTune);
 
-	// Strip out textnnotations
+	// Strip out atextnnotations
 	theTune = StripTextAnnotationsOne(theTune);
 
 	// Strip out chord markings
 	theTune = StripChordsOne(theTune);
 
-	return theTune;
+	// Parse out the first few measures
+	const theLines = theTune.split("\n"),
+		nLines = theLines.length;
+
+	// Find the key
+	let theKey = "";
+	let indexOfTheKey;
+
+	for (j = 0; j < nLines; ++j) {
+		theKey = theLines[j];
+
+		if (theKey.indexOf("K:") !== -1) {
+			break;
+		}
+		indexOfTheKey = j;
+	}
+	// Find the L: parameter
+	let theL = "";
+
+	for (j = 0; j < nLines; ++j) {
+		theL = theLines[j];
+
+		if (theL.indexOf("L:") !== -1) {
+			break;
+		}
+	}
+	// Find the M: parameter
+	let theM = "";
+
+	for (j = 0; j < nLines; ++j) {
+		theM = theLines[j];
+
+		if (theM.indexOf("M:") !== -1) {
+			break;
+		}
+	}
+
+	// Find the first line of the tune that has measure separators
+	for (k = indexOfTheKey + 1; k < nLines; ++k) {
+		theTextIncipit = theLines[k];
+
+		// Skip lines that don't have bar lines
+		if (theTextIncipit.indexOf("|") === -1) {
+			continue;
+		}
+
+		// Clean out the incipit line of any annotations besides notes and bar lines
+		theTextIncipit = cleanIncipitLine(theTextIncipit);
+
+		break;
+		//theTextIncipits.push(theTextIncipit);
+	}
+
+	return `X:1\n${theM}\n${theL}\n${theKey}\n${theTextIncipit}`;
 }
 
 /**

@@ -1,8 +1,10 @@
 const {
 	getContour,
+	sortKeyToString,
 	compare,
 	sortArray,
 	decodeChar,
+	getContourFromFullAbc,
 } = require("../src/index.js");
 
 describe("ABC Tools - comparing", () => {
@@ -82,6 +84,53 @@ G2B`;
 				c3 = getContour(t3);
 			expect(compare(c2, c1)).toBe(-1);
 			expect(compare(c1, c3)).toBe(-1);
+		});
+		test("real barndances", () => {
+			const t1 = `X: 1
+T: Gypsy Princess
+M: 4/2
+L: 1/8
+K: A
+c3c .c2c2 BcBA F2EF
+`,
+				t2 = `X:1
+T:Lynch's
+R:barndance
+L:1/8
+M:4/4
+K:Dmajor
+|:A/|F2 F2 A2 A2|G>FG>A B2 B2|A>dc>B A>GF>E|`,
+				c1 = getContourFromFullAbc(t1),
+				c2 = getContourFromFullAbc(t2);
+			console.log(sortKeyToString(c1.sortKey));
+			console.log(sortKeyToString(c2.sortKey));
+
+			expect(compare(c1, c2)).toBe(-1); //held note goes before a repeated one
+		});
+		test("real barndances 2", () => {
+			const t1 = `X:1
+T:Éigse An Spidéil
+C:Caitlín Nic Gabhann
+R:barndance
+L:1/8
+M:4/4
+K:Gmajor
+|:G2 (3GGG G2G2|GABc dBGB|A2 (3AAA A3d|(3efg ab gedB|
+`,
+				t2 = `X:1
+T:The Old Boreen
+C:Vincent Broderick
+R:barndance
+L:1/8
+M:4/4
+K:Gmajor
+D|:G3A B3A|GAGE D3E|`,
+				c1 = getContourFromFullAbc(t1),
+				c2 = getContourFromFullAbc(t2);
+			console.log(sortKeyToString(c1.sortKey));
+			console.log(sortKeyToString(c2.sortKey));
+
+			expect(compare(c1, c2)).toBe(1); //t1 - whole first bar is on the tonic, but the start of the triplet is played, while t2 still has a held - so t2 goes first!
 		});
 	});
 

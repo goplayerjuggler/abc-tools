@@ -10,7 +10,6 @@ const {
 	parseTuplet,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
-	NOTE_TO_DEGREE,
 } = require("./note-parser.js");
 const { classifyBarLine } = require("./barline-parser.js");
 const {
@@ -516,7 +515,49 @@ function calculateBarDurations(parsedData) {
 	return result;
 }
 
+/**
+ * Extracts all ABC music notation tunes from a string.
+ *
+ * @param {string} text - The input string containing one or more ABC tunes
+ * @returns {string[]} An array of ABC tune strings, each containing a complete tune
+ * @throws {TypeError} If the input is not a string
+ *
+ * @example
+ * const abcText = `X: 1
+ * T: Example Tune
+ * M: 4/4
+ * K: C
+ * CDEF|
+ *
+ * X: 2
+ * T: Another Tune
+ * K: G
+ * GABc|`;
+ *
+ * const tunes = getTunes(abcText);
+ * // Returns: ['X: 1\nT: Example Tune\nM: 4/4\nK: C\nCDEF|', 'X: 2\nT: Another Tune\nK: G\nGABc|']
+ */
+function getTunes(text) {
+	if (typeof text !== "string") {
+		throw new TypeError("Input must be a string");
+	}
+	// Regex pattern to match ABC tunes:
+	// ^X:\s*\d+   - Matches lines starting with "X:" followed by optional whitespace and digits
+	// .*$         - Matches the rest of that line
+	// (?:\n(?!\n).*)* - Matches subsequent lines that are NOT empty lines (non-capturing group)
+	//                   \n(?!\n) ensures we have a newline NOT followed by another newline
+	//                   .* matches the content of that non-empty line
+	//                   * repeats for all consecutive non-empty lines
+	// Flags: g (global), m (multiline)
+	const getAbc = /^X:\s*\d+.*$(?:\n(?!\n).*)*$/gm;
+	// Extract all matches and return as an array of strings
+	const matches = [...text.matchAll(getAbc)];
+
+	return matches.map((match) => match[0]);
+}
+
 module.exports = {
+	getTunes,
 	parseABCWithBars,
 	calculateBarDurations,
 	// Re-export utilities for convenience
@@ -526,5 +567,4 @@ module.exports = {
 	getMusicLines,
 	analyzeSpacing,
 	classifyBarLine,
-	NOTE_TO_DEGREE,
 };

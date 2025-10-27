@@ -1,77 +1,23 @@
-const { Fraction } = require("./math.js");
+const { Fraction } = require("../math.js");
 const {
 	getTonalBase,
 	getUnitLength,
 	parseABCWithBars,
-	NOTE_TO_DEGREE,
-} = require("./parse/parser.js");
+} = require("../parse/parser.js");
+
+const { contourToSvg } = require("./contour-svg.js");
+
+const {
+	calculateModalPosition,
+	decodeChar,
+	encodeToChar,
+	silenceChar,
+} = require("./encode.js");
 
 /**
  * Tune Contour Sort - Modal melody sorting algorithm
  * Sorts tunes by their modal contour, independent of key and mode
  */
-
-// ============================================================================
-// CORE CONSTANTS
-// ============================================================================
-
-const OCTAVE_SHIFT = 7; // 7 scale degrees per octave
-
-const baseChar = 0x0420; // middle of cyrillic
-const silenceChar = "_"; // silence character
-
-// ============================================================================
-// ENCODING FUNCTIONS
-// ============================================================================
-
-/**
- * Calculate modal position and octave offset for a note
- * Returns a compact representation: octave * 7 + degree (both 0-indexed)
- */
-function calculateModalPosition(tonalBase, pitch, octaveShift) {
-	const tonalDegree = NOTE_TO_DEGREE[tonalBase];
-	const noteDegree = NOTE_TO_DEGREE[pitch.toUpperCase()];
-
-	// Calculate relative degree (how many scale steps from tonic)
-	const relativeDegree = noteDegree - tonalDegree;
-
-	// Adjust octave: lowercase notes are one octave higher
-	let octave = octaveShift;
-	if (pitch === pitch.toLowerCase()) {
-		octave += 1;
-	}
-
-	// Return position as single number: octave * 7 + degree
-	// Using offset of 2 octaves to keep values positive
-	return (octave + 2) * OCTAVE_SHIFT + relativeDegree;
-}
-
-/**
- * Encode position and played/held status as a single character
- * This ensures held notes (even codes) compare before played notes (odd codes)
- *
- * @param {number} position - encodes the degree + octave
- * @param {boolean} isHeld - if the note is held or not
- * @returns the encoded modal degree information (MDI). Format: baseChar + (position * 2) + (isHeld ? 0 : 1)
- */
-function encodeToChar(position, isHeld) {
-	const code = baseChar + position * 2 + (isHeld ? 0 : 1);
-	return String.fromCharCode(code);
-}
-
-/**
- * Decode a character back to position and held status
- */
-function decodeChar(char) {
-	if (char === silenceChar) {
-		return { isSilence: true, position: null, isHeld: null };
-	}
-
-	const code = char.charCodeAt(0) - baseChar;
-	const position = Math.floor(code / 2);
-	const isHeld = code % 2 === 0;
-	return { position, isHeld, isSilence: false };
-}
 
 // ============================================================================
 // Contour (compare object) generation
@@ -80,12 +26,16 @@ function decodeChar(char) {
 /**
  * Generate contour (compare object) from ABC notation
  * @returns { sortKey: string, durations: Array, version: string, part: string }
+ *
+ * todo: complete this header. options.withSvg; options.maxNbUnitLengths
  */
 function getContour(abc, options = {}) {
 	const tonalBase = getTonalBase(abc);
 	const unitLength = getUnitLength(abc);
+	const maxNbUnitLengths = options.maxNbUnitLengths || 10;
+	const maxDuration = unitLength.multiply(maxNbUnitLengths);
 	const { bars } = parseABCWithBars(abc, options);
-
+	let cumulatedDuration = new Fraction(0, 1);
 	const sortKey = [];
 	const durations = [];
 	// const debugPositions = [];
@@ -99,6 +49,8 @@ function getContour(abc, options = {}) {
 		for (let j = 0; j < bar.length; j++) {
 			const token = bar[j];
 			if (token.duration && token.duration.num > 0) {
+				cumulatedDuration = cumulatedDuration.add(token.duration);
+				if (cumulatedDuration.isGreaterThan(maxDuration)) break;
 				notes.push(token);
 			}
 		}
@@ -170,6 +122,9 @@ function getContour(abc, options = {}) {
 	};
 	if (durations.length > 0) {
 		result.durations = durations;
+	}
+	if (options.withSvg) {
+		result.svg = contourToSvg(result);
 	}
 	return result;
 }
@@ -411,6 +366,4 @@ module.exports = {
 	compare,
 	sortArray,
 	decodeChar,
-	encodeToChar,
-	calculateModalPosition,
 };
