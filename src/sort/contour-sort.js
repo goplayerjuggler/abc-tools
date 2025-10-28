@@ -30,7 +30,7 @@ const {
  * todo: complete this header. options.withSvg; options.maxNbUnitLengths
  */
 function getContour(abc, options = {}) {
-	const { withSvg = true, maxNbUnitLengths = 10, svgConfig } = { options };
+	const { withSvg = false, maxNbUnitLengths = 10, svgConfig } = { options };
 	const tonalBase = getTonalBase(abc);
 	const unitLength = getUnitLength(abc);
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);

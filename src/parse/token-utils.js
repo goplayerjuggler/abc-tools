@@ -13,6 +13,9 @@ const TokenRegexComponents = {
 	// Tuplet notation: (3, (3:2, (3:2:4
 	tuplet: String.raw`\(\d(?::\d?){0,2}`,
 
+	// Grace notes: {ABC}, {^AB_c}, etc.
+	graceNotes: String.raw`\{[^}]+\}`,
+
 	// Inline field changes: [K:D], [L:1/4], [M:3/4], [P:A]
 	inlineField: String.raw`\[(?:[KLMP]):[^\]]+\]`,
 
@@ -48,17 +51,19 @@ const TokenRegexComponents = {
 	// but we could have A16, or z10 (full bar rest for M:5/4; L:1/8)
 	duration: String.raw`[0-9]*\/?[0-9]*`,
 
-	// Tie (-) or broken rhythm (>, >>, >>>, <, <<, <<<)
-	// Optional: may have neither, or may have whitespace before broken rhythm
-	tieOrBroken: String.raw`(?:-|\s*(?:<{1,3}|>{1,3}))?`,
+	// Tie (-) - optional
+	tie: String.raw`-?`,
+
+	// Broken rhythm (>, >>, >>>, <, <<, <<<)
+	broken: String.raw`<{1,3}|>{1,3}`,
 };
 
 /**
  * Get regex for matching ABC music tokens
  * Built from documented components for maintainability
  *
- * Matches: tuplets, inline fields, chord symbols, notes, rests, chords in brackets,
- * decorations, ties, and broken rhythms
+ * Matches: tuplets, grace notes, inline fields, chord symbols, notes, rests,
+ * chords in brackets, decorations, ties, and broken rhythms
  *
  * @returns {RegExp} - Regular expression for tokenising ABC music
  */
@@ -72,16 +77,18 @@ const getTokenRegex = () => {
 		s.pitch +
 		s.octave +
 		s.duration +
-		s.tieOrBroken;
+		s.tie;
 
 	// Combine all patterns with alternation
 	const fullPattern = [
 		s.tuplet,
+		s.graceNotes,
 		s.inlineField,
 		s.quotedText,
 		//allow standalone bang and symbol decorations (?)
 		notePattern,
 		s.bangDecoration,
+		s.broken,
 	].join("|");
 
 	return new RegExp(fullPattern, "g");

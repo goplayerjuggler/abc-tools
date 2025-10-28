@@ -91,7 +91,7 @@ T: Gypsy Princess
 M: 4/2
 L: 1/8
 K: A
-c3c .c2c2 BcBA F2EF
+c3c .c2c2 BcBA F2EF |
 `,
 				t2 = `X:1
 T:Lynch's
@@ -180,7 +180,7 @@ M:4/4
 K:D mixo
 FDE/F/G A2AB cAdB cAG2 |`,
 			};
-			const objSub14 = getContour(theColliers14.abc);
+			const objSub14 = getContour(theColliers14.abc, { maxNbUnitLengths: 22 });
 
 			expect(objSub14.sortKey.length).toBe(17);
 			expect(objSub14.durations).toBeDefined();
@@ -214,7 +214,7 @@ M:12/8
 K:G major
 G2B AGA B2d gdB`;
 
-			const objMunster = getContour(abcMunster);
+			const objMunster = getContour(abcMunster, { maxNbUnitLengths: 22 });
 			expect(objMunster.sortKey.length).toBe(12);
 		});
 	});

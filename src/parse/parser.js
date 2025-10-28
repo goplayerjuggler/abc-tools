@@ -10,6 +10,7 @@ const {
 	parseTuplet,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
+	parseGraceNotes,
 } = require("./note-parser.js");
 const { classifyBarLine } = require("./barline-parser.js");
 const {
@@ -34,6 +35,7 @@ const {
 // - Back quotes: ` (ignored spacing for legibility, preserved in metadata)
 // - Triplets: (3ABC, (3A/B/C/, (3A2B2C2
 // - Broken rhythms: A>B, C<<D, etc. (>, >>, >>>, <, <<, <<<)
+// - Grace notes: {ABC}, {^AB_c}, etc. (zero duration, transparent to broken rhythms)
 // - Repeat notation: |:, :|, |1, |2, etc.
 // - Bar lines: |, ||, |], [|, etc.
 // - Decorations: symbol decorations (~.MPSTHUV) and !name! decorations
@@ -47,7 +49,6 @@ const {
 // - Line breaks: preserves information about newlines in music
 //
 // NOT YET SUPPORTED:
-// - Grace notes: {ABC}
 // - Slurs: ()
 // - Lyrics: w: lines
 // - Multiple voices: V: fields
@@ -104,7 +105,8 @@ const {
  *     text: string
  *   },
  *   isChord: true,              // Present if this is a chord [CEG]
- *   chordNotes: Array<NoteObject> // All notes in the chord (when isChord=true)
+ *   chordNotes: Array<NoteObject>, // All notes in the chord (when isChord=true)
+ *   isGraceNote: true           // Present if this is a grace note (has zero duration)
  * }
  *
  * NoteObject structure (silence/rest):
@@ -238,6 +240,7 @@ function parseABCWithBars(abc, options = {}) {
 	const barLines = [];
 	let currentBar = [];
 	let barCount = 0;
+	let previousRealNote = null; // Track last non-grace note for broken rhythms
 
 	// Split music text by bar lines while preserving positions
 	let lastBarPos = 0;
@@ -277,6 +280,34 @@ function parseABCWithBars(abc, options = {}) {
 					tokenMatch.index + fullToken.length
 				);
 
+				// Check for grace notes
+				if (fullToken.startsWith("{")) {
+					const graceNotes = parseGraceNotes(fullToken);
+					if (graceNotes) {
+						// Add each grace note to the bar
+						graceNotes.forEach((graceNote, idx) => {
+							currentBar.push({
+								...graceNote,
+								token: fullToken,
+								sourceIndex: tokenStartPos,
+								sourceLength: fullToken.length,
+								// Only the last grace note gets the spacing
+								spacing:
+									idx === graceNotes.length - 1
+										? spacing
+										: {
+												whitespace: "",
+												backquotes: 0,
+												beamBreak: false,
+												lineBreak: false,
+										  },
+							});
+						});
+						// Grace notes don't update previousRealNote
+						continue;
+					}
+				}
+
 				// Check for inline field
 				const inlineField = parseInlineField(fullToken);
 				if (inlineField) {
@@ -308,59 +339,61 @@ function parseABCWithBars(abc, options = {}) {
 						spacing,
 					};
 					currentBar.push(inlineFieldObj);
-					// previousNote = null; // Inline fields break note sequences
+					previousRealNote = null; // Inline fields break note sequences
 					continue;
 				}
 
 				// Check for broken rhythm
 				const brokenRhythm = parseBrokenRhythm(fullToken);
 				if (brokenRhythm) {
-					const { firstNoteToken } = brokenRhythm;
-					const firstNote = parseNote(firstNoteToken, unitLength, currentTuple);
-					// Find the next note token
-					const nextTokenMatch = tokenRegex.exec(segment);
-					if (nextTokenMatch) {
-						const nextToken = nextTokenMatch[0];
-						const nextTokenStartPos = lastBarPos + nextTokenMatch.index;
-						const nextSpacing = analyzeSpacing(
-							segment,
-							nextTokenMatch.index + nextToken.length
-						);
+					if (previousRealNote) {
+						// Find the next REAL note token (skip grace notes)
+						let nextTokenMatch = tokenRegex.exec(segment);
+						while (nextTokenMatch) {
+							const nextToken = nextTokenMatch[0];
+							// Skip grace notes
+							if (nextToken.startsWith("{")) {
+								nextTokenMatch = tokenRegex.exec(segment);
+								continue;
+							}
+							break;
+						}
 
-						// Parse the next note
-						const nextNote = parseNote(nextToken, unitLength, currentTuple);
-						if (nextNote && nextNote.duration && firstNote.duration) {
-							// Apply broken rhythm to both notes
-							applyBrokenRhythm(firstNote, nextNote, brokenRhythm);
+						if (nextTokenMatch) {
+							const nextToken = nextTokenMatch[0];
+							const nextTokenStartPos = lastBarPos + nextTokenMatch.index;
+							const nextSpacing = analyzeSpacing(
+								segment,
+								nextTokenMatch.index + nextToken.length
+							);
 
-							//add the firstNote
-							currentBar.push({
-								...firstNote,
-								token: fullToken,
-								sourceIndex: tokenStartPos,
-								sourceLength: fullToken.length,
-							});
+							// Parse the next note
+							const nextNote = parseNote(nextToken, unitLength, currentTuple);
+							if (nextNote && nextNote.duration && previousRealNote.duration) {
+								// Apply broken rhythm to both notes
+								applyBrokenRhythm(previousRealNote, nextNote, brokenRhythm);
 
-							// Add the broken rhythm marker to the bar
-							currentBar.push({
-								...brokenRhythm,
-							});
+								// Add the broken rhythm marker to the bar
+								currentBar.push({
+									...brokenRhythm,
+								});
 
-							// Add the next note to the bar
-							const nextNoteObj = {
-								...nextNote,
-								token: nextToken,
-								sourceIndex: nextTokenStartPos,
-								sourceLength: nextToken.length,
-								spacing: nextSpacing,
-							};
-							currentBar.push(nextNoteObj);
-							// previousNote = nextNoteObj;
-							continue;
+								// Add the next note to the bar
+								const nextNoteObj = {
+									...nextNote,
+									token: nextToken,
+									sourceIndex: nextTokenStartPos,
+									sourceLength: nextToken.length,
+									spacing: nextSpacing,
+								};
+								currentBar.push(nextNoteObj);
+								previousRealNote = null; //can't have successive broken rhythms
+								continue;
+							}
 						}
 					}
 					// If we couldn't apply the broken rhythm, just skip it
-					// previousNote = null;
+					previousRealNote = null;
 					continue;
 				}
 
@@ -378,7 +411,7 @@ function parseABCWithBars(abc, options = {}) {
 							sourceIndex: tokenStartPos,
 							sourceLength: fullToken.length,
 						});
-						// previousNote = null; // Tuplet markers break note sequences
+						previousRealNote = null; // Tuplet markers break note sequences
 						continue;
 					}
 				}
@@ -393,7 +426,7 @@ function parseABCWithBars(abc, options = {}) {
 						sourceLength: fullToken.length,
 						spacing,
 					});
-					// Chord symbols do note break note sequences - leave previousNote
+					// Chord symbols don't break note sequences
 					continue;
 				}
 
@@ -407,7 +440,7 @@ function parseABCWithBars(abc, options = {}) {
 						sourceLength: fullToken.length,
 						spacing,
 					});
-					// Chord symbols do note break note sequences - leave previousNote
+					// Decorations don't break note sequences
 					continue;
 				}
 
@@ -422,8 +455,10 @@ function parseABCWithBars(abc, options = {}) {
 						spacing,
 					};
 					currentBar.push(noteObj);
-					// Only track as previous note if it has duration (for broken rhythms)
-					// previousNote = note.duration ? noteObj : null;
+					// Only track as previous note if it has non-zero duration (for broken rhythms)
+					if (note.duration && note.duration.n !== 0) {
+						previousRealNote = noteObj;
+					}
 				}
 			}
 		}
@@ -457,6 +492,7 @@ function parseABCWithBars(abc, options = {}) {
 			bars.push(currentBar);
 			barCount++;
 			currentBar = [];
+			previousRealNote = null; // Bar lines break note sequences
 
 			// Check if we've reached max bars
 			if (barCount >= maxBars) {

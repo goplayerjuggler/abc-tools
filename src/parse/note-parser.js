@@ -12,6 +12,7 @@ const { Fraction } = require("../math.js");
 // - Chord symbols and annotations
 // - Tuplets/triplets
 // - Broken rhythms
+// - Grace notes
 //
 // ============================================================================
 
@@ -194,6 +195,87 @@ function parseChord(chordStr, unitLength) {
 }
 
 /**
+ * Parse grace notes from a token
+ * Grace notes are enclosed in curly braces and have zero duration
+ *
+ * @param {string} graceStr - Grace note string (e.g., '{ABC}', '{^AB_c}', '{[CEG]A}')
+ * @returns {Array<object>|null} - Array of grace note objects, or null if not valid grace notes
+ *
+ * Each grace note has:
+ * - isGraceNote: true
+ * - duration: Fraction(0, 1)
+ * - pitch, octave: as normal
+ * - isChord: true (if chord in brackets)
+ * - chordNotes: Array (if chord)
+ */
+function parseGraceNotes(graceStr) {
+	if (!graceStr.startsWith("{") || !graceStr.endsWith("}")) {
+		return null;
+	}
+
+	const content = graceStr.slice(1, -1);
+	if (!content) {
+		return null;
+	}
+
+	const graceNotes = [];
+
+	// Match individual notes or chords: accidental + pitch + octave (+ duration to ignore)
+	// Supports: A, ^A, _B', [CEG], [^C_E'G], A2, B/2, etc.
+	const noteRegex = /(?:\[[^\]]+\]|[=^_]?[A-Ga-g][',]*)[0-9]*\/?[0-9]*/g;
+
+	let match;
+	while ((match = noteRegex.exec(content)) !== null) {
+		const noteToken = match[0];
+
+		// Check if it's a chord
+		if (noteToken.startsWith("[")) {
+			const chord = parseChord(noteToken, new Fraction(1, 8)); // unitLength irrelevant
+			if (chord && chord.notes) {
+				// Find topmost note for the grace chord
+				let topNote = chord.notes[0];
+				for (const note of chord.notes) {
+					const topPos =
+						(topNote.octave || 0) * 7 +
+						(NOTE_TO_DEGREE[topNote.pitch?.toUpperCase()] || 0);
+					const notePos =
+						(note.octave || 0) * 7 +
+						(NOTE_TO_DEGREE[note.pitch?.toUpperCase()] || 0);
+					if (notePos > topPos) {
+						topNote = note;
+					}
+				}
+
+				// Set zero duration for all notes in grace chord
+				chord.notes.forEach((note) => {
+					note.duration = new Fraction(0, 1);
+				});
+
+				graceNotes.push({
+					...topNote,
+					isGraceNote: true,
+					duration: new Fraction(0, 1),
+					isChord: true,
+					chordNotes: chord.notes,
+				});
+			}
+		} else {
+			// Single grace note
+			const pitchData = getPitch(noteToken);
+			if (pitchData) {
+				graceNotes.push({
+					...pitchData,
+					isGraceNote: true,
+					duration: new Fraction(0, 1),
+				});
+			}
+		}
+	}
+
+	return graceNotes.length > 0 ? graceNotes : null;
+}
+
+/**
  * Parse broken rhythm from a token
  * Broken rhythms modify the duration of two adjacent notes (e.g., A>B, C<<D)
  *
@@ -210,12 +292,10 @@ function parseChord(chordStr, unitLength) {
  * - 3: triple-dotted rhythm (15:1 multiplier)
  */
 function parseBrokenRhythm(token) {
-	const brokenMatch = token.match(/^(.+?)\s*(<{1,3}|>{1,3})$/);
+	const brokenMatch = token.match(/^(<{1,3}|>{1,3})$/);
 	if (brokenMatch) {
-		const firstNoteToken = brokenMatch[1],
-			symbol = brokenMatch[2];
+		const symbol = brokenMatch[1];
 		return {
-			firstNoteToken,
 			isBrokenRhythm: true,
 			direction: symbol[0],
 			dots: symbol.length,
@@ -459,4 +539,5 @@ module.exports = {
 	parseTuplet,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
+	parseGraceNotes,
 };
