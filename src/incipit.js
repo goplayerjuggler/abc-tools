@@ -243,9 +243,9 @@ function sanitise(theTune) {
 		theKey = theLines[j];
 
 		if (theKey.indexOf("K:") !== -1) {
+			indexOfTheKey = j;
 			break;
 		}
-		indexOfTheKey = j;
 	}
 	// Find the L: parameter
 	let theL = "";
@@ -267,15 +267,11 @@ function sanitise(theTune) {
 			break;
 		}
 	}
-	// Find at most the first three lines that have measure separators
+	// Use at most the first three lines following the header K:
 	let added = 0;
 	for (k = indexOfTheKey + 1; k < nLines; ++k) {
 		const theTextIncipit = theLines[k];
 
-		// Skip lines that don't have bar lines
-		if (theTextIncipit.indexOf("|") === -1) {
-			continue;
-		}
 		// Clean out the incipit line of any annotations besides notes and bar lines
 		theTextIncipits.push(cleanIncipitLine(theTextIncipit));
 		added++;
@@ -321,7 +317,7 @@ function getIncipit(data) {
 		}
 	}
 	abc = sanitise(abc);
-	return getFirstBars(abc, numBars, withAnacrucis, true, { all: true });
+	return getFirstBars(abc, numBars, withAnacrucis, false, { all: true });
 }
 
 function getIncipitForContourGeneration(abc) {

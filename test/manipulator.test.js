@@ -877,4 +877,19 @@ D{E}D|A{B}A|B/c/d/B/|A2|]`,
 
 		expect(result).toContain(`D{E}D|A{B}A`);
 	});
+	test("C| meter", () => {
+		const result = getIncipit(
+			`X:1
+T:Flogging Reel, The
+R:reel
+Z:id:hn-reel-1
+M:C|
+K:G
+BG~G2 BGcG|BG~G2 Bdgd|BG~G2 BdcB|1 ADFG ABcA:|2 AGFG ABcA||
+~g3d BGBd
+`,
+			1
+		);
+		expect(result).toContain("K:G");
+	});
 });
