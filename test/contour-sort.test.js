@@ -102,8 +102,8 @@ K:Dmajor
 |:A/|F2 F2 A2 A2|G>FG>A B2 B2|A>dc>B A>GF>E|`,
 				c1 = getContourFromFullAbc(t1),
 				c2 = getContourFromFullAbc(t2);
-			console.log(sortKeyToString(c1.sortKey));
-			console.log(sortKeyToString(c2.sortKey));
+			// console.log(sortKeyToString(c1.sortKey));
+			// console.log(sortKeyToString(c2.sortKey));
 
 			expect(compare(c1, c2)).toBe(-1); //held note goes before a repeated one
 		});
@@ -127,8 +127,8 @@ K:Gmajor
 D|:G3A B3A|GAGE D3E|`,
 				c1 = getContourFromFullAbc(t1),
 				c2 = getContourFromFullAbc(t2);
-			console.log(sortKeyToString(c1.sortKey));
-			console.log(sortKeyToString(c2.sortKey));
+			// console.log(sortKeyToString(c1.sortKey));
+			// console.log(sortKeyToString(c2.sortKey));
 
 			expect(compare(c1, c2)).toBe(1); //t1 - whole first bar is on the tonic, but the start of the triplet is played, while t2 still has a held - so t2 goes first!
 		});
@@ -320,7 +320,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 
 			const objSub14 = getContour(theColliers14.abc);
 			expect(compare(objSub14, theColliers.contour)).toBe(0);
-			console.log("..");
+			// console.log("..");
 		});
 	});
 
