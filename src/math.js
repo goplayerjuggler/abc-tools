@@ -80,6 +80,9 @@ class Fraction {
 	toString() {
 		return this.den === 1 ? `${this.num}` : `${this.num}/${this.den}`;
 	}
+	toNumber() {
+		return this.num / this.den;
+	}
 }
 
 function gcd(a, b) {

@@ -3,6 +3,7 @@ const {
 	getTonalBase,
 	getUnitLength,
 	parseABCWithBars,
+	getMeter,
 } = require("../parse/parser.js");
 
 const { contourToSvg } = require("./contour-svg.js");
@@ -29,12 +30,18 @@ const {
  *
  * todo: complete this header. options.withSvg; options.maxNbUnitLengths
  */
-function getContour(abc, options = {}) {
-	const { withSvg = true, maxNbUnitLengths = 10, svgConfig } = { options };
+function getContour(
+	abc,
+	{ withSvg = false, maxNbUnitLengths = 10, svgConfig = {} } = {}
+) {
 	const tonalBase = getTonalBase(abc);
 	const unitLength = getUnitLength(abc);
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);
-	const { bars } = parseABCWithBars(abc, options);
+	const meter = getMeter(abc);
+	const maxNbBars = maxDuration.divide(new Fraction(meter[0], meter[1]));
+	const { bars } = parseABCWithBars(abc, {
+		maxBars: Math.ceil(maxNbBars.toNumber()),
+	});
 	let cumulatedDuration = new Fraction(0, 1);
 	const sortKey = [];
 	const durations = [];

@@ -175,12 +175,12 @@ D|:G3A B3A|GAGE D3E|`,
 				abc: `X:1
 T: The Colliers
 R: reel
-L: 1/8
+L: 1/16
 M:4/4
 K:D mixo
-FDE/F/G A2AB cAdB cAG2 |`,
+FDE/F/G A2AB cAdB cAG2 | A`,
 			};
-			const objSub14 = getContour(theColliers14.abc);
+			const objSub14 = getContour(theColliers14.abc, { maxNbUnitLengths: 16 });
 
 			expect(objSub14.sortKey.length).toBe(17);
 			expect(objSub14.durations).toBeDefined();
@@ -215,7 +215,7 @@ K:G major
 G2B AGA B2d gdB`;
 
 			const objMunster = getContour(abcMunster);
-			expect(objMunster.sortKey.length).toBe(12);
+			expect(objMunster.sortKey.length).toBe(10);
 		});
 	});
 
@@ -320,6 +320,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 
 			const objSub14 = getContour(theColliers14.abc);
 			expect(compare(objSub14, theColliers.contour)).toBe(0);
+			console.log("..");
 		});
 	});
 

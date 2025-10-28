@@ -159,7 +159,7 @@ function insertCharsAtIndexes(originalString, charToInsert, indexes) {
 /**
  * Toggle meter by doubling or halving bar length
  * Supports 4/4↔4/2 and 6/8↔12/8 transformations
- * This is neary a true inverse operation - going there and back preserves the ABC except for some
+ * This is nearly a true inverse operation - going there and back preserves the ABC except for some
  * edge cases involving spaces around the bar lines. No need to handle them.
  * Handles anacrusis correctly and preserves line breaks
  *

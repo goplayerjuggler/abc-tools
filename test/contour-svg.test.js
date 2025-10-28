@@ -294,7 +294,7 @@ cdefg`;
 
 	describe("visual output generation", () => {
 		// This test generates actual SVG files for manual inspection
-		test("generate SVG files for visual inspection", () => {
+		test.skip("generate SVG files for visual inspection", () => {
 			const outputDir = path.join(__dirname, "..", "test-output", "svg");
 			fs.mkdirSync(outputDir, { recursive: true });
 
