@@ -54,6 +54,15 @@ function getUnitLength(abc) {
 	}
 	return new Fraction(1, 8); // Default to 1/8
 }
+/**
+ * Extract titles - there may be 0..N titles
+ *
+ * @param {string} abc - ABC notation string
+ * @returns {[string]} - array of titles
+ */
+function getTitles(abc) {
+	return [...abc.matchAll(/^(?:T:\s*.(.+)\n)/gm)];
+}
 
 /**
  * Process ABC lines: extract music lines with metadata
@@ -100,9 +109,11 @@ function getMusicLines(abc) {
 		// Check for line continuation
 		const hasContinuation = trimmed.match(/\\\s*(%|$)/) !== null;
 
-		// Remove inline comments and line continuation marker
+		// Remove inline comments
 		trimmed = trimmed.replace(/\s*%.*$/, "").trim();
-		trimmed = trimmed.replace(/\\\s*$/, "").trim();
+
+		// Do *not* remove continuations: `\` at the end of a line
+		// trimmed = trimmed.replace(/\\\s*$/, "").trim();
 
 		if (trimmed) {
 			musicLines.push(trimmed);
@@ -137,4 +148,5 @@ module.exports = {
 	getMeter,
 	getUnitLength,
 	getMusicLines,
+	getTitles,
 };

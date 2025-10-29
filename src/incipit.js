@@ -54,8 +54,8 @@ function cleanIncipitLine(theTextIncipit) {
 	//   theTextIncipit = theTextIncipit.replaceAll("]", "");
 	//console.log(theTextIncipit);
 
-	// Strip out continuations
-	theTextIncipit = theTextIncipit.replaceAll("\\", "");
+	// keep continuations!
+	// theTextIncipit = theTextIncipit.replaceAll("\\", "");
 
 	// Segno
 	theTextIncipit = theTextIncipit.replaceAll("S", "");
@@ -333,7 +333,7 @@ function getContourFromFullAbc(abc) {
 		if (abc.length === 0) return null;
 		abc = abc[0];
 	}
-	return getContour(getIncipitForContourGeneration(abc));
+	return getContour(getIncipitForContourGeneration(abc), { withSvg: true });
 }
 
 module.exports = {

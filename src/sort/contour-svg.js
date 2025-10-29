@@ -13,11 +13,19 @@ const { decodeChar } = require("./encode.js");
  * @property {number} paddingBottom - Bottom padding in pixels
  * @property {number} paddingLeft - Left padding in pixels
  * @property {number} paddingRight - Right padding in pixels
- * @property {boolean} forceBaseline - ensures the baseline at zero is displayed
+ * @property {boolean} forceBaseline - Ensures the baseline at zero is displayed
  * @property {number|null} minDegree - Minimum degree for vertical range (null for auto)
  * @property {number|null} maxDegree - Maximum degree for vertical range (null for auto)
  * @property {string} class - CSS class name for the SVG element
  * @property {string} ariaLabel - Accessible label for screen readers
+ * @property {number} noteStartRadius - Radius of the circle marking note starts (played notes only)
+ * @property {boolean} onlyShowMeaningfulStartOfPlayedNotes - If true, only show start markers when previous note is same pitch; if false, show on all played notes
+ * @property {boolean} showYAxis - Whether to display the Y axis
+ * @property {string} yAxisColor - Colour for the Y axis line
+ * @property {number} yAxisWidth - Width of the Y axis line
+ * @property {number} yAxisTickLength - Length of regular ticks (for 5th degree markers)
+ * @property {number} yAxisTonicTickLength - Length of tonic ticks (for tonic degree markers)
+ * @property {number} yAxisTickWidth - Width of tick marks
  */
 
 /**
@@ -25,34 +33,41 @@ const { decodeChar } = require("./encode.js");
  * @type {SvgConfig}
  */
 const contourToSvg_defaultConfig = {
-	degreeHeight: 5, // much smaller (default is 12)
-	paddingTop: 1, // less padding (default is 20)
-	paddingBottom: 1, // less padding (default is 20)
-	strokeWidth: 2, // slightly thinner lines (default is 3)
+	degreeHeight: 5,
+	paddingTop: 3,
+	paddingBottom: 3,
+	strokeWidth: 2,
 	unitWidth: 15,
-	// degreeHeight: 12,
-	// strokeWidth: 3,
 	playedColor: "#2563eb", // blue
-	heldColor: "#93c5fd", // lighter blue (held notes)
+	heldColor: "#2563eb", // same as played (no longer lighter blue)
 	baselineColor: "#555555", // Davy's grey
-	// paddingTop: 20,
-	// paddingBottom: 20,
 	paddingLeft: 10,
 	paddingRight: 10,
-	minDegree: null, // null means auto-calculate from contour
-	maxDegree: null, // null means auto-calculate from contour
+	minDegree: null,
+	maxDegree: null,
 	forceBaseline: true,
 	class: "contour-svg",
 	ariaLabel: "Tune contour",
+	noteStartRadius: 3,
+	onlyShowMeaningfulStartOfPlayedNotes: true,
+	showYAxis: true,
+	yAxisColor: "#888888",
+	yAxisWidth: 1,
+	yAxisTickLength: 4,
+	yAxisTonicTickLength: 6,
+	yAxisTickWidth: 1,
 };
 
 /**
- * Converts a tune contour object into an SVG visualization
+ * Converts a tune contour object into an SVG visualisation
  *
  * The SVG represents the melodic contour as a series of connected horizontal line segments.
  * Each segment's vertical position corresponds to its modal degree (pitch relative to tonic),
  * and its horizontal length represents its duration relative to the common subdivision of the beat.
  * The resulting SVG is landscape-oriented (wider than tall).
+ *
+ * Played notes are marked with a small filled circle at their start point.
+ * Held notes (continuations of the same pitch) have no start marker.
  *
  * Silences are not drawn but occupy space on the x-axis, causing subsequent notes to be
  * positioned after the cumulative duration of preceding silences.
@@ -75,7 +90,7 @@ const contourToSvg_defaultConfig = {
  * // With fixed vertical range for comparing multiple contours
  * const svg = contourToSvg(contour, { minDegree: -15, maxDegree: 15 });
  *
- * // Auto range  - calculates from the contour's actual pitch range
+ * // Auto range - calculates from the contour's actual pitch range
  * const svg2 = contourToSvg(contour, {
  *   minDegree: null,
  *   maxDegree: null
@@ -87,7 +102,7 @@ const contourToSvg_defaultConfig = {
  * // You can also set just one bound
  * const svg3 = contourToSvg(contour, {
  *   minDegree: -15,
- *   maxDegree: null //maxDegree will auto-calculate
+ *   maxDegree: null // maxDegree will auto-calculate
  * });
  */
 function contourToSvg(contour, svgConfig = {}) {
@@ -156,7 +171,11 @@ function contourToSvg(contour, svgConfig = {}) {
 	const svgWidth = totalWidth + config.paddingLeft + config.paddingRight;
 	const svgHeight = chartHeight + config.paddingTop + config.paddingBottom;
 
-	// Helper function to convert position to Y coordinate
+	/**
+	 * Converts a modal degree position to Y coordinate in SVG space
+	 * @param {number} pos - Modal degree position
+	 * @returns {number} Y coordinate
+	 */
 	const positionToY = (pos) => {
 		const relativePos = maxPosition - pos;
 		return config.paddingTop + relativePos * config.degreeHeight;
@@ -164,6 +183,47 @@ function contourToSvg(contour, svgConfig = {}) {
 
 	// Build SVG path elements
 	const pathElements = [];
+
+	// Add Y axis if configured
+	if (config.showYAxis) {
+		const yAxisX = config.paddingLeft - 5;
+		const yAxisTop = positionToY(maxPosition);
+		const yAxisBottom = positionToY(minPosition);
+
+		pathElements.push(
+			`<line x1="${yAxisX}" y1="${yAxisTop}" ` +
+				`x2="${yAxisX}" y2="${yAxisBottom}" ` +
+				`stroke="${config.yAxisColor}" stroke-width="${config.yAxisWidth}" />`
+		);
+
+		// Add tick marks for positions within range
+		// Regular ticks at positions: ..., -11, -4, 4, 11, 18, ... (5th degree in each octave)
+		// Tonic ticks at positions: ..., -14, -7, 0, 7, 14, ... (tonic in each octave)
+		const minPos = Math.floor(minPosition);
+		const maxPos = Math.ceil(maxPosition);
+
+		for (let pos = minPos; pos <= maxPos; pos++) {
+			let tickLength = 0;
+
+			// Check if this is a tonic position (0, ±7, ±14, ...)
+			if (pos % 7 === 0) {
+				tickLength = config.yAxisTonicTickLength;
+			}
+			// Check if this is a 5th position (±4, ±11, ±18, ...)
+			else if (pos % 7 === 4 || pos % 7 === -3) {
+				tickLength = config.yAxisTickLength;
+			}
+
+			if (tickLength > 0) {
+				const tickY = positionToY(pos);
+				pathElements.push(
+					`<line x1="${yAxisX - tickLength}" y1="${tickY}" ` +
+						`x2="${yAxisX}" y2="${tickY}" ` +
+						`stroke="${config.yAxisColor}" stroke-width="${config.yAxisTickWidth}" />`
+				);
+			}
+		}
+	}
 
 	// Add baseline at position 0 if it's within range
 	if (minPosition <= 0 && maxPosition >= 0) {
@@ -195,6 +255,39 @@ function contourToSvg(contour, svgConfig = {}) {
 				`stroke="${color}" stroke-width="${config.strokeWidth}" ` +
 				`stroke-linecap="round" />`
 		);
+
+		// Add note start marker (filled circle) for played notes
+		// If onlyShowMeaningfulStartOfPlayedNotes is true, only show when previous note is same pitch
+		if (!seg.isHeld) {
+			let showStartMarker = true;
+
+			if (config.onlyShowMeaningfulStartOfPlayedNotes) {
+				// Find previous non-silence segment
+				let prevNonSilenceIdx = i - 1;
+				while (
+					prevNonSilenceIdx >= 0 &&
+					segments[prevNonSilenceIdx].isSilence
+				) {
+					prevNonSilenceIdx--;
+				}
+
+				// Only show marker if previous note exists and is at same position
+				if (prevNonSilenceIdx >= 0) {
+					const prevSeg = segments[prevNonSilenceIdx];
+					showStartMarker = prevSeg.position === seg.position;
+				} else {
+					// First note: don't show marker
+					showStartMarker = false;
+				}
+			}
+
+			if (showStartMarker) {
+				pathElements.push(
+					`<circle cx="${x1}" cy="${y}" r="${config.noteStartRadius}" ` +
+						`fill="${color}" />`
+				);
+			}
+		}
 
 		// Add connecting vertical line to next non-silence segment if position changes
 		let nextNonSilenceIdx = i + 1;
