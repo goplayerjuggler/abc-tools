@@ -17,99 +17,48 @@
  * Classify bar line type
  *
  * @param {string} barLineStr - Bar line string from ABC notation
- * @returns {object} - Classification with type, text, and properties
+ * @returns {object} - parsed barline with text, and properties
  *
  * Return object structure:
  * {
- *   type: string,           // 'regular', 'double', 'final', 'repeat-start', 'repeat-end', 'repeat-both', 'repeat-ending', 'other'
  *   text: string,           // Original bar line string
- *   isRepeat: boolean,      // Whether this bar line involves repeats
- *   ending?: number         // For repeat-ending type, which ending (1-6)
+ *   trimmed: string,            // trimmed bar line string
+ *   isSectionBreak,              // double bars and ends of repeats are section breaks
+ *   isRepeatL: boolean,
+ * // true iff there’s a repeat to the left of the bar line; if not the property is omitted
+ * // indicates the end of a repeated section
+ *
+ *   isRepeatR: boolean,
+ * // true iff there’s a repeat to the rightt of the bar line; if not the property is omitted
+ * // indicates the start of a repeated section
+ *
  * }
+ *
+ *
  */
-function classifyBarLine(barLineStr) {
+function parseBarLine(barLineStr) {
 	const trimmed = barLineStr.trim();
-
-	// Repeat endings
-	if (trimmed.match(/^\|[1-6]$/)) {
-		return {
-			type: "repeat-ending",
-			ending: parseInt(trimmed[1]),
-			text: barLineStr,
-			isRepeat: true,
-		};
-	}
-
+	const result = {
+		text: barLineStr,
+		trimmed,
+	};
 	// Start repeat
-	if (trimmed.match(/^\|:/) || trimmed.match(/^\[\|/)) {
-		return {
-			type: "repeat-start",
-			text: barLineStr,
-			isRepeat: true,
-		};
+	if (trimmed.match(/:$/)) {
+		result.isRepeatR = true;
 	}
-
 	// End repeat
-	if (
-		trimmed.match(/^:\|/) ||
-		(trimmed.match(/^\|\]/) && !trimmed.match(/^\|\]$/))
-	) {
-		return {
-			type: "repeat-end",
-			text: barLineStr,
-			isRepeat: true,
-		};
-	}
-
-	// Double repeat
-	if (
-		trimmed.match(/^::/) ||
-		trimmed.match(/^:\|:/) ||
-		trimmed.match(/^::\|:?/) ||
-		trimmed.match(/^::\|\|:?/)
-	) {
-		return {
-			type: "repeat-both",
-			text: barLineStr,
-			isRepeat: true,
-		};
-	}
-
-	// Final bar
-	if (trimmed === "|]") {
-		return {
-			type: "final",
-			text: barLineStr,
-			isRepeat: false,
-		};
+	if (trimmed.match(/^:/)) {
+		result.isRepeatL = true;
+		result.isSectionBreak = true
 	}
 
 	// Double bar
-	if (trimmed === "||") {
-		return {
-			type: "double",
-			text: barLineStr,
-			isRepeat: false,
-		};
+	if (trimmed.match(/\|\|/)){
+		result.isSectionBreak = true;
 	}
-
-	// Regular bar
-	if (trimmed === "|") {
-		return {
-			type: "regular",
-			text: barLineStr,
-			isRepeat: false,
-		};
-	}
-
-	// Unknown/complex bar line
-	return {
-		type: "other",
-		text: barLineStr,
-		isRepeat: trimmed.includes(":"),
-	};
+	return result;
 }
 
 module.exports = {
-	classifyBarLine,
+	parseBarLine,
 };

@@ -6,7 +6,7 @@
 // - Token regex generation
 // - Inline field parsing
 // - Whitespace and beaming analysis
-//
+// - Bar lines are not captured, but variant endings and 1st and 2nd repeats are captured
 // ============================================================================
 
 const TokenRegexComponents = {
@@ -60,7 +60,6 @@ const TokenRegexComponents = {
 
 /**
  * Get regex for matching ABC music tokens
- * Built from documented components for maintainability
  *
  * Matches: tuplets, grace notes, inline fields, chord symbols, notes, rests,
  * chords in brackets, decorations, ties, and broken rhythms

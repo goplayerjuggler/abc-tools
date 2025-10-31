@@ -12,7 +12,7 @@ const {
 	applyBrokenRhythm,
 	parseGraceNotes,
 } = require("./note-parser.js");
-const { classifyBarLine } = require("./barline-parser.js");
+const { parseBarLine } = require("./barline-parser.js");
 const {
 	getTokenRegex,
 	parseInlineField,
@@ -73,7 +73,6 @@ const {
  *   barLines: Array<BarLineObject>,  // Array of bar line information
  *   unitLength: Fraction,             // The L: field value (default 1/8)
  *   meter: [number, number],          // The M: field value (default [4,4])
- *   tonalBase: string,                // The tonic from K: field (e.g., 'D', 'G')
  *   lineMetadata: Array<LineMetadata>,// Info about original lines (comments, continuations)
  *   headerLines: Array<string>,       // Original header lines
  *   headerEndIndex: number,           // Index where headers end
@@ -174,14 +173,18 @@ const {
  *
  * BarLineObject structure:
  * {
- *   type: string,               // 'regular', 'double', 'final', 'repeat-start', etc.
  *   text: string,               // Original bar line string
- *   isRepeat: boolean,          // Whether this involves repeats
+ *   trimmed: string,            // trimmed bar line string
+ *   isSectionBreak,              // double bars and repeats are section breaks
+ *   isRepeatL: boolean,
+ * // true iff there’s a repeat to the left of the bar line; if not the property is omitted
+ * // indicates the end of a repeated section
+ *   isRepeatR: boolean,
+ * // true iff there’s a repeat to the right of the bar line; if not the property is omitted
+ * // indicates the start of a repeated section
  *   sourceIndex: number,        // Position in musicText
  *   sourceLength: number,       // Length of bar line
- *   barNumber: number,          // Which bar this terminates (0-indexed)
  *   hasLineBreak: boolean,      // Whether there's a newline after this bar line
- *   ending?: number             // For repeat-ending type, which ending (1-6)
  * }
  *
  * LineMetadata structure:
@@ -211,7 +214,6 @@ const {
  *     barLines: [...],
  *     unitLength: Fraction(1,4),
  *     meter: [4,4],
- *     tonalBase: 'D',
  *     lineMetadata: [...]
  *   }
  */
@@ -220,7 +222,6 @@ function parseABCWithBars(abc, options = {}) {
 
 	let unitLength = getUnitLength(abc);
 	let meter = getMeter(abc);
-	let tonalBase = getTonalBase(abc);
 
 	const {
 		musicText,
@@ -233,8 +234,13 @@ function parseABCWithBars(abc, options = {}) {
 	// Create a Set of newline positions for O(1) lookup
 	const newlineSet = new Set(newlinePositions);
 
-	// Comprehensive bar line regex - includes trailing spaces
-	const barLineRegex = /(\|\||\|\]|\[\|\]|(\|:?)|(:?\|)|:\|\|:) */g;
+	/*
+	Bar line regex - includes trailing spaces; does not include: 1st & 2nd repeats and variant endings - tokenised by tokenRegex below
+	From the spec: "Abc parsers should be quite liberal in recognizing bar lines. In the wild, bar lines may have any shape, using a sequence of | (thin bar line), [ or ] (thick bar line), and : (dots), e.g. |[| or [|:::"
+	All the following bar lines are legal, given with most frequently seen first. AFAIK all but the last 4  are quite commonly seen.
+	| || |] :| |: :|: :||: [| [|] .| ::
+	*/
+	const barLineRegex = /:*\.*[|[\]]*(?:\||::+)[|[\]]*:* */g; //captures expressions with at least one `|`, or at least two `:`.
 
 	const bars = [];
 	const barLines = [];
@@ -321,11 +327,6 @@ function parseABCWithBars(abc, options = {}) {
 						const meterMatch = inlineField.value.match(/(\d+)\/(\d+)/);
 						if (meterMatch) {
 							meter = [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
-						}
-					} else if (inlineField.field === "K") {
-						const keyMatch = inlineField.value.match(/^([A-G])/);
-						if (keyMatch) {
-							tonalBase = keyMatch[1].toUpperCase();
 						}
 					}
 
@@ -472,7 +473,7 @@ function parseABCWithBars(abc, options = {}) {
 			(barLineEndPos < musicText.length && musicText[barLineEndPos] === "\n");
 
 		// Store bar line information
-		const barLineInfo = classifyBarLine(barLineText);
+		const barLineInfo = parseBarLine(barLineText);
 		barLines.push({
 			...barLineInfo,
 			sourceIndex: barLinePos,
@@ -515,7 +516,6 @@ function parseABCWithBars(abc, options = {}) {
 		barLines,
 		unitLength,
 		meter,
-		tonalBase,
 		lineMetadata,
 		headerLines,
 		headerEndIndex,
@@ -604,5 +604,5 @@ module.exports = {
 	getUnitLength,
 	getMusicLines,
 	analyzeSpacing,
-	classifyBarLine,
+	parseBarLine,
 };
