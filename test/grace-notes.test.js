@@ -1,4 +1,4 @@
-const { parseABCWithBars } = require("../src/parse/parser");
+const { parseAbc } = require("../src/parse/parser");
 const { parseGraceNotes } = require("../src/parse/note-parser");
 const { Fraction } = require("../src/math");
 
@@ -81,10 +81,10 @@ describe("grace notes", () => {
 		});
 	});
 
-	describe("grace notes in parseABCWithBars", () => {
+	describe("grace notes in parseAbc", () => {
 		test("parses tune with grace notes", () => {
 			const abc = "X:1\nL:1/8\nK:D\n{AB}c2|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			expect(result.bars).toHaveLength(1);
 			expect(result.bars[0]).toHaveLength(3);
@@ -111,7 +111,7 @@ describe("grace notes", () => {
 
 		test("grace notes are transparent to broken rhythms", () => {
 			const abc = "X:1\nL:1/8\nK:D\nA{Bc}>d|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			expect(result.bars).toHaveLength(1);
 			const bar = result.bars[0];
@@ -140,7 +140,7 @@ describe("grace notes", () => {
 
 		test("grace notes with broken rhythm in other direction", () => {
 			const abc = "X:1\nL:1/8\nK:D\nA{Bc}<d|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			const bar = result.bars[0];
 			const realNotes = bar.filter((n) => n.pitch && !n.isGraceNote);
@@ -156,7 +156,7 @@ describe("grace notes", () => {
 
 		test("multiple grace note groups", () => {
 			const abc = "X:1\nL:1/8\nK:D\n{AB}c{de}f|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			expect(result.bars).toHaveLength(1);
 			const bar = result.bars[0];
@@ -172,7 +172,7 @@ describe("grace notes", () => {
 
 		test("grace notes don't affect bar duration", () => {
 			const abc = "X:1\nL:1/8\nK:D\n{AB}c2d2|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			// Calculate total duration (should be 1/2, ignoring grace notes)
 			let total = new Fraction(0, 1);
@@ -187,7 +187,7 @@ describe("grace notes", () => {
 
 		test("grace notes before broken rhythm at start", () => {
 			const abc = "X:1\nL:1/8\nK:D\n{AB}>c|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			// Since there's no note before the grace notes, broken rhythm shouldn't apply
 			// This tests edge case handling
@@ -197,7 +197,7 @@ describe("grace notes", () => {
 
 		test("grace notes with accidentals and octaves in tune", () => {
 			const abc = "X:1\nL:1/8\nK:D\n{^A'_B,}c|";
-			const result = parseABCWithBars(abc);
+			const result = parseAbc(abc);
 
 			const graceNotes = result.bars[0].filter((n) => n.isGraceNote);
 			expect(graceNotes).toHaveLength(2);

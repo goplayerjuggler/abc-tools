@@ -219,9 +219,8 @@ function StripChordsOne(theNotes) {
 }
 
 function sanitise(theTune) {
-	let j,
-		k,
-		theTextIncipits = [];
+	let j, k;
+	const theTextIncipits = [];
 	// Strip out annotations
 	theTune = StripAnnotationsOneForIncipits(theTune);
 
@@ -271,7 +270,7 @@ function sanitise(theTune) {
 	let added = 0;
 	for (k = indexOfTheKey + 1; k < nLines; ++k) {
 		const theTextIncipit = theLines[k];
-
+		if (theTextIncipit.match(/^\s*%%/)) continue; // skip lines starting with %%
 		// Clean out the incipit line of any annotations besides notes and bar lines
 		theTextIncipits.push(cleanIncipitLine(theTextIncipit));
 		added++;

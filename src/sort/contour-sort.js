@@ -2,7 +2,7 @@ const { Fraction } = require("../math.js");
 const {
 	getTonalBase,
 	getUnitLength,
-	parseABCWithBars,
+	parseAbc,
 	getMeter,
 } = require("../parse/parser.js");
 
@@ -39,7 +39,7 @@ function getContour(
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);
 	const meter = getMeter(abc);
 	const maxNbBars = maxDuration.divide(new Fraction(meter[0], meter[1]));
-	const { bars } = parseABCWithBars(abc, {
+	const { bars } = parseAbc(abc, {
 		maxBars: Math.ceil(maxNbBars.toNumber()),
 	});
 	let cumulatedDuration = new Fraction(0, 1);

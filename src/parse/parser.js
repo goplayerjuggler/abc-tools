@@ -7,16 +7,16 @@ const {
 } = require("./header-parser.js");
 const {
 	parseNote,
-	parseTuplet,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
 	parseGraceNotes,
 } = require("./note-parser.js");
 const { parseBarLine } = require("./barline-parser.js");
 const {
+	analyzeSpacing,
 	getTokenRegex,
 	parseInlineField,
-	analyzeSpacing,
+	parseTuplet,
 } = require("./token-utils.js");
 
 // ============================================================================
@@ -60,7 +60,7 @@ const {
 // ============================================================================
 
 /**
- * Parse ABC into structured data with bars
+ * Parse ABC into structured data
  *
  * @param {string} abc - ABC notation string
  * @param {object} options - Parsing options
@@ -69,7 +69,8 @@ const {
  *
  * Returns object with:
  * {
- *   bars: Array<Array<NoteObject>>,  // Array of bars, each bar is array of notes/chords/fields
+ *   bars: Array<Array<ScoreObject>>,  // Array of bars, each bar is array of ScoreObjects
+ * 		// A Score object is almost anything that isn’t a bar line: note/chord/field/broken rhythm/tuplet/1st or 2nd repeat or variant ending
  *   barLines: Array<BarLineObject>,  // Array of bar line information
  *   unitLength: Fraction,             // The L: field value (default 1/8)
  *   meter: [number, number],          // The M: field value (default [4,4])
@@ -79,7 +80,7 @@ const {
  *   musicText: string                 // Processed music text (headers removed)
  * }
  *
- * NoteObject structure (regular note):
+ * ScoreObject structure (normal note):
  * {
  *   pitch: string,              // 'A'-'G' (uppercase for low octave, lowercase for middle)
  *   octave: number,             // Relative octave offset (0 = middle, +1 = high, -1 = low)
@@ -104,11 +105,11 @@ const {
  *     text: string
  *   },
  *   isChord: true,              // Present if this is a chord [CEG]
- *   chordNotes: Array<NoteObject>, // All notes in the chord (when isChord=true)
+ *   chordNotes: Array<ScoreObject>, // All notes in the chord (when isChord=true)
  *   isGraceNote: true           // Present if this is a grace note (has zero duration)
  * }
  *
- * NoteObject structure (silence/rest):
+ * ScoreObject structure (silence/rest):
  * {
  *   isSilence: true,
  *   duration: Fraction,
@@ -119,7 +120,7 @@ const {
  *   // Optional: decorations, chordSymbol, annotation (same as above)
  * }
  *
- * NoteObject structure (dummy note):
+ * ScoreObject structure (dummy note):
  * {
  *   isDummy: true,
  *   duration: Fraction,
@@ -129,7 +130,7 @@ const {
  *   spacing: { ... }
  * }
  *
- * NoteObject structure (inline field change):
+ * ScoreObject structure (inline field change):
  * {
  *   isInlineField: true,
  *   field: string,              // 'K', 'L', 'M', or 'P'
@@ -140,7 +141,7 @@ const {
  *   spacing: { ... }
  * }
  *
- * NoteObject structure (standalone chord symbol):
+ * ScoreObject structure (standalone chord symbol):
  * {
  *   isChordSymbol: true,
  *   chordSymbol: string,        // The chord name
@@ -150,7 +151,7 @@ const {
  *   spacing: { ... }
  * }
  *
- * Tuplet structure:
+ * ScoreObject structure (Tuplet):
  * {
  *   isTuple: true,
  *   p: number,                  // Tuplet ratio numerator
@@ -158,17 +159,19 @@ const {
  *   r: number,                  // Number of notes in tuplet
  *   token: string,
  *   sourceIndex: number,
- *   sourceLength: number
+ *   sourceLength: number,
+ *   spacing: { ... }
  * }
  *
- * BrokenRhythm structure:
+ * ScoreObject structure ((BrokenRhythm):
  * {
  *   isBrokenRhythm: true,
  *   direction: string,          // '>' or '<'
  *   dots: number,               // 1, 2, or 3
  *   token: string,
  *   sourceIndex: number,
- *   sourceLength: number
+ *   sourceLength: number,
+ *   spacing: { ... }
  * }
  *
  * BarLineObject structure:
@@ -197,7 +200,7 @@ const {
  * }
  *
  * Example:
- *   parseABCWithBars('X:1\nL:1/4\nK:D\n"Dm"D2 [DF]A | ~B4 |]')
+ *   parseAbc('X:1\nL:1/4\nK:D\n"Dm"D2 [DF]A | ~B4 |]')
  *   // Returns:
  *   {
  *     bars: [
@@ -217,7 +220,7 @@ const {
  *     lineMetadata: [...]
  *   }
  */
-function parseABCWithBars(abc, options = {}) {
+function parseAbc(abc, options = {}) {
 	const { maxBars = Infinity } = options;
 
 	let unitLength = getUnitLength(abc);
@@ -237,8 +240,8 @@ function parseABCWithBars(abc, options = {}) {
 	/*
 	Bar line regex - includes trailing spaces; does not include: 1st & 2nd repeats and variant endings - tokenised by tokenRegex below
 	From the spec: "Abc parsers should be quite liberal in recognizing bar lines. In the wild, bar lines may have any shape, using a sequence of | (thin bar line), [ or ] (thick bar line), and : (dots), e.g. |[| or [|:::"
-	All the following bar lines are legal, given with most frequently seen first. AFAIK all but the last 4  are quite commonly seen.
-	| || |] :| |: :|: :||: [| [|] .| ::
+	All the following bar lines are legal, given with most frequently seen first - according to my limited knowledge of what’s out there. AFAIK all but the last 4 are quite commonly seen.
+	`|`, `:|`, `|:`, `|]`, `||`, `:||:`, `:|:`, `::`, `[|`, `[|]`, `.|`
 	*/
 	const barLineRegex = /:*\.*[|[\]]*(?:\||::+)[|[\]]*:* */g; //captures expressions with at least one `|`, or at least two `:`.
 
@@ -263,6 +266,7 @@ function parseABCWithBars(abc, options = {}) {
 						barLinePos: match.index,
 				  };
 
+		if (lastBarPos > 0) lastBarPos--; //the last character in a barline expression may be needed to match variant endings - eg `|1`
 		// Process segment before this bar line
 		const segment = musicText.substring(lastBarPos, barLinePos);
 
@@ -285,6 +289,19 @@ function parseABCWithBars(abc, options = {}) {
 					segment,
 					tokenMatch.index + fullToken.length
 				);
+
+				if (fullToken.match(getTokenRegex({ variantEndings: true }))) {
+					const variantEnding = {
+						isVariantEnding: true,
+						token: fullToken,
+						sourceIndex: tokenStartPos,
+						sourceLength: fullToken.length,
+						spacing,
+					};
+					currentBar.push(variantEnding);
+
+					continue;
+				}
 
 				// Check for grace notes
 				if (fullToken.startsWith("{")) {
@@ -527,7 +544,7 @@ function parseABCWithBars(abc, options = {}) {
  * Calculate bar durations from parsed ABC data
  * Returns duration for each bar as a Fraction
  *
- * @param {object} parsedData - Output from parseABCWithBars
+ * @param {object} parsedData - Output from parseAbc
  * @returns {Array<Fraction>} - Array of bar durations
  */
 function calculateBarDurations(parsedData) {
@@ -596,7 +613,7 @@ function getTunes(text) {
 
 module.exports = {
 	getTunes,
-	parseABCWithBars,
+	parseAbc,
 	calculateBarDurations,
 	// Re-export utilities for convenience
 	getTonalBase,

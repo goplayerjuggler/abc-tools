@@ -1,6 +1,6 @@
 const { Fraction } = require("./math.js");
 const {
-	parseABCWithBars,
+	parseAbc,
 	getMeter,
 	calculateBarDurations,
 } = require("./parse/parser.js");
@@ -91,7 +91,7 @@ function filterHeaders(headerLines, headersToStrip) {
 
 /**
  * Detect if ABC notation has an anacrusis (pickup bar)
- * @param {object} parsed - Parsed ABC data from parseABCWithBars
+ * @param {object} parsed - Parsed ABC data from parseAbc
  * @returns {boolean} - True if anacrusis is present
  */
 function hasAnacrucisFromParsed(parsed) {
@@ -112,7 +112,7 @@ function hasAnacrucisFromParsed(parsed) {
  * @returns {boolean} - True if anacrusis is present
  */
 function hasAnacrucis(abc) {
-	const parsed = parseABCWithBars(abc, { maxBars: 2 });
+	const parsed = parseAbc(abc, { maxBars: 2 });
 	return hasAnacrucisFromParsed(parsed);
 }
 /**
@@ -188,7 +188,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		abc = abc.replaceAll(/([^\s])([[:]?\|)/g, "$1 $2");
 	}
 
-	const parsed = parseABCWithBars(abc);
+	const parsed = parseAbc(abc);
 	const { headerLines, barLines, musicText } = parsed;
 
 	// Change meter in headers
@@ -326,7 +326,7 @@ function getFirstBars(
 		Math.ceil(numBarsFraction.num / numBarsFraction.den) + 2;
 
 	// Parse with estimated maxBars
-	const parsed = parseABCWithBars(abc, { maxBars: estimatedMaxBars });
+	const parsed = parseAbc(abc, { maxBars: estimatedMaxBars });
 	const { bars, headerLines, barLines, musicText, meter } = parsed;
 
 	const barDurations = calculateBarDurations(parsed);

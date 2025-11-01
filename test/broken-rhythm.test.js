@@ -1,10 +1,10 @@
-const { parseABCWithBars } = require("../src/parse/parser.js");
+const { parseAbc } = require("../src/parse/parser.js");
 const { Fraction } = require("../src/math.js");
 
 describe("broken rhythms", () => {
 	test("single dot dotted rhythm A>B", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA>B";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -26,7 +26,7 @@ describe("broken rhythms", () => {
 
 	test("single dot reverse rhythm A<B", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA<B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -44,7 +44,7 @@ describe("broken rhythms", () => {
 
 	test("double dot rhythm A>>B", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA>>B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -65,7 +65,7 @@ describe("broken rhythms", () => {
 
 	test("triple dot rhythm A<<<B", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA<<<B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -86,7 +86,7 @@ describe("broken rhythms", () => {
 
 	test("broken rhythm with different note durations - has no effect", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA2>B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -107,7 +107,7 @@ describe("broken rhythms", () => {
 
 	test("broken rhythm with whitespace", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA > B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -124,7 +124,7 @@ describe("broken rhythms", () => {
 
 	test("multiple broken rhythms in sequence", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA>B C<D|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];
@@ -147,7 +147,7 @@ describe("broken rhythms", () => {
 
 	test("broken rhythm marker is recorded in bar", () => {
 		const abc = "X:1\nL:1/8\nK:C\nA>B|\n";
-		const result = parseABCWithBars(abc);
+		const result = parseAbc(abc);
 
 		expect(result.bars).toHaveLength(1);
 		const bar = result.bars[0];

@@ -17,7 +17,7 @@ const TokenRegexComponents = {
 	graceNotes: String.raw`\{[^}]+\}`,
 
 	// Inline field changes: [K:D], [L:1/4], [M:3/4], [P:A]
-	inlineField: String.raw`\[(?:[KLMP]):[^\]]+\]`,
+	inlineField: String.raw`\[([KLMP]):\s*([^\]]+)\]`,
 
 	// Text in quotes: chord symbols "Dm7" or annotations "^text"
 	quotedText: String.raw`"[^"]+"`,
@@ -56,18 +56,36 @@ const TokenRegexComponents = {
 
 	// Broken rhythm (>, >>, >>>, <, <<, <<<)
 	broken: String.raw`<{1,3}|>{1,3}`,
+
+	// variant ending - including one way of writing 1st and second repeats. Only handle single digits.
+	// examples: [1 [2 [3 [4 [1-3 [1-3,5-7
+	variantEnding: String.raw`\[\d(?:-\d)?(?:,\d(?:-\d)?)*`,
+
+	// 1st & 2nd repeats. Only handle single digits.
+	// examples: `|1`, `|2`
+	// Note that the other syntax, `[1`, `[2`, will be captured by the variantEnding component
+	repeat_1Or2: String.raw`\|[12]`,
 };
 
 /**
+ *
  * Get regex for matching ABC music tokens
  *
  * Matches: tuplets, grace notes, inline fields, chord symbols, notes, rests,
- * chords in brackets, decorations, ties, and broken rhythms
+ * chords in brackets, decorations, ties, broken rhythms, and variant endings including 1st and 2nd repeats
  *
+ * @param {object} options -
+ * 	when options.variantEndings is flagged, the returned regex just matches the next variant ending / 1st or 2nd repeat
+ * 	when options.inlineField is flagged, the returned regex just matches the next inline field
  * @returns {RegExp} - Regular expression for tokenising ABC music
  */
-const getTokenRegex = () => {
+const getTokenRegex = (options = {}) => {
 	const s = TokenRegexComponents;
+	if (options) {
+		if (options.variantEndings)
+			return new RegExp(`^${s.variantEnding}|${s.repeat_1Or2}$`);
+		if (options.inlineField) return new RegExp(`^$${s.inlineField}$`);
+	}
 	// Complete note/rest/chord pattern with optional leading decoration
 	const notePattern =
 		s.bangDecorations() +
@@ -88,6 +106,8 @@ const getTokenRegex = () => {
 		notePattern,
 		s.bangDecoration,
 		s.broken,
+		s.variantEnding,
+		s.repeat_1Or2,
 	].join("|");
 
 	return new RegExp(fullPattern, "g");
@@ -107,7 +127,7 @@ const getTokenRegex = () => {
  * - [P:...] - Part marker
  */
 function parseInlineField(token) {
-	const fieldMatch = token.match(/^\[([KLMP]):\s*([^\]]+)\]$/);
+	const fieldMatch = token.match(getTokenRegex({ inlineField: true }));
 	if (fieldMatch) {
 		return {
 			field: fieldMatch[1],
@@ -174,8 +194,66 @@ function analyzeSpacing(segment, tokenEndPos) {
 	};
 }
 
+/**
+ * Parse tuplet notation from a token
+ *
+ * @param {string} token - Tuplet token (e.g., '(3', '(3:2', '(3:2:4')
+ * @param {boolean} isCompoundTimeSignature - Whether current time signature is compound (affects default q value)
+ * @returns {object|null} - { isTuple: true, p, q, r } or null if not a valid tuplet
+ */
+function parseTuplet(token, isCompoundTimeSignature) {
+	const tupleMatch = token.match(/^\(([2-9])(?::(\d)?)?(?::(\d)?)?$/);
+	if (tupleMatch) {
+		const pqr = {
+			p: parseInt(tupleMatch[1]),
+			q: tupleMatch[2],
+			r: tupleMatch[3],
+		};
+		const { p } = pqr;
+		let { q, r } = pqr;
+		if (q) {
+			q = parseInt(q);
+		} else {
+			switch (p) {
+				case 2:
+					q = 3;
+					break;
+				case 3:
+					q = 2;
+					break;
+				case 4:
+					q = 3;
+					break;
+				case 5:
+				case 7:
+				case 9:
+					q = isCompoundTimeSignature ? 3 : 2;
+					break;
+				case 6:
+					q = 2;
+					break;
+				case 8:
+					q = 3;
+					break;
+			}
+		}
+		if (r) {
+			r = parseInt(r);
+		} else {
+			r = p;
+		}
+		return {
+			isTuple: true,
+			p,
+			q,
+			r,
+		};
+	}
+	return null;
+}
 module.exports = {
+	analyzeSpacing,
 	getTokenRegex,
 	parseInlineField,
-	analyzeSpacing,
+	parseTuplet,
 };
