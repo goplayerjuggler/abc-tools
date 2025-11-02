@@ -418,7 +418,9 @@ function parseAbc(abc, options = {}) {
 				// Tuplets
 				if (fullToken.match(/\(\d(?::\d?){0,2}/g)) {
 					const isCompound =
-						meter[1] === 8 && [6, 9, 12, 15, 18].indexOf(meter[0]) >= 0;
+						meter &&
+						meter[1] === 8 &&
+						[6, 9, 12, 15, 18].indexOf(meter[0]) >= 0;
 					const tuple = parseTuplet(fullToken, isCompound);
 					if (tuple) {
 						if (currentTuple) {

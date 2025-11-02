@@ -38,7 +38,9 @@ function getMeter(abc) {
 	if (meterMatch) {
 		return [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
 	}
-	return [4, 4]; // Default to 4/4
+	if (abc.match(/^M:\s*C\|/m)) return [2, 2];
+	if (abc.match(/^M:\s*C/m)) return [4, 4];
+	return null;
 }
 
 /**

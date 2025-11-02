@@ -43,6 +43,7 @@ function normaliseKey(keyHeader) {
 		major: "major",
 		ion: "major",
 		ionian: "major",
+		m: "minor",
 		min: "minor",
 		minor: "minor",
 		aeo: "minor",

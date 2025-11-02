@@ -246,26 +246,11 @@ function sanitise(theTune) {
 			break;
 		}
 	}
-	// Find the L: parameter
-	let theL = "";
 
-	for (j = 0; j < nLines; ++j) {
-		theL = theLines[j];
+	const unitLength = getUnitLength(theTune);
+	const meter = getMeter(theTune),
+		theM = meter ? `${meter[0]}/${meter[1]}` : "none";
 
-		if (theL.indexOf("L:") !== -1) {
-			break;
-		}
-	}
-	// Find the M: parameter
-	let theM = "";
-
-	for (j = 0; j < nLines; ++j) {
-		theM = theLines[j];
-
-		if (theM.indexOf("M:") !== -1) {
-			break;
-		}
-	}
 	// Use at most the first three lines following the header K:
 	let added = 0;
 	for (k = indexOfTheKey + 1; k < nLines; ++k) {
@@ -274,10 +259,13 @@ function sanitise(theTune) {
 		// Clean out the incipit line of any annotations besides notes and bar lines
 		theTextIncipits.push(cleanIncipitLine(theTextIncipit));
 		added++;
+
 		if (added === 3) break;
 	}
 
-	return `X:1\n${theM}\n${theL}\n${theKey}\n${theTextIncipits.join("\n")}`;
+	return `X:1\nM:${theM}\nL:1/${
+		unitLength.den
+	}\n${theKey}\n${theTextIncipits.join("\n")}`;
 }
 
 /**

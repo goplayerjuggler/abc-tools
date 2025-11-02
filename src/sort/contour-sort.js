@@ -38,7 +38,9 @@ function getContour(
 	const unitLength = getUnitLength(abc);
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);
 	const meter = getMeter(abc);
-	const maxNbBars = maxDuration.divide(new Fraction(meter[0], meter[1]));
+	const maxNbBars = meter
+		? maxDuration.divide(new Fraction(meter[0], meter[1]))
+		: new Fraction(2, 1); //default 2 bars when no meter (free meter)
 	const { bars } = parseAbc(abc, {
 		maxBars: Math.ceil(maxNbBars.toNumber()),
 	});
