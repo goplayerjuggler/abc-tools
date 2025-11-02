@@ -84,7 +84,7 @@ const getTokenRegex = (options = {}) => {
 	if (options) {
 		if (options.variantEndings)
 			return new RegExp(`^${s.variantEnding}|${s.repeat_1Or2}$`);
-		if (options.inlineField) return new RegExp(`^$${s.inlineField}$`);
+		if (options.inlineField) return new RegExp(`^${s.inlineField}$`);
 	}
 	// Complete note/rest/chord pattern with optional leading decoration
 	const notePattern =

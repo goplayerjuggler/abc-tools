@@ -223,8 +223,8 @@ const {
 function parseAbc(abc, options = {}) {
 	const { maxBars = Infinity } = options;
 
-	let unitLength = getUnitLength(abc);
-	let meter = getMeter(abc);
+	const unitLength = getUnitLength(abc);
+	const meter = getMeter(abc);
 
 	const {
 		musicText,
@@ -334,19 +334,6 @@ function parseAbc(abc, options = {}) {
 				// Check for inline field
 				const inlineField = parseInlineField(fullToken);
 				if (inlineField) {
-					// Update context based on inline field
-					if (inlineField.field === "L") {
-						const lengthMatch = inlineField.value.match(/1\/(\d+)/);
-						if (lengthMatch) {
-							unitLength = new Fraction(1, parseInt(lengthMatch[1]));
-						}
-					} else if (inlineField.field === "M") {
-						const meterMatch = inlineField.value.match(/(\d+)\/(\d+)/);
-						if (meterMatch) {
-							meter = [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
-						}
-					}
-
 					const inlineFieldObj = {
 						isInlineField: true,
 						field: inlineField.field,
