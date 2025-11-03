@@ -11,6 +11,7 @@ const displayContour = require("./sort/display-contour.js");
 
 const incipit = require("./incipit.js");
 const javascriptify = require("./javascriptify.js");
+const { getContour } = require("./sort/get-contour.js");
 
 module.exports = {
 	// Parser functions
@@ -23,6 +24,7 @@ module.exports = {
 	...sort,
 	...displayContour,
 	...contourToSvg,
+	getContour,
 
 	// Incipit functions
 	...incipit,
