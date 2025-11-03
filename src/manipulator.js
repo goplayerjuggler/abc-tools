@@ -43,14 +43,14 @@ function normaliseKey(keyHeader) {
 		major: "major",
 		ion: "major",
 		ionian: "major",
+		mix: "mixolydian",
+		mixo: "mixolydian",
+		mixolydian: "mixolydian",
 		m: "minor",
 		min: "minor",
 		minor: "minor",
 		aeo: "minor",
 		aeolian: "minor",
-		mix: "mixolydian",
-		mixo: "mixolydian",
-		mixolydian: "mixolydian",
 		dor: "dorian",
 		dorian: "dorian",
 		phr: "phrygian",
@@ -156,13 +156,12 @@ function insertCharsAtIndexes(originalString, charToInsert, indexes) {
 
 	return result.join("");
 }
-
 /**
  * Toggle meter by doubling or halving bar length
  * Supports 4/4↔4/2 and 6/8↔12/8 transformations
  * This is nearly a true inverse operation - going there and back preserves the ABC except for some
  * edge cases involving spaces around the bar lines. No need to handle them.
- * Handles anacrusis correctly and preserves line breaks
+ * Handles anacrusis, variant endings and preserves line breaks
  *
  * @param {string} abc - ABC notation
  * @param {Array<number>} smallMeter - The smaller meter signature [num, den]
@@ -190,7 +189,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	}
 
 	const parsed = parseAbc(abc);
-	const { headerLines, barLines, musicText } = parsed;
+	const { headerLines, barLines, musicText, bars } = parsed;
 
 	// Change meter in headers
 	const newHeaders = headerLines.map((line) => {
@@ -205,34 +204,126 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	const hasPickup = hasAnacrucisFromParsed(parsed);
 
 	if (isSmall) {
-		// Going from small to large: remove every other bar line (except final)
-		const barLinesToRemove = new Set();
-		const startIndex = hasPickup ? 1 : 0;
+		// Going from small to large: remove every other bar line
+		// Key insight: barLines[i] comes AFTER bars[i]
+		// When a bar starts with a variant ending like |1, the token includes the bar line
 
-		for (let i = startIndex; i < barLines.length - 1; i += 2) {
-			barLinesToRemove.add(barLines[i].sourceIndex);
-		}
-
-		// Reconstruct music by removing marked bar lines
-		let newMusic = "";
-		let lastPos = 0;
-
-		for (let i = 0; i < barLines.length; i++) {
-			const barLine = barLines[i];
-			newMusic += musicText.substring(lastPos, barLine.sourceIndex);
-
-			if (!barLinesToRemove.has(barLine.sourceIndex)) {
-				lastPos = barLine.sourceIndex;
-			} else {
-				// Remove the bar line - skip over it
-				lastPos = barLine.sourceIndex + barLine.sourceLength;
+		// Build a map of which bars start with variant endings
+		const barStartsWithVariant = new Map();
+		for (let i = 0; i < bars.length; i++) {
+			if (bars[i].length > 0 && bars[i][0].isVariantEnding) {
+				barStartsWithVariant.set(i, bars[i][0]);
 			}
 		}
-		newMusic += musicText.substring(lastPos);
+
+		// Build decisions for each bar line
+		const barLineDecisions = new Map(); // barLineIndex -> {action, variantToken?}
+
+		let barPosition = 0; // Position within the current grouping (0 or 1)
+		const startBarIndex = hasPickup ? 1 : 0;
+
+		for (let i = startBarIndex; i < barLines.length; i++) {
+			const barLine = barLines[i];
+			const nextBarIdx = i + 1; // Bar that comes AFTER this bar line
+			const currentBarIdx = i; // Bar that comes BEFORE this bar line
+
+			// Check if this bar line ends a section
+			const isSectionEnd = barLine.isSectionBreak;
+
+			// Check if the next bar starts with a variant ending
+			const nextBarVariant = barStartsWithVariant.get(nextBarIdx);
+
+			// Check if current bar starts with a variant ending
+			const currentBarVariant = barStartsWithVariant.get(currentBarIdx);
+
+			if (i === barLines.length - 1) {
+				// Always keep the final bar line
+				barLineDecisions.set(i, { action: "keep" });
+			} else if (isSectionEnd) {
+				// Always keep section-ending bar lines
+				barLineDecisions.set(i, { action: "keep" });
+				barPosition = 0; // Reset position after section break
+			} else if (currentBarVariant) {
+				// If current bar started with a variant, reset position and keep this bar line
+				barLineDecisions.set(i, { action: "keep" });
+				barPosition = 0; // Variant ending starts a new pairing sequence
+			} else if (barPosition === 0) {
+				// First bar of a pair - remove this bar line
+				if (nextBarVariant) {
+					// Next bar has variant ending - we'll need to modify it
+					barLineDecisions.set(i, {
+						action: "remove",
+						variantToken: nextBarVariant,
+					});
+				} else {
+					barLineDecisions.set(i, { action: "remove" });
+				}
+				barPosition = 1;
+			} else {
+				// Second bar of a pair - keep this bar line
+				barLineDecisions.set(i, { action: "keep" });
+				barPosition = 0;
+			}
+		}
+
+		// Also track which variant ending tokens need to be replaced
+		const variantReplacements = new Map(); // sourceIndex -> newText
+		for (const [barLineIdx, decision] of barLineDecisions) {
+			if (decision.action === "remove" && decision.variantToken) {
+				const token = decision.variantToken;
+				// Replace |1 with [1, |2 with [2, etc.
+				const newToken = token.token.replace(/^\|/, "[");
+				variantReplacements.set(token.sourceIndex, {
+					oldLength: token.sourceLength,
+					newText: " " + newToken, // Add space before [1
+				});
+			}
+		}
+
+		// Reconstruct music
+		let newMusic = "";
+		let pos = 0;
+
+		// Process character by character, applying replacements
+		while (pos < musicText.length) {
+			// Check if we're at a variant replacement position
+			if (variantReplacements.has(pos)) {
+				const replacement = variantReplacements.get(pos);
+				newMusic += replacement.newText;
+				pos += replacement.oldLength;
+				continue;
+			}
+
+			// Check if we're at a bar line that should be removed
+			const barLineIdx = barLines.findIndex((bl) => bl.sourceIndex === pos);
+			if (barLineIdx >= 0) {
+				const decision = barLineDecisions.get(barLineIdx);
+				if (
+					decision &&
+					decision.action === "remove" &&
+					!decision.variantToken
+				) {
+					// Skip this bar line
+					pos += barLines[barLineIdx].sourceLength;
+					continue;
+				} else if (decision && decision.action === "keep") {
+					// Keep this bar line
+					const barLine = barLines[barLineIdx];
+					newMusic += musicText.substring(pos, pos + barLine.sourceLength);
+					pos += barLine.sourceLength;
+					continue;
+				}
+			}
+
+			// Regular character
+			newMusic += musicText[pos];
+			pos++;
+		}
 
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	} else {
 		// Going from large to small: add bar line in middle of each bar
+		// Keep variant endings as [1, [2 etc. (don't convert back to |1, |2)
 		const halfBarDuration = new Fraction(smallMeter[0], smallMeter[1]);
 		const insertionPoints = [];
 		const startBarIndex = hasPickup ? 1 : 0;
@@ -245,6 +336,16 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 			// Find position where we've accumulated half a bar
 			for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
 				const token = bar[noteIdx];
+
+				// Skip variant endings - they stay as-is ([1, [2, etc.)
+				if (token.isVariantEnding) {
+					// If this variant is at the halfway point, insert bar line before it
+					if (insertPos === null && barDuration.compare(halfBarDuration) >= 0) {
+						insertPos = token.sourceIndex;
+						break;
+					}
+					continue;
+				}
 
 				// Skip tokens with no duration
 				if (!token.duration) {
@@ -280,7 +381,6 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	}
 }
-
 /**
  * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
  * This is a true inverse operation - going there and back preserves the ABC exactly

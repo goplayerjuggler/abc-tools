@@ -70,7 +70,7 @@ const {
  * Returns object with:
  * {
  *   bars: Array<Array<ScoreObject>>,  // Array of bars, each bar is array of ScoreObjects
- * 		// A Score object is almost anything that isn’t a bar line: note/chord/field/broken rhythm/tuplet/1st or 2nd repeat or variant ending
+ * 		// A ScoreObject is almost anything that isn’t a bar line: note/chord/field/broken rhythm/tuplet/1st or 2nd repeat or variant ending
  *   barLines: Array<BarLineObject>,  // Array of bar line information
  *   unitLength: Fraction,             // The L: field value (default 1/8)
  *   meter: [number, number],          // The M: field value (default [4,4])

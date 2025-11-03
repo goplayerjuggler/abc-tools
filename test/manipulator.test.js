@@ -22,8 +22,8 @@ K: D minor
 [P:A] D2SE || FEF GFG  AGA dA^F | G/G/^FG A2g  fed cAG |
 ^FDD ADD  CDD A,DD | [(GG,3]FG) ABG AFD D2E |`;
 		const expected = `X:1
-M: 12/8
-L: 1/8
+M:12/8
+L:1/8
 K: D minor
 FEF GFG  AGA dA^F | `;
 		const result = getIncipitForContourGeneration(abc);
