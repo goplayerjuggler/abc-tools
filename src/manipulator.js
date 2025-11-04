@@ -156,17 +156,31 @@ function insertCharsAtIndexes(originalString, charToInsert, indexes) {
 
 	return result.join("");
 }
+
 /**
  * Toggle meter by doubling or halving bar length
  * Supports 4/4↔4/2 and 6/8↔12/8 transformations
- * This is nearly a true inverse operation - going there and back preserves the ABC except for some
- * edge cases involving spaces around the bar lines. No need to handle them.
- * Handles anacrusis, variant endings and preserves line breaks
  *
- * @param {string} abc - ABC notation
- * @param {Array<number>} smallMeter - The smaller meter signature [num, den]
- * @param {Array<number>} largeMeter - The larger meter signature [num, den]
- * @returns {string} - ABC with toggled meter
+ * When going from small to large meters (e.g., 4/4→4/2):
+ * - Removes alternate bar lines to combine pairs of bars
+ * - Converts variant ending markers from |1, |2 to [1, [2 format
+ * - Respects section breaks (||, :|, etc.) and resets pairing after them
+ * - Handles bars starting with variant endings by keeping the bar line after them
+ *
+ * When going from large to small meters (e.g., 4/2→4/4):
+ * - Inserts bar lines at halfway points within each bar
+ * - Preserves variant ending markers in [1, [2 format (does not convert back to |1, |2)
+ * - Inserts bar lines before variant endings when they occur at the split point
+ *
+ * This is nearly a true inverse operation - going there and back preserves musical content
+ * but may change spacing around bar lines and normalises variant ending syntax to [1, [2 format.
+ * Correctly handles anacrusis (pickup bars), multi-bar variant endings, and preserves line breaks.
+ *
+ * @param {string} abc - ABC notation string
+ * @param {Array<number>} smallMeter - The smaller meter signature [numerator, denominator]
+ * @param {Array<number>} largeMeter - The larger meter signature [numerator, denominator]
+ * @returns {string} ABC notation with toggled meter
+ * @throws {Error} If the current meter doesn't match either smallMeter or largeMeter
  */
 function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	const currentMeter = getMeter(abc);

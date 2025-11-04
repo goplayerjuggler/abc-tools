@@ -24,6 +24,33 @@ C4|D4|E4|E4|]`;
 			expect(result).toContain("||");
 		});
 
+		test("4/4 to 4/2 with variant ending at bar start (2)", () => {
+			const input = `X:1
+M:4/4
+L:1/4
+K:C
+|:C4|D4|E4|1F4:|2G4||
+C4|D4|E4|E4|]`;
+
+			const result = toggleMeter_4_4_to_4_2(input);
+
+			// Check key transformations (ignoring exact spacing)
+			expect(result).toContain("M:4/2");
+			expect(result).toContain("C4 D4");
+			expect(result).toContain("[1F4");
+			/*
+ Received string:    "X:1
+    M:4/2
+    L:1/4
+    K:C
+    |C4 D4 |E4 |1F4 :|2G4 ||
+    C4 D4 |E4 E4 |]"
+ */
+			expect(result).toContain("|2G4");
+			expect(result).toContain(":|");
+			expect(result).toContain("||");
+		});
+
 		test("4/2 to 4/4 with variant ending splits correctly", () => {
 			const input = `X:1
 M:4/2
