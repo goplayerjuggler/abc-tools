@@ -23,7 +23,6 @@ class Fraction {
 			this.den = -this.den;
 		}
 	}
-
 	clone() {
 		return new Fraction(this.num, this.den);
 	}
@@ -59,7 +58,7 @@ class Fraction {
 	compare(other) {
 		// Returns -1 if this < other, 0 if equal, 1 if this > other
 		const diff =
-			typeof n === "number"
+			typeof other === "number"
 				? this.num - other * this.den
 				: this.num * other.den - other.num * this.den;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;

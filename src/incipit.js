@@ -315,12 +315,18 @@ function getIncipitForContourGeneration(abc) {
 	});
 }
 
-function getContourFromFullAbc(abc) {
+function getContourFromFullAbc(
+	abc,
+	{ withSvg = true, withSwingTransform = false } = {}
+) {
 	if (Array.isArray(abc)) {
 		if (abc.length === 0) return null;
 		abc = abc[0];
 	}
-	return getContour(getIncipitForContourGeneration(abc), { withSvg: true });
+	return getContour(getIncipitForContourGeneration(abc), {
+		withSvg,
+		withSwingTransform,
+	});
 }
 
 module.exports = {

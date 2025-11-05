@@ -1,6 +1,5 @@
 const {
 	getContour,
-	sortKeyToString,
 	compare,
 	sortArray,
 	decodeChar,
@@ -231,7 +230,7 @@ G2B AGA B2d gdB`;
 		});
 	});
 
-	describe("Array compareing", () => {
+	describe("Array comparing", () => {
 		test("compares array correctly", () => {
 			const tunes = [
 				{ name: "Tune 1", abc: "X:1\nL:1/8\nK:C\nccc" },
@@ -247,7 +246,7 @@ G2B AGA B2d gdB`;
 		});
 	});
 
-	describe("The Flogging vs The Colliers’", () => {
+	describe("real tunes (reels): The Flogging vs The Colliers’", () => {
 		const theFlogging = {
 			name: "The Flogging",
 			abc: `X: 12

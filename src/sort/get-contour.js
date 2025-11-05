@@ -27,18 +27,32 @@ const { contourToSvg } = require("./contour-svg.js");
  */
 function getContour(
 	abc,
-	{ withSvg = false, maxNbUnitLengths = 10, svgConfig = {} } = {}
+	{
+		withSvg = false,
+		withSwingTransform = false,
+		maxNbBars = null,
+		maxNbUnitLengths = 12,
+		svgConfig = {},
+	} = {}
 ) {
 	const tonalBase = getTonalBase(abc);
-	const unitLength = getUnitLength(abc);
+	const unitLength = getUnitLength(abc); //todo: could add as an argument; default null
 	const maxDuration = unitLength.multiply(maxNbUnitLengths);
-	const meter = getMeter(abc);
-	const maxNbBars = meter
-		? maxDuration.divide(new Fraction(meter[0], meter[1]))
-		: new Fraction(2, 1); //default 2 bars when no meter (free meter)
-	const { bars } = parseAbc(abc, {
-		maxBars: Math.ceil(maxNbBars.toNumber()),
-	});
+	const meter = getMeter(abc); //todo: could add as an argument; default null
+	if (!maxNbBars)
+		maxNbBars = meter
+			? maxDuration.divide(new Fraction(meter[0], meter[1]))
+			: new Fraction(2, 1);
+	//default 2 bars when no meter (free meter)
+	else if (typeof maxNbBars === "number" && Number.isInteger(maxNbBars))
+		maxNbBars = new Fraction(maxNbBars);
+	const {
+		bars,
+	} = //todo: could add as an argument; default null
+		parseAbc(abc, {
+			maxBars: Math.ceil(maxNbBars.toNumber()),
+		});
+
 	let cumulatedDuration = new Fraction(0, 1);
 	const sortKey = [];
 	const durations = [];
@@ -60,6 +74,10 @@ function getContour(
 		}
 	}
 
+	if (withSwingTransform) {
+		swingTransform(notes, unitLength, meter);
+	}
+
 	notes.forEach((note) => {
 		const { duration, isSilence } = note;
 		const comparison = duration.compare(unitLength);
@@ -77,13 +95,10 @@ function getContour(
 
 		if (comparison > 0) {
 			// Held note: duration > unitLength
-			const ratio = duration.divide(unitLength);
-			const nbUnitLengths = Math.floor(ratio.num / ratio.den);
-			const remainingDuration = duration.subtract(
-				unitLength.multiply(nbUnitLengths)
+			const { nbUnitLengths, remainingDuration } = divideDuration(
+				duration,
+				unitLength
 			);
-
-			// const durationRatio = Math.round(ratio.num / ratio.den);
 
 			// First note is played
 			sortKey.push(encoded);
@@ -131,6 +146,127 @@ function getContour(
 		result.svg = contourToSvg(result, svgConfig);
 	}
 	return result;
+}
+
+function divideDuration(duration, unitLength) {
+	const ratio = duration.divide(unitLength);
+	const nbUnitLengths = Math.floor(ratio.num / ratio.den);
+	const remainingDuration = duration.subtract(
+		unitLength.multiply(nbUnitLengths)
+	);
+	return { nbUnitLengths, remainingDuration };
+}
+
+function swingTransform(notes, unitLength, meter) {
+	if (meter[0] % 2 !== 0) {
+		throw new Error("invalid meter for swing transform");
+	}
+	// modify notes to ensure all are of duration <= 2*unitLength
+	{
+		const twoUnits = unitLength.multiply(2);
+		let tooLong = notes
+				.map((n, i) => {
+					return { n, i };
+				})
+				.filter((n) => n.n.duration.compare(twoUnits) > 0),
+			safety = 0;
+
+		while (tooLong.length > 0) {
+			if (safety > 1000) throw new Error("swingTransform safety check failed");
+
+			const noteToSplit = tooLong[0].n;
+			const { nbUnitLengths, remainingDuration } = divideDuration(
+				noteToSplit.duration,
+				twoUnits
+			);
+			noteToSplit.duration = twoUnits;
+			if (!tooLong.isSilence) noteToSplit.tied = true;
+			const toAdd = [];
+			for (let i = 1; i < nbUnitLengths; i++) {
+				toAdd.push({ ...noteToSplit });
+			}
+			const lastNote = { ...noteToSplit };
+			lastNote.duration = remainingDuration;
+			toAdd.push(lastNote);
+			notes.splice(tooLong[0].i + 1, 0, ...toAdd);
+			/*
+    myArray.splice(index, 0, ...itemsToInsert): The splice method takes three arguments:
+        The first argument (index) is the starting index at which to modify the array.
+        The second argument (0) indicates that no elements should be removed from the array.
+        The third argument uses the spread operator (...itemsToInsert) to insert the elements of itemsToInsert into myArray at the specified index.
+ */
+			safety++;
+			tooLong = notes
+				.map((n, i) => {
+					return { n, i };
+				})
+				.filter((n) => n.n.duration.compare(twoUnits) > 0);
+		}
+	}
+
+	const longPartOfBroken = unitLength.multiply(3).divide(2),
+		shortPartOfBroken = unitLength.divide(2),
+		triplet = unitLength.multiply(2).divide(3),
+		multiplier = new Fraction(3, 2);
+
+	let i = 0;
+	while (true) {
+		if (i >= notes.length) break;
+		const n1 = notes[i],
+			n2 = i + 1 < notes.length ? notes[i + 1] : null,
+			n3 = i + 2 < notes.length ? notes[i + 2] : null;
+
+		//basic: change AB to A2B
+		if (
+			n2 &&
+			n1.duration.equals(unitLength) &&
+			n2.duration.equals(unitLength)
+		) {
+			n1.duration = unitLength.multiply(2);
+			i += 2;
+			continue;
+		}
+		//broken
+		if (
+			n2 &&
+			n1.duration.equals(longPartOfBroken) &&
+			n2.duration.equals(shortPartOfBroken)
+		) {
+			n1.duration = unitLength.multiply(2);
+			n2.duration = unitLength;
+			i += 2;
+			continue;
+		}
+		//reverse broken
+		if (
+			n2 &&
+			n2.duration.equals(longPartOfBroken) &&
+			n1.duration.equals(shortPartOfBroken)
+		) {
+			n2.duration = unitLength.multiply(2);
+			n1.duration = unitLength;
+			i += 2;
+			continue;
+		}
+
+		//triplets
+		if (
+			n2 &&
+			n3 &&
+			n1.duration.equals(triplet) &&
+			n2.duration.equals(triplet) &&
+			n3.duration.equals(triplet)
+		) {
+			n1.duration = unitLength;
+			n2.duration = unitLength;
+			n3.duration = unitLength;
+			i += 3;
+			continue;
+		}
+		// other
+		n1.duration = n1.duration.multiply(multiplier);
+		i++;
+	}
 }
 
 /**
