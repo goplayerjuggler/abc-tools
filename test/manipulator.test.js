@@ -25,9 +25,9 @@ K: D minor
 M:12/8
 L:1/8
 K: D minor
-FEF GFG  AGA dA^F | `;
+FEF GFG  AGA dA^F | G/G/^FG A2g`;
 		const result = getIncipitForContourGeneration(abc);
-		expect(result).toBe(expected);
+		expect(result.trim()).toBe(expected);
 	});
 });
 
@@ -680,14 +680,14 @@ L:1/8
 K:D
 FA | DFA dAF | GBd gdB |
 AFD DFA|G2E E3|
-AFD DFA| G2E E3 |]`;
+AFD DFA| G2E E3   |]`;
 
 			const result = toggleMeter_6_8_to_12_8(tune_6_8_anacrusis);
 
 			expect(result).toContain("M:12/8");
 			expect(result).toContain("FA | DFA dAF GBd gdB |"); // anacrusis preserved; spacing normalised
-			expect(result).toContain("AFD DFA G2E E3 |\n"); // spacing normalised
-			expect(result).toContain("AFD DFA G2E E3 |]"); // spacing normalised
+			expect(result).toContain("AFD DFA G2E E3|\n"); // spacing normalised
+			expect(result).toContain("AFD DFA G2E E3   |]"); // spacing normalised
 		});
 	});
 

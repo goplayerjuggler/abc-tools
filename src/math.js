@@ -12,6 +12,10 @@ class Fraction {
 		) {
 			throw new Error("invalid argument");
 		}
+		// if (!Number.isInteger(numerator)) {
+		// 	numerator = Math.round(numerator * 1000);
+		// 	denominator = denominator * 1000;
+		// }
 
 		const g = gcd(Math.abs(numerator), Math.abs(denominator));
 		this.num = numerator / g;
@@ -25,6 +29,12 @@ class Fraction {
 	}
 	clone() {
 		return new Fraction(this.num, this.den);
+	}
+
+	static min(x, y) {
+		if (!x) return y;
+		if (!y) return x;
+		return x.compare(y) < 0 ? x : y;
 	}
 
 	multiply(n) {

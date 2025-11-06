@@ -5,6 +5,8 @@ const {
 	calculateBarDurations,
 } = require("./parse/parser.js");
 
+const { getBarInfo } = require("./parse/getBarInfo.js");
+
 // ============================================================================
 // ABC manipulation functions
 // ============================================================================
@@ -116,46 +118,6 @@ function hasAnacrucis(abc) {
 	const parsed = parseAbc(abc, { maxBars: 2 });
 	return hasAnacrucisFromParsed(parsed);
 }
-/**
- * Inserts a specified character at multiple positions within a string.
- * Optimised for performance with long strings and repeated usage.
- *
- * @param {string} originalString - The original string to modify.
- * @param {string} charToInsert - The character to insert at the specified positions.
- * @param {number[]} indexes - An array of positions (zero-based) where the character should be inserted.
- * @returns {string} The modified string with characters inserted at the specified positions.
- *
- * // Example usage:
- * const originalString = "hello world";
- * const charToInsert = "!";
- * const indexes = [2, 5, 8, 2, 15];
- * const result = insertCharsAtIndexes(originalString, charToInsert, indexes);
- * console.log(result); // Output: "he!l!lo! world!"
- *
- */
-function insertCharsAtIndexes(originalString, charToInsert, indexes) {
-	// Filter and sort indexes only once: remove duplicates and invalid positions
-	const validIndexes = [...new Set(indexes)]
-		.filter((index) => index >= 0 && index <= originalString.length)
-		.sort((a, b) => a - b);
-
-	const result = [];
-	let prevIndex = 0;
-
-	for (const index of validIndexes) {
-		// Push the substring up to the current index
-		result.push(originalString.slice(prevIndex, index));
-		// Push the character to insert
-		result.push(charToInsert);
-		// Update the previous index
-		prevIndex = index;
-	}
-
-	// Push the remaining part of the string
-	result.push(originalString.slice(prevIndex));
-
-	return result.join("");
-}
 
 /**
  * Toggle meter by doubling or halving bar length
@@ -174,7 +136,7 @@ function insertCharsAtIndexes(originalString, charToInsert, indexes) {
  *
  * This is nearly a true inverse operation - going there and back preserves musical content
  * but may change spacing around bar lines and normalises variant ending syntax to [1, [2 format.
- * Correctly handles anacrusis (pickup bars), multi-bar variant endings, and preserves line breaks.
+ * Correctly handles anacrusis (pickup bars), multi-bar variant endings, partial bars, and preserves line breaks.
  *
  * @param {string} abc - ABC notation string
  * @param {Array<number>} smallMeter - The smaller meter signature [numerator, denominator]
@@ -196,14 +158,8 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		);
 	}
 
-	if (isSmall) {
-		// We're going to remove some bars, so ensure every bar line (pipe / `|`) has a space preceding it
-		// Regex handles bars like :| and [|]
-		abc = abc.replaceAll(/([^\s])([[:]?\|)/g, "$1 $2");
-	}
-
 	const parsed = parseAbc(abc);
-	const { headerLines, barLines, musicText, bars } = parsed;
+	const { headerLines, barLines, musicText, bars, meter } = parsed;
 
 	// Change meter in headers
 	const newHeaders = headerLines.map((line) => {
@@ -215,12 +171,13 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		return line;
 	});
 
-	const hasPickup = hasAnacrucisFromParsed(parsed);
-
 	if (isSmall) {
 		// Going from small to large: remove every other bar line
-		// Key insight: barLines[i] comes AFTER bars[i]
-		// When a bar starts with a variant ending like |1, the token includes the bar line
+		// Get bar info with barNumbers to understand the musical structure
+		getBarInfo(bars, barLines, meter, {
+			barNumbers: true,
+			isPartial: true,
+		});
 
 		// Build a map of which bars start with variant endings
 		const barStartsWithVariant = new Map();
@@ -230,41 +187,60 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 			}
 		}
 
-		// Build decisions for each bar line
+		// Determine which bar lines to keep or remove
 		const barLineDecisions = new Map(); // barLineIndex -> {action, variantToken?}
+		let barPosition = 0; // Position within current pairing (0 or 1)
+		let barNumberOfStartOfSection = 0;
 
-		let barPosition = 0; // Position within the current grouping (0 or 1)
-		const startBarIndex = hasPickup ? 1 : 0;
-
-		for (let i = startBarIndex; i < barLines.length; i++) {
+		for (let i = 0; i < barLines.length; i++) {
 			const barLine = barLines[i];
-			const nextBarIdx = i + 1; // Bar that comes AFTER this bar line
-			const currentBarIdx = i; // Bar that comes BEFORE this bar line
 
-			// Check if this bar line ends a section
-			const isSectionEnd = barLine.isSectionBreak;
+			// Initial bar line is always kept
+			if (barLine.barNumber === null) {
+				barLineDecisions.set(i, { action: "keep" });
+				continue;
+			}
 
-			// Check if the next bar starts with a variant ending
-			const nextBarVariant = barStartsWithVariant.get(nextBarIdx);
+			// initial anacrucis bar line of section is always kept
+			if (
+				barLine.barNumber === barNumberOfStartOfSection &&
+				barLine.isPartial
+			) {
+				barLineDecisions.set(i, { action: "keep" });
+				continue;
+			}
 
-			// Check if current bar starts with a variant ending
-			const currentBarVariant = barStartsWithVariant.get(currentBarIdx);
-
+			// Final bar line is always kept
 			if (i === barLines.length - 1) {
-				// Always keep the final bar line
 				barLineDecisions.set(i, { action: "keep" });
-			} else if (isSectionEnd) {
-				// Always keep section-ending bar lines
+				continue;
+			}
+
+			// Section breaks are always kept and reset pairing
+			if (barLine.isSectionBreak) {
 				barLineDecisions.set(i, { action: "keep" });
-				barPosition = 0; // Reset position after section break
-			} else if (currentBarVariant) {
-				// If current bar started with a variant, reset position and keep this bar line
+				barPosition = 0;
+				barNumberOfStartOfSection = barLine.barNumber;
+				continue;
+			}
+
+			// barLines[i] comes after bars[i], so the NEXT bar is bars[i+1]
+			const nextBarIdx = i + 1;
+			const nextBarVariant =
+				nextBarIdx < bars.length ? barStartsWithVariant.get(nextBarIdx) : null;
+
+			// If the current bar (bars[i]) starts with a variant, keep its bar line and reset position
+			const currentBarVariant = barStartsWithVariant.get(i);
+			if (currentBarVariant) {
 				barLineDecisions.set(i, { action: "keep" });
-				barPosition = 0; // Variant ending starts a new pairing sequence
-			} else if (barPosition === 0) {
-				// First bar of a pair - remove this bar line
+				barPosition = 0;
+				continue;
+			}
+
+			// Normal pairing logic
+			if (barPosition === 0) {
+				// First of pair - remove
 				if (nextBarVariant) {
-					// Next bar has variant ending - we'll need to modify it
 					barLineDecisions.set(i, {
 						action: "remove",
 						variantToken: nextBarVariant,
@@ -274,22 +250,21 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 				}
 				barPosition = 1;
 			} else {
-				// Second bar of a pair - keep this bar line
+				// Second of pair - keep
 				barLineDecisions.set(i, { action: "keep" });
 				barPosition = 0;
 			}
 		}
 
-		// Also track which variant ending tokens need to be replaced
-		const variantReplacements = new Map(); // sourceIndex -> newText
-		for (const [barLineIdx, decision] of barLineDecisions) {
+		// Track variant replacements
+		const variantReplacements = new Map();
+		for (const [, decision] of barLineDecisions) {
 			if (decision.action === "remove" && decision.variantToken) {
 				const token = decision.variantToken;
-				// Replace |1 with [1, |2 with [2, etc.
 				const newToken = token.token.replace(/^\|/, "[");
 				variantReplacements.set(token.sourceIndex, {
 					oldLength: token.sourceLength,
-					newText: " " + newToken, // Add space before [1
+					newText: " " + newToken,
 				});
 			}
 		}
@@ -298,9 +273,8 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		let newMusic = "";
 		let pos = 0;
 
-		// Process character by character, applying replacements
 		while (pos < musicText.length) {
-			// Check if we're at a variant replacement position
+			// Check for variant replacement
 			if (variantReplacements.has(pos)) {
 				const replacement = variantReplacements.get(pos);
 				newMusic += replacement.newText;
@@ -308,21 +282,36 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 				continue;
 			}
 
-			// Check if we're at a bar line that should be removed
+			// Check for bar line
 			const barLineIdx = barLines.findIndex((bl) => bl.sourceIndex === pos);
 			if (barLineIdx >= 0) {
 				const decision = barLineDecisions.get(barLineIdx);
+				const barLine = barLines[barLineIdx];
+
 				if (
 					decision &&
 					decision.action === "remove" &&
 					!decision.variantToken
 				) {
-					// Skip this bar line
-					pos += barLines[barLineIdx].sourceLength;
+					// Remove bar line and ensure there's a space
+					// Check if we already added a space (last char in newMusic)
+					const needsSpace =
+						newMusic.length === 0 || newMusic[newMusic.length - 1] !== " ";
+					if (needsSpace) {
+						newMusic += " ";
+					}
+					let skipLength = barLine.sourceLength;
+					// Skip any trailing space after the bar line to avoid double spaces
+					if (
+						pos + skipLength < musicText.length &&
+						musicText[pos + skipLength] === " "
+					) {
+						skipLength++;
+					}
+					pos += skipLength;
 					continue;
 				} else if (decision && decision.action === "keep") {
 					// Keep this bar line
-					const barLine = barLines[barLineIdx];
 					newMusic += musicText.substring(pos, pos + barLine.sourceLength);
 					pos += barLine.sourceLength;
 					continue;
@@ -336,65 +325,25 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	} else {
-		// Going from large to small: add bar line in middle of each bar
-		// Keep variant endings as [1, [2 etc. (don't convert back to |1, |2)
-		const halfBarDuration = new Fraction(smallMeter[0], smallMeter[1]);
-		const insertionPoints = [];
-		const startBarIndex = hasPickup ? 1 : 0;
+		// Going from large to small: add bar lines at midpoints
+		const barInfo = getBarInfo(bars, barLines, meter, {
+			divideBarsBy: 2,
+		});
 
-		for (let barIdx = startBarIndex; barIdx < parsed.bars.length; barIdx++) {
-			const bar = parsed.bars[barIdx];
-			let barDuration = new Fraction(0, 1);
-			let insertPos = null;
-
-			// Find position where we've accumulated half a bar
-			for (let noteIdx = 0; noteIdx < bar.length; noteIdx++) {
-				const token = bar[noteIdx];
-
-				// Skip variant endings - they stay as-is ([1, [2, etc.)
-				if (token.isVariantEnding) {
-					// If this variant is at the halfway point, insert bar line before it
-					if (insertPos === null && barDuration.compare(halfBarDuration) >= 0) {
-						insertPos = token.sourceIndex;
-						break;
-					}
-					continue;
-				}
-
-				// Skip tokens with no duration
-				if (!token.duration) {
-					continue;
-				}
-
-				const prevDuration = barDuration.clone();
-				barDuration = barDuration.add(token.duration);
-
-				// Check if we've just crossed the halfway point
-				if (
-					prevDuration.compare(halfBarDuration) < 0 &&
-					barDuration.compare(halfBarDuration) >= 0
-				) {
-					// Insert bar line after this note
-					insertPos = token.sourceIndex + token.sourceLength;
-					// Skip any trailing space that's part of this note
-					if (token.spacing && token.spacing.whitespace) {
-						insertPos += token.spacing.whitespace.length;
-					}
-					break;
-				}
-			}
-
-			if (insertPos !== null) {
-				insertionPoints.push(insertPos);
-			}
-		}
+		const { midpoints } = barInfo;
 
 		// Insert bar lines at calculated positions
-		const newMusic = insertCharsAtIndexes(musicText, "| ", insertionPoints);
+		const insertionPoints = [...midpoints].sort((a, b) => b - a);
+		let newMusic = musicText;
+
+		for (const pos of insertionPoints) {
+			newMusic = newMusic.substring(0, pos) + "| " + newMusic.substring(pos);
+		}
 
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	}
 }
+
 /**
  * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
  * This is a true inverse operation - going there and back preserves the ABC exactly
@@ -432,9 +381,7 @@ function getFirstBars(
 ) {
 	// Convert numBars to Fraction if it's a number
 	const numBarsFraction =
-		typeof numBars === "number"
-			? new Fraction(Math.round(numBars * 1000), 1000)
-			: numBars;
+		typeof numBars === "number" ? new Fraction(numBars) : numBars;
 
 	// Estimate maxBars needed - simple ceiling with buffer
 	const estimatedMaxBars =

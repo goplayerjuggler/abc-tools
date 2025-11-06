@@ -30,22 +30,27 @@ function getContour(
 	{
 		withSvg = false,
 		withSwingTransform = false,
-		maxNbBars = null,
+		maxNbBars = new Fraction(3, 2),
 		maxNbUnitLengths = 12,
 		svgConfig = {},
 	} = {}
 ) {
 	const tonalBase = getTonalBase(abc);
+
 	const unitLength = getUnitLength(abc); //todo: could add as an argument; default null
-	const maxDuration = unitLength.multiply(maxNbUnitLengths);
-	const meter = getMeter(abc); //todo: could add as an argument; default null
-	if (!maxNbBars)
-		maxNbBars = meter
-			? maxDuration.divide(new Fraction(meter[0], meter[1]))
-			: new Fraction(2, 1);
-	//default 2 bars when no meter (free meter)
-	else if (typeof maxNbBars === "number" && Number.isInteger(maxNbBars))
-		maxNbBars = new Fraction(maxNbBars);
+	if (typeof maxNbBars === "number") maxNbBars = new Fraction(maxNbBars);
+	let meter = getMeter(abc); //todo: could add as an argument; default null
+	if (!meter) meter = [4, 4]; //temp
+	const meterFraction = new Fraction(meter[0], meter[1]);
+	if (maxNbUnitLengths) {
+		const maxNbBarsFromMaxUnitLength = unitLength
+			.multiply(maxNbUnitLengths)
+			.divide(meterFraction);
+
+		maxNbBars = Fraction.min(maxNbBarsFromMaxUnitLength, maxNbBars);
+	}
+	const maxDuration = maxNbBars * meterFraction;
+
 	const {
 		bars,
 	} = //todo: could add as an argument; default null

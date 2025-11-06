@@ -3,8 +3,7 @@ const { Fraction } = require("./math.js");
 const { getFirstBars } = require("./manipulator.js");
 
 const { getUnitLength, getMeter } = require("./parse/parser.js");
-
-const { getContour } = require("./sort/contour-sort.js");
+const { getContour } = require("./sort/get-contour.js");
 
 //this file has code that's a fork of some code in  Michael Eskin's abctools
 
@@ -307,23 +306,30 @@ function getIncipit(data) {
 	return getFirstBars(abc, numBars, withAnacrucis, false, { all: true });
 }
 
-function getIncipitForContourGeneration(abc) {
+function getIncipitForContourGeneration(
+	abc,
+	{ numBars = new Fraction(3, 2) } = {}
+) {
 	return getIncipit({
 		abc,
 		withAnacrucis: false,
-		numBars: 1,
+		numBars,
 	});
 }
 
 function getContourFromFullAbc(
 	abc,
-	{ withSvg = true, withSwingTransform = false } = {}
+	{
+		withSvg = true,
+		withSwingTransform = false,
+		numBars = new Fraction(3, 2),
+	} = {}
 ) {
 	if (Array.isArray(abc)) {
 		if (abc.length === 0) return null;
 		abc = abc[0];
 	}
-	return getContour(getIncipitForContourGeneration(abc), {
+	return getContour(getIncipitForContourGeneration(abc, { numBars }), {
 		withSvg,
 		withSwingTransform,
 	});

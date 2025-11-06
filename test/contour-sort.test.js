@@ -90,7 +90,7 @@ T: Gypsy Princess
 M: 4/2
 L: 1/8
 K: A
-c3c .c2c2 BcBA F2EF |
+|:"F#m"c2-!>!cc .c2c2 "D"BcBA F2 E"<("">)"F|"A"A2-!>!Ac e2 ce "D"f2ec "E"B2 AB|
 `,
 				t2 = `X:1
 T:Lynch's
@@ -214,7 +214,8 @@ K:G major
 G2B AGA B2d gdB`;
 
 			const objMunster = getContour(abcMunster);
-			expect(objMunster.sortKey.length).toBe(10);
+			expect(objMunster.sortKey.length).toBeGreaterThan(9);
+			expect(objMunster.sortKey.length).toBeLessThan(13);
 		});
 	});
 

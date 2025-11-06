@@ -1,11 +1,7 @@
 const { Fraction } = require("../math.js");
 
-const {
-	calculateModalPosition,
-	decodeChar,
-	encodeToChar,
-	silenceChar,
-} = require("./encode.js");
+const { decodeChar, encodeToChar, silenceChar } = require("./encode.js");
+const { getContour } = require("./get-contour.js");
 
 /**
  * Tune Contour Sort - Modal melody sorting algorithm

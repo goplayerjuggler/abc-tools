@@ -484,7 +484,7 @@ function parseAbc(abc, options = {}) {
 			...barLineInfo,
 			sourceIndex: barLinePos,
 			sourceLength: barLineText.length,
-			barNumber: barCount,
+			//barNumber: barCount,
 			hasLineBreak: hasLineBreakAfterBar,
 		});
 

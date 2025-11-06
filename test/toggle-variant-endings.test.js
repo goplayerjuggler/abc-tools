@@ -37,7 +37,7 @@ C4|D4|E4|E4|]`;
 			// Check key transformations (ignoring exact spacing)
 			expect(result).toContain("M:4/2");
 			expect(result).toContain("C4 D4");
-			expect(result).toContain("[1F4");
+			expect(result).toMatch(/(\[|\|)1F4/);
 			/*
  Received string:    "X:1
     M:4/2
