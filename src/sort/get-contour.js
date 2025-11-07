@@ -163,8 +163,12 @@ function divideDuration(duration, unitLength) {
 }
 
 function swingTransform(notes, unitLength, meter) {
-	if (meter[0] % 2 !== 0) {
-		throw new Error("invalid meter for swing transform");
+	// if (meter[0] % 2 !== 0) {
+	//check meter is an even multiple of the unit length
+	{
+		const nbUnitLengths = new Fraction(meter[0], meter[1]).divide(unitLength);
+		if (nbUnitLengths.den !== 1 || nbUnitLengths.num % 2 !== 0)
+			throw new Error("invalid meter for swing transform");
 	}
 	// modify notes to ensure all are of duration <= 2*unitLength
 	{
@@ -209,8 +213,8 @@ function swingTransform(notes, unitLength, meter) {
 		}
 	}
 
-	const longPartOfBroken = unitLength.multiply(3).divide(2),
-		shortPartOfBroken = unitLength.divide(2),
+	const dotted = unitLength.multiply(3).divide(2), // dotted quaver, if L:1/8;  long part of broken rhythm
+		semi = unitLength.divide(2), // semiquaver, if L:1/8;  short part of broken rhythm
 		triplet = unitLength.multiply(2).divide(3),
 		multiplier = new Fraction(3, 2);
 
@@ -232,22 +236,14 @@ function swingTransform(notes, unitLength, meter) {
 			continue;
 		}
 		//broken
-		if (
-			n2 &&
-			n1.duration.equals(longPartOfBroken) &&
-			n2.duration.equals(shortPartOfBroken)
-		) {
+		if (n2 && n1.duration.equals(dotted) && n2.duration.equals(semi)) {
 			n1.duration = unitLength.multiply(2);
 			n2.duration = unitLength;
 			i += 2;
 			continue;
 		}
 		//reverse broken
-		if (
-			n2 &&
-			n2.duration.equals(longPartOfBroken) &&
-			n1.duration.equals(shortPartOfBroken)
-		) {
+		if (n2 && n2.duration.equals(dotted) && n1.duration.equals(semi)) {
 			n2.duration = unitLength.multiply(2);
 			n1.duration = unitLength;
 			i += 2;
@@ -265,6 +261,20 @@ function swingTransform(notes, unitLength, meter) {
 			n1.duration = unitLength;
 			n2.duration = unitLength;
 			n3.duration = unitLength;
+			i += 3;
+			continue;
+		}
+		//two short + long, eg d/c/B
+		if (
+			n2 &&
+			n3 &&
+			n1.duration.equals(semi) &&
+			n2.duration.equals(semi) &&
+			n3.duration.equals(unitLength)
+		) {
+			n1.duration = unitLength.divide(2);
+			n2.duration = unitLength.divide(2);
+			n3.duration = unitLength.multiply(2);
 			i += 3;
 			continue;
 		}
