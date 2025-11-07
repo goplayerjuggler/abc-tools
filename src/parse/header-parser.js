@@ -13,7 +13,7 @@ const { Fraction } = require("../math.js");
 // ============================================================================
 
 /**
- * Extract key signature from ABC header
+ * Extract base note of key signature from ABC header
  *
  * @param {string} abc - ABC notation string
  * @returns {string} - Tonic note (e.g., 'C', 'D', 'G')
@@ -27,6 +27,20 @@ function getTonalBase(abc) {
 	return keyMatch[1].toUpperCase();
 }
 
+/**
+ * Extract key signature from ABC header
+ *
+ * @param {string} abc - ABC notation string
+ * @returns {string} - Tonic note (e.g., 'C', 'D', 'G')
+ * @throws {Error} - If no key signature found
+ */
+function getKey(abc) {
+	const keyMatch = abc.match(/^K:\s*([A-G].*)/m);
+	if (!keyMatch) {
+		throw new Error("No key signature found in ABC");
+	}
+	return keyMatch[1];
+}
 /**
  * Extract meter/time signature from ABC header
  *
@@ -151,4 +165,5 @@ module.exports = {
 	getUnitLength,
 	getMusicLines,
 	getTitles,
+	getKey,
 };

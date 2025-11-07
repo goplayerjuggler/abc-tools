@@ -2,6 +2,7 @@ const { Fraction } = require("../math.js");
 const {
 	getTonalBase,
 	getMeter,
+	getKey,
 	getUnitLength,
 	getMusicLines,
 } = require("./header-parser.js");
@@ -602,6 +603,7 @@ function getTunes(text) {
 
 module.exports = {
 	getTunes,
+	getKey,
 	parseAbc,
 	calculateBarDurations,
 	// Re-export utilities for convenience

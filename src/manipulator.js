@@ -405,6 +405,7 @@ function getFirstBars(
 		}
 	}
 
+	//todo
 	if (firstCompleteBarIdx === -1) {
 		throw new Error("No complete bars found");
 	}
@@ -487,10 +488,14 @@ function getFirstBars(
 		accumulatedDuration = newAccumulated;
 	}
 
+	// if (endPos === startPos) {
+	// 	throw new Error(
+	// 		`Not enough bars to satisfy request. Requested ${numBars} bars.`
+	// 	);
+	// }
+
 	if (endPos === startPos) {
-		throw new Error(
-			`Not enough bars to satisfy request. Requested ${numBars} bars.`
-		);
+		endPos = musicText.length - 1;
 	}
 
 	// Reconstruct ABC
