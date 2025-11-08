@@ -3,25 +3,60 @@ const { Fraction } = require("../math.js");
 /**
  * Enriches parsed ABC bar data with musical bar information
  *
- * Analyzes bars and bar lines to add:
- * - barNumber: Index of the musical bar (null for initial bar lines)
- * - isPartial: Flag for bar lines that occur mid-musical-bar
- * - cumulativeDuration: Duration tracking for bar segments
- * - midpoints: Positions where bars should be split (when divideBarsBy specified)
+ * Analyses bars and bar lines to add:
+ * - barNumber: Index of the musical bar (null for initial bar lines).
+ *   - For tunes without anacrusis: first complete bar is numbered 0, then 1, 2, 3...
+ *   - For tunes with anacrusis (pickup bar): the anacrusis is numbered 0, then the first
+ *     complete bar is numbered 1, 2, 3...
+ *   - Initial bar lines (before any music) have barNumber: null
+ *   - Consecutive partial bars within the same musical bar share the same barNumber
+ * - variantId: Index of variant ending (0 for first ending, 1 for second, etc.). Only present within variant endings.
+ * - isPartial: Flag for bar lines whose preceding segment is shorter than a complete bar as defined by the current meter.
+ * - completesMusicBar: Flag (only on partial barLines) indicating the accumulated duration from previous partial segment(s) completes a musical bar.
+ * - cumulativeDuration: Duration tracking for bar segments (sinceLastBarLine and sinceLastComplete).
+ * - midpoints: Positions where bars should be split (when divideBarsBy specified).
  *
  * A "musical bar" is defined by the meter (e.g., 4/4 means 4 quarter notes).
- * Bar lines can create "partial bars" when repeats or variant endings split a musical bar.
+ * Bar lines can create "partial bars" that split a musical bar. This commonly happens with repeats and pickup notes.
+ * Variant endings can appear in the middle of a complete bar without splitting it.
  * Consecutive partial bars within the same musical bar will have the same barNumber.
  * Variant endings create alternative paths, so duration tracking follows one path at a time.
+ * All bars at the same position across different variant endings share the same barNumber
+ * but have different variantId values (0 for first ending, 1 for second, etc.).
+ *
+ * IMPORTANT: The music segment associated with a bar line is the segment PRECEDING the bar line.
+ * Example: In `A4|B4||c2d2|]`, the segment for `|` is `A4`, for `||` is `B4`, and for `|]` is `c2d2`.
+ *
+ * Examples of isPartial and completesMusicBar flags:
+ *
+ * Example 1: `|:D2|C4|D2:|E2|F4|]` (M:4/4, L:1/4)
+ *   - After D2 (anacrusis): isPartial: true, completesMusicBar: undefined
+ *   - After C4: isPartial: undefined (complete bar)
+ *   - After D2 (before :|): isPartial: true, completesMusicBar: undefined
+ *   - After E2: isPartial: true, completesMusicBar: true (D2 + E2 = 4 beats)
+ *   - After F4: isPartial: undefined
+ *
+ * Example 2: `C4|D2[1D2:|[2FA||` (M:4/4, L:1/4)
+ *   - After C4: isPartial: undefined
+ *   - After [1D2: isPartial: true, completesMusicBar: true (D2 + [1D2 = 4 beats)
+ *   - After [2FA: isPartial: true, completesMusicBar: true (D2 + FA = 4 beats)
+ *
+ * Example 3: `D2|C4|[1D2:|[2DF||` (M:4/4, L:1/4)
+ *   - After D2 (anacrusis): isPartial: true, completesMusicBar: undefined
+ *   - After C4: isPartial: undefined
+ *   - After [1D2: isPartial: true, completesMusicBar: undefined (only 2 beats)
+ *   - After [2DF: isPartial: true, completesMusicBar: undefined (only 2 beats)
+ *
+ * Not handled: Change of meter (inline M: fields).
  *
  * @param {Array<Array<Object>>} bars - Array of bar arrays from parseAbc
  * @param {Array<Object>} barLines - Array of barLine objects from parseAbc
  * @param {Array<number>} meter - [numerator, denominator] from parseAbc
  * @param {Object} options - Configuration options
- * @param {boolean} options.barNumbers - Add barNumber to each barLine. Default value: true.
- * @param {boolean} options.isPartial - Add isPartial flag to partial barLines. Default value: true.
- * @param {boolean} options.cumulativeDuration - Add duration tracking to barLines. Default value: true.
- * @param {number|null} options.divideBarsBy - Find midpoints for splitting (only 2 supported)
+ * @param {boolean} options.barNumbers - Add barNumber to each barLine. Default: true.
+ * @param {boolean} options.isPartial - Add isPartial flag to partial barLines. Default: true.
+ * @param {boolean} options.cumulativeDuration - Add duration tracking to barLines. Default: true.
+ * @param {number|null} options.divideBarsBy - Find midpoints for splitting (only 2 supported). Default: null.
  * @returns {Object} - { barLines: enriched array, midpoints: insertion positions }
  */
 function getBarInfo(bars, barLines, meter, options = {}) {
@@ -49,6 +84,13 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	let lastCompleteBarLineIdx = -1;
 	let barLineOffset = 0;
 
+	// Variant ending tracking
+	let inVariantGroup = false;
+	let currentVariantId = null;
+	let variantBranchPoint = null; // Stores state at the start of variant group
+	let maxBarNumberInVariantGroup = -1; // Track highest bar number across all variants
+	let variantCounter = 0; // Sequential counter for variant IDs (0, 1, 2, ...)
+
 	// Check for initial bar line (before any music)
 	if (
 		bars.length > 0 &&
@@ -68,20 +110,50 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		const bar = bars[barIdx];
 		const barLineIdx = barIdx + barLineOffset;
 
-		// Check if this bar starts with a variant ending
-		const startsWithVariant = bar.length > 0 && bar[0].isVariantEnding;
-
-		// If this bar starts with a variant, reset duration tracking
-		// (variant endings create alternative paths)
-		if (startsWithVariant && lastCompleteBarLineIdx >= 0) {
-			durationSinceLastComplete = new Fraction(0, 1);
-		}
-
 		// Calculate duration of this bar segment
+		// Process tokens and handle variant endings during traversal
 		let barDuration = new Fraction(0, 1);
+		let variantEncountered = false;
+
 		for (const token of bar) {
+			// Add token duration first (before checking for variants)
 			if (token.duration) {
 				barDuration = barDuration.add(token.duration);
+			}
+
+			// Check for variant ending after processing duration
+			if (token.isVariantEnding && !variantEncountered) {
+				variantEncountered = true;
+
+				if (!inVariantGroup) {
+					// Starting a new variant group - store state including duration accumulated up to this point
+					// Add current barDuration to get the state before this variant token
+					const durationBeforeVariant = durationSinceLastComplete.add(
+						barDuration.subtract(token.duration || new Fraction(0, 1))
+					);
+
+					inVariantGroup = true;
+					variantBranchPoint = {
+						barNumber: currentBarNumber,
+						durationSinceLastComplete: durationBeforeVariant.clone(),
+						lastCompleteBarLineIdx: lastCompleteBarLineIdx,
+					};
+					variantCounter = 0;
+					currentVariantId = variantCounter;
+					maxBarNumberInVariantGroup = currentBarNumber - 1;
+				} else {
+					// Continuing in same variant group - restore state from branch point
+					variantCounter++;
+					currentVariantId = variantCounter;
+					currentBarNumber = variantBranchPoint.barNumber;
+					durationSinceLastComplete =
+						variantBranchPoint.durationSinceLastComplete.clone();
+					lastCompleteBarLineIdx = variantBranchPoint.lastCompleteBarLineIdx;
+					// Discard barDuration accumulated so far (it's from the wrong variant path)
+					barDuration = token.duration
+						? token.duration.clone()
+						: new Fraction(0, 1);
+				}
 			}
 		}
 
@@ -91,9 +163,12 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		if (barLineIdx < barLines.length) {
 			const barLine = barLines[barLineIdx];
 
-			// Determine if this bar line is partial
-			// A bar line is partial if THIS bar segment is less than full bar duration
+			// Determine if this bar segment is partial (shorter than full bar duration)
 			const isPartialBar = barDuration.compare(fullBarDuration) < 0;
+
+			// Check if accumulated partials complete a full bar
+			const completesFullBar =
+				durationSinceLastComplete.compare(fullBarDuration) >= 0;
 
 			// Add barNumber
 			if (barNumbers) {
@@ -108,12 +183,14 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 					if (barLine.barNumber === 0) {
 						lastCompleteBarLineIdx = barLineIdx;
 						currentBarNumber = 1; // Next complete bar will be bar 1
-					}
-
-					// If partial bars have accumulated to a full bar, increment currentBarNumber
-					if (durationSinceLastComplete.compare(fullBarDuration) >= 0) {
+					} else if (completesFullBar) {
+						// If partial bars have accumulated to a full bar, mark as complete
 						currentBarNumber = barLine.barNumber + 1;
 						lastCompleteBarLineIdx = barLineIdx;
+					} else {
+						// Partial bar that doesn't complete - still need to update currentBarNumber
+						// so that the next complete bar numbers correctly
+						currentBarNumber = barLine.barNumber + 1;
 					}
 				} else {
 					// Complete bar line
@@ -121,11 +198,31 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 					currentBarNumber++;
 					lastCompleteBarLineIdx = barLineIdx;
 				}
+
+				// Track max bar number if in variant group
+				if (inVariantGroup) {
+					maxBarNumberInVariantGroup = Math.max(
+						maxBarNumberInVariantGroup,
+						barLine.barNumber
+					);
+				}
+			}
+
+			// Add variantId if we're in a variant ending
+			if (inVariantGroup && currentVariantId !== null) {
+				barLine.variantId = currentVariantId;
 			}
 
 			// Add isPartial flag (only when true)
-			if (isPartial && isPartialBar) {
-				barLine.isPartial = true;
+			if (isPartialBar) {
+				if (isPartial) {
+					barLine.isPartial = true;
+				}
+
+				// Add completesMusicBar flag for partials that complete a musical bar
+				if (completesFullBar) {
+					barLine.completesMusicBar = true;
+				}
 			}
 
 			// Add cumulative duration
@@ -138,8 +235,42 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 
 			// Reset duration tracking if this completes a musical bar
 			// Also reset after initial anacrusis (barNumber 0)
-			if (lastCompleteBarLineIdx === barLineIdx || barLine.barNumber === 0) {
+			if (completesFullBar || barLine.barNumber === 0) {
 				durationSinceLastComplete = new Fraction(0, 1);
+			}
+
+			// Check if we're exiting a variant group (section break)
+			// Only exit if the next bar doesn't contain a variant ending
+			if (inVariantGroup && barLine.isSectionBreak) {
+				let nextBarHasVariant = false;
+				if (barIdx + 1 < bars.length) {
+					const nextBar = bars[barIdx + 1];
+					for (const token of nextBar) {
+						if (token.isVariantEnding) {
+							nextBarHasVariant = true;
+							break;
+						}
+					}
+				}
+
+				if (!nextBarHasVariant) {
+					// No more variants coming, exit the group
+					inVariantGroup = false;
+					currentVariantId = null;
+					// Set currentBarNumber to max + 1 to continue numbering after variants
+					currentBarNumber = maxBarNumberInVariantGroup + 1;
+					// Only update lastCompleteBarLineIdx if the variant ended with a complete bar
+					// If it ended partial, keep the previous lastCompleteBarLineIdx so the next
+					// partial bar continues with the same bar number
+					if (completesFullBar) {
+						lastCompleteBarLineIdx = barLineIdx;
+						durationSinceLastComplete = new Fraction(0, 1);
+					}
+					// If the variant ended partial, durationSinceLastComplete is kept to continue accumulating
+					variantBranchPoint = null;
+					maxBarNumberInVariantGroup = -1;
+					variantCounter = 0;
+				}
 			}
 		}
 	}

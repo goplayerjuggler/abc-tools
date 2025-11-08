@@ -222,6 +222,7 @@ const {
  *   }
  */
 function parseAbc(abc, options = {}) {
+	// console.log(`parseAbc debug log. abc:${abc}`);
 	const { maxBars = Infinity } = options;
 
 	const unitLength = getUnitLength(abc);

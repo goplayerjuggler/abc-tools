@@ -49,11 +49,11 @@ function parseBarLine(barLineStr) {
 	// End repeat
 	if (trimmed.match(/^:/)) {
 		result.isRepeatL = true;
-		result.isSectionBreak = true
+		result.isSectionBreak = true;
 	}
 
-	// Double bar
-	if (trimmed.match(/\|\|/)){
+	// Double bar & other cases: "...ends with one of ||, :| |] or [|"
+	if (trimmed.match(/\|\||\|]|\[\|/)) {
 		result.isSectionBreak = true;
 	}
 	return result;
