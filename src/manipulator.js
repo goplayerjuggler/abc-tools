@@ -439,10 +439,11 @@ function getFirstBars(
 	const expectedBarDuration = new Fraction(meter[0], meter[1]);
 	const targetDuration = expectedBarDuration.multiply(numBarsFraction);
 
-	// Determine starting position
+	// Determine starting position and how much duration we need to accumulate
 	let startPos = 0;
 	let targetBarNumber = 0;
-	let durationToAccumulate = targetDuration.clone();
+	let remainingDurationNeeded = targetDuration.clone();
+	let countingFromBarNumber = 0;
 
 	if (hasPickup) {
 		if (withAnacrucis) {
@@ -456,13 +457,13 @@ function getFirstBars(
 				if (anacrusisBarLine && anacrusisBarLine.cumulativeDuration) {
 					const anacrusisDuration =
 						anacrusisBarLine.cumulativeDuration.sinceLastBarLine;
-					durationToAccumulate =
-						durationToAccumulate.subtract(anacrusisDuration);
+					remainingDurationNeeded =
+						remainingDurationNeeded.subtract(anacrusisDuration);
 				}
-				targetBarNumber = 1; // Start counting from first complete bar
+				countingFromBarNumber = 1; // Start counting from first complete bar
 			} else {
 				// Don't count anacrusis - we want full numBars after it
-				targetBarNumber = 1;
+				countingFromBarNumber = 1;
 			}
 		} else {
 			// Skip anacrusis - start after its bar line
@@ -473,42 +474,43 @@ function getFirstBars(
 				const anacrusisBarLine = enrichedBarLines[anacrusisBarLineIdx];
 				startPos = anacrusisBarLine.sourceIndex + anacrusisBarLine.sourceLength;
 			}
-			targetBarNumber = 1;
+			countingFromBarNumber = 1;
 		}
 	} else {
 		// No anacrusis
 		startPos = 0;
-		targetBarNumber = 0;
+		countingFromBarNumber = 0;
 	}
 
-	// Find the target bar number we need to reach
-	const isWholeBars = numBarsFraction.den === 1;
-	let finalTargetBarNumber;
+	// Determine which bar numbers we need based on remaining duration
+	const wholeBarsInRemaining = Math.floor(
+		remainingDurationNeeded.divide(expectedBarDuration).toNumber()
+	);
+	const fractionalPart = remainingDurationNeeded.subtract(
+		expectedBarDuration.multiply(new Fraction(wholeBarsInRemaining, 1))
+	);
 
-	if (isWholeBars) {
-		// For whole bars, we want bars numbered targetBarNumber through targetBarNumber + numBars - 1
-		finalTargetBarNumber = targetBarNumber + numBarsFraction.num - 1;
-	} else {
-		// For fractional bars, we need to go into the next bar
-		finalTargetBarNumber =
-			targetBarNumber + Math.floor(numBarsFraction.toNumber());
-	}
+	const needsFractionalBar = fractionalPart.compare(new Fraction(0, 1)) > 0;
+	const finalTargetBarNumber =
+		countingFromBarNumber +
+		wholeBarsInRemaining +
+		(needsFractionalBar ? 0 : -1);
 
 	// Find end position
 	let endPos = startPos;
 	let foundEnd = false;
 
-	// First, find all bar lines with our target bar numbers
-	const targetBarLines = enrichedBarLines.filter(
+	// Find all bar lines with our target bar numbers
+	const relevantBarLines = enrichedBarLines.filter(
 		(bl) =>
 			bl.barNumber !== null &&
-			bl.barNumber >= targetBarNumber &&
+			bl.barNumber >= countingFromBarNumber &&
 			bl.barNumber <= finalTargetBarNumber
 	);
 
-	if (isWholeBars) {
+	if (!needsFractionalBar) {
 		// For whole bars, find the bar line at finalTargetBarNumber
-		const finalBarLine = targetBarLines.find(
+		const finalBarLine = relevantBarLines.find(
 			(bl) => bl.barNumber === finalTargetBarNumber
 		);
 		if (finalBarLine) {
@@ -516,53 +518,55 @@ function getFirstBars(
 			foundEnd = true;
 		}
 	} else {
-		// For fractional bars, we need to do duration counting within the final bar
-		const fractionalPart = numBarsFraction.subtract(
-			new Fraction(Math.floor(numBarsFraction.toNumber()), 1)
-		);
-		const fractionalDuration = expectedBarDuration.multiply(fractionalPart);
+		// For fractional bars, we need to do duration counting within bars with finalTargetBarNumber
+		// Note: there may be multiple segments with the same barNumber (partial bars)
 
-		// Find all bars with finalTargetBarNumber
-		const finalBarIndex = bars.findIndex((bar, idx) => {
-			const correspondingBarLineIdx = enrichedBarLines.findIndex(
-				(bl) => bl.sourceIndex > (bar[0]?.sourceIndex || 0)
+		let accumulated = new Fraction(0, 1);
+
+		// Iterate through bars and accumulate duration for bars with finalTargetBarNumber
+		for (let i = 0; i < bars.length; i++) {
+			const bar = bars[i];
+			if (bar.length === 0) continue;
+
+			// Find the bar line that follows this bar to get its barNumber
+			const barLineIdx = enrichedBarLines.findIndex(
+				(bl) => bl.sourceIndex >= bar[bar.length - 1].sourceIndex
 			);
-			if (correspondingBarLineIdx >= 0) {
-				return (
-					enrichedBarLines[correspondingBarLineIdx].barNumber ===
-					finalTargetBarNumber
-				);
-			}
-			return false;
-		});
 
-		if (finalBarIndex >= 0) {
-			const finalBar = bars[finalBarIndex];
-			let accumulated = new Fraction(0, 1);
+			if (barLineIdx < 0) continue;
 
-			for (const token of finalBar) {
-				if (!token.duration) {
-					continue;
-				}
+			const barLine = enrichedBarLines[barLineIdx];
 
-				accumulated = accumulated.add(token.duration);
-
-				if (accumulated.compare(fractionalDuration) >= 0) {
-					// Found the position
-					endPos = token.sourceIndex + token.sourceLength;
-
-					// Skip trailing space if present
-					if (
-						token.spacing &&
-						token.spacing.whitespace &&
-						endPos < musicText.length &&
-						musicText[endPos] === " "
-					) {
-						endPos++;
+			if (barLine.barNumber === finalTargetBarNumber) {
+				// This bar segment is part of our target bar number
+				for (const token of bar) {
+					if (!token.duration) {
+						continue;
 					}
-					foundEnd = true;
-					break;
+
+					const newAccumulated = accumulated.add(token.duration);
+
+					if (newAccumulated.compare(fractionalPart) >= 0) {
+						// Found the position - include this token
+						endPos = token.sourceIndex + token.sourceLength;
+
+						// Skip trailing space if present
+						if (
+							token.spacing &&
+							token.spacing.whitespace &&
+							endPos < musicText.length &&
+							musicText[endPos] === " "
+						) {
+							endPos++;
+						}
+						foundEnd = true;
+						break;
+					}
+
+					accumulated = newAccumulated;
 				}
+
+				if (foundEnd) break;
 			}
 		}
 	}
