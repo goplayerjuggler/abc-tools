@@ -1,6 +1,6 @@
 {
   "name": "@goplayerjuggler/abc-tools",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "sorting algorithm and implementation for ABC tunes; plus other tools for parsing and manipulating ABC tunes",
   "main": "src/index.js",
   "scripts": {
