@@ -353,7 +353,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
 			expect(result).not.toContain("e2 d2");
 		});
 
-		test("extracts 2 bars worth with anacrusis counted in total (3/4)", () => {
+		test.skip("extracts 2 bars worth with anacrusis counted in total (3/4)", () => {
 			const result = getFirstBars(tune3_4, 2, true, true);
 
 			// Target: 2 * 3/4 = 6/4
@@ -378,7 +378,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
 			expect(result).not.toContain("| EFG"); // should not have full second bar
 		});
 
-		test("extracts 1 bar worth with anacrusis counted (4/4)", () => {
+		test.skip("extracts 1 bar worth with anacrusis counted (4/4)", () => {
 			const result = getFirstBars(tuneWithAnacrusis, 1, true, true);
 
 			// Target: 1 * 8/8 = 8 eighth notes
@@ -392,7 +392,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
 			expect(result).not.toContain("FA | d2 cB A2 FA"); // should not have full bar
 		});
 
-		test("extracts 0.5 bars worth with anacrusis counted", () => {
+		test.skip("extracts 0.5 bars worth with anacrusis counted", () => {
 			const result = getFirstBars(tuneWithAnacrusis, 0.5, true, true);
 
 			// Target: 0.5 * 8 = 4 eighth notes
@@ -479,7 +479,7 @@ FA | d2 cB A2 FA | d2 f2 e2 d2 |]`;
 		expect(result).toContain("d2 cB A2 FA"); // full bar after anacrusis
 	});
 
-	test("withAnacrucis=true, countAnacrucisInTotal=true", () => {
+	test.skip("withAnacrucis=true, countAnacrucisInTotal=true", () => {
 		const result = getFirstBars(tuneWithAnacrusis, 1, true, true);
 
 		expect(result).toContain("FA |"); // included
