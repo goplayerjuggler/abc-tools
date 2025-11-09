@@ -1,9 +1,5 @@
 const { Fraction } = require("./math.js");
-const {
-	parseAbc,
-	getMeter,
-	calculateBarDurations,
-} = require("./parse/parser.js");
+const { parseAbc, getMeter } = require("./parse/parser.js");
 
 const { getBarInfo } = require("./parse/getBarInfo.js");
 
@@ -93,20 +89,38 @@ function filterHeaders(headerLines, headersToStrip) {
 }
 
 /**
- * Detect if ABC notation has an anacrusis (pickup bar)
+ * Detect if ABC notation has an anacrusis (pickup bar) from parsed data
  * @param {object} parsed - Parsed ABC data from parseAbc
  * @returns {boolean} - True if anacrusis is present
  */
 function hasAnacrucisFromParsed(parsed) {
-	const barDurations = calculateBarDurations(parsed);
-	const expectedBarDuration = new Fraction(parsed.meter[0], parsed.meter[1]);
+	const { bars, barLines, meter } = parsed;
 
-	if (parsed.bars.length === 0) {
+	if (bars.length === 0 || barLines.length === 0) {
 		return false;
 	}
 
-	const firstBarDuration = barDurations[0];
-	return firstBarDuration.compare(expectedBarDuration) < 0;
+	// Use getBarInfo to analyse the first bar
+	const barInfo = getBarInfo(bars, barLines, meter, {
+		barNumbers: true,
+		isPartial: true,
+		cumulativeDuration: false,
+	});
+
+	// Find the first bar line with a barNumber (skip initial bar line if present)
+	const firstNumberedBarLine = barInfo.barLines.find(
+		(bl) => bl.barNumber !== null
+	);
+
+	if (!firstNumberedBarLine) {
+		return false;
+	}
+
+	// Anacrusis is present if the first numbered bar line is partial with barNumber 0
+	return (
+		firstNumberedBarLine.barNumber === 0 &&
+		firstNumberedBarLine.isPartial === true
+	);
 }
 
 /**
@@ -363,10 +377,10 @@ function toggleMeter_6_8_to_12_8(abc) {
 }
 
 /**
- * Get the first N complete or partial bars from ABC notation, with or without the anacrusis
+ * Get the first N complete or partial musical bars from ABC notation, with or without the anacrusis
  * Preserves all formatting, comments, spacing, and line breaks
  * @param {string} abc - ABC notation
- * @param {number|Fraction} numBars - Number of bars to extract (can be fractional, e.g., 1.5 or new Fraction(3,2))
+ * @param {number|Fraction} numBars - Number of musical bars to extract (can be fractional, e.g., 1.5 or new Fraction(3,2))
  * @param {boolean} withAnacrucis - when flagged, the returned result also includes the anacrusis - incomplete bar (default: false)
  * @param {boolean} countAnacrucisInTotal - when true AND withAnacrucis is true, the anacrusis counts toward numBars duration (default: false)
  * @param {object} headersToStrip - optional header stripping configuration {all:boolean, toKeep:string}
@@ -383,119 +397,179 @@ function getFirstBars(
 	const numBarsFraction =
 		typeof numBars === "number" ? new Fraction(numBars) : numBars;
 
-	// Estimate maxBars needed - simple ceiling with buffer
-	const estimatedMaxBars =
-		Math.ceil(numBarsFraction.num / numBarsFraction.den) + 2;
+	// Estimate maxBars needed for parsing
+	const estimatedMaxBars = Math.ceil(numBarsFraction.toNumber()) * 2 + 2;
 
-	// Parse with estimated maxBars
+	// Parse ABC
 	const parsed = parseAbc(abc, { maxBars: estimatedMaxBars });
 	const { bars, headerLines, barLines, musicText, meter } = parsed;
 
-	const barDurations = calculateBarDurations(parsed);
-	const expectedBarDuration = new Fraction(meter[0], meter[1]);
-	const targetDuration = expectedBarDuration.multiply(numBarsFraction);
-
-	// Find first complete bar index
-	let firstCompleteBarIdx = -1;
-	for (let i = 0; i < bars.length; i++) {
-		const barDuration = barDurations[i];
-		if (barDuration.compare(expectedBarDuration) === 0) {
-			firstCompleteBarIdx = i;
-			break;
-		}
+	if (bars.length === 0 || barLines.length === 0) {
+		throw new Error("No bars found");
 	}
 
-	//todo
-	if (firstCompleteBarIdx === -1) {
-		throw new Error("No complete bars found");
-	}
+	// Determine which bar number to stop after
+	// We need to account for fractional bars, anacrusis handling, etc.
+	const wholeBarsNeeded = Math.ceil(numBarsFraction.toNumber());
+	const stopAfterBarNumber = wholeBarsNeeded + 1; // Add buffer for safety
 
-	const hasPickup = firstCompleteBarIdx > 0;
+	// Get bar info up to the bar number we need
+	const barInfo = getBarInfo(bars, barLines, meter, {
+		barNumbers: true,
+		isPartial: true,
+		cumulativeDuration: true,
+		stopAfterBarNumber,
+	});
+
+	const enrichedBarLines = barInfo.barLines;
+
+	// Detect if there's an anacrusis
+	const firstNumberedBarLine = enrichedBarLines.find(
+		(bl) => bl.barNumber !== null
+	);
+	const hasPickup =
+		firstNumberedBarLine &&
+		firstNumberedBarLine.barNumber === 0 &&
+		firstNumberedBarLine.isPartial === true;
 
 	// Filter headers if requested
 	const filteredHeaders = filterHeaders(headerLines, headersToStrip);
 
-	// Determine starting position in the music text
+	// Calculate the expected duration per musical bar
+	const expectedBarDuration = new Fraction(meter[0], meter[1]);
+	const targetDuration = expectedBarDuration.multiply(numBarsFraction);
+
+	// Determine starting position
 	let startPos = 0;
-	if (hasPickup && withAnacrucis) {
-		// Include anacrusis in output
-		startPos = 0;
-	} else if (hasPickup && !withAnacrucis) {
-		// Skip anacrusis - start after its bar line
-		const anacrusisBarLine = barLines[firstCompleteBarIdx - 1];
-		if (anacrusisBarLine) {
-			startPos = anacrusisBarLine.sourceIndex + anacrusisBarLine.sourceLength;
-		}
-	}
+	let targetBarNumber = 0;
+	let durationToAccumulate = targetDuration.clone();
 
-	// Calculate accumulated duration for target calculation
-	let accumulatedDuration = new Fraction(0, 1);
-	if (hasPickup && withAnacrucis && countAnacrucisInTotal) {
-		// Count anacrusis toward target
-		accumulatedDuration = barDurations[0];
-	}
-
-	// Find the end position by accumulating bar durations from first complete bar
-	let endPos = startPos;
-
-	for (let i = firstCompleteBarIdx; i < bars.length; i++) {
-		const barDuration = barDurations[i];
-		const newAccumulated = accumulatedDuration.add(barDuration);
-
-		if (newAccumulated.compare(targetDuration) >= 0) {
-			// We've reached or exceeded target
-
-			if (newAccumulated.compare(targetDuration) === 0) {
-				// Exact match - include full bar with its bar line
-				if (i < barLines.length) {
-					endPos = barLines[i].sourceIndex + barLines[i].sourceLength;
+	if (hasPickup) {
+		if (withAnacrucis) {
+			// Include anacrusis in output
+			startPos = 0;
+			if (countAnacrucisInTotal) {
+				// Subtract anacrusis duration from target
+				const anacrusisBarLine = enrichedBarLines.find(
+					(bl) => bl.barNumber === 0
+				);
+				if (anacrusisBarLine && anacrusisBarLine.cumulativeDuration) {
+					const anacrusisDuration =
+						anacrusisBarLine.cumulativeDuration.sinceLastBarLine;
+					durationToAccumulate =
+						durationToAccumulate.subtract(anacrusisDuration);
 				}
+				targetBarNumber = 1; // Start counting from first complete bar
 			} else {
-				// Need partial bar
-				const remainingDuration = targetDuration.subtract(accumulatedDuration);
-				const bar = bars[i];
-				let barAccumulated = new Fraction(0, 1);
+				// Don't count anacrusis - we want full numBars after it
+				targetBarNumber = 1;
+			}
+		} else {
+			// Skip anacrusis - start after its bar line
+			const anacrusisBarLineIdx = enrichedBarLines.findIndex(
+				(bl) => bl.barNumber === 0
+			);
+			if (anacrusisBarLineIdx >= 0) {
+				const anacrusisBarLine = enrichedBarLines[anacrusisBarLineIdx];
+				startPos = anacrusisBarLine.sourceIndex + anacrusisBarLine.sourceLength;
+			}
+			targetBarNumber = 1;
+		}
+	} else {
+		// No anacrusis
+		startPos = 0;
+		targetBarNumber = 0;
+	}
 
-				for (const token of bar) {
-					// Skip tokens with no duration
-					if (!token.duration) {
-						continue;
+	// Find the target bar number we need to reach
+	const isWholeBars = numBarsFraction.den === 1;
+	let finalTargetBarNumber;
+
+	if (isWholeBars) {
+		// For whole bars, we want bars numbered targetBarNumber through targetBarNumber + numBars - 1
+		finalTargetBarNumber = targetBarNumber + numBarsFraction.num - 1;
+	} else {
+		// For fractional bars, we need to go into the next bar
+		finalTargetBarNumber =
+			targetBarNumber + Math.floor(numBarsFraction.toNumber());
+	}
+
+	// Find end position
+	let endPos = startPos;
+	let foundEnd = false;
+
+	// First, find all bar lines with our target bar numbers
+	const targetBarLines = enrichedBarLines.filter(
+		(bl) =>
+			bl.barNumber !== null &&
+			bl.barNumber >= targetBarNumber &&
+			bl.barNumber <= finalTargetBarNumber
+	);
+
+	if (isWholeBars) {
+		// For whole bars, find the bar line at finalTargetBarNumber
+		const finalBarLine = targetBarLines.find(
+			(bl) => bl.barNumber === finalTargetBarNumber
+		);
+		if (finalBarLine) {
+			endPos = finalBarLine.sourceIndex + finalBarLine.sourceLength;
+			foundEnd = true;
+		}
+	} else {
+		// For fractional bars, we need to do duration counting within the final bar
+		const fractionalPart = numBarsFraction.subtract(
+			new Fraction(Math.floor(numBarsFraction.toNumber()), 1)
+		);
+		const fractionalDuration = expectedBarDuration.multiply(fractionalPart);
+
+		// Find all bars with finalTargetBarNumber
+		const finalBarIndex = bars.findIndex((bar, idx) => {
+			const correspondingBarLineIdx = enrichedBarLines.findIndex(
+				(bl) => bl.sourceIndex > (bar[0]?.sourceIndex || 0)
+			);
+			if (correspondingBarLineIdx >= 0) {
+				return (
+					enrichedBarLines[correspondingBarLineIdx].barNumber ===
+					finalTargetBarNumber
+				);
+			}
+			return false;
+		});
+
+		if (finalBarIndex >= 0) {
+			const finalBar = bars[finalBarIndex];
+			let accumulated = new Fraction(0, 1);
+
+			for (const token of finalBar) {
+				if (!token.duration) {
+					continue;
+				}
+
+				accumulated = accumulated.add(token.duration);
+
+				if (accumulated.compare(fractionalDuration) >= 0) {
+					// Found the position
+					endPos = token.sourceIndex + token.sourceLength;
+
+					// Skip trailing space if present
+					if (
+						token.spacing &&
+						token.spacing.whitespace &&
+						endPos < musicText.length &&
+						musicText[endPos] === " "
+					) {
+						endPos++;
 					}
-
-					barAccumulated = barAccumulated.add(token.duration);
-
-					// Check if we've reached or exceeded the remaining duration
-					if (barAccumulated.compare(remainingDuration) >= 0) {
-						// Include this note
-						endPos = token.sourceIndex + token.sourceLength;
-
-						// Skip trailing space if present
-						if (
-							token.spacing &&
-							token.spacing.whitespace &&
-							endPos < musicText.length &&
-							musicText[endPos] === " "
-						) {
-							endPos++;
-						}
-						break;
-					}
+					foundEnd = true;
+					break;
 				}
 			}
-			break;
 		}
-
-		accumulatedDuration = newAccumulated;
 	}
 
-	// if (endPos === startPos) {
-	// 	throw new Error(
-	// 		`Not enough bars to satisfy request. Requested ${numBars} bars.`
-	// 	);
-	// }
-
-	if (endPos === startPos) {
-		endPos = musicText.length - 1;
+	// Fallback: if we didn't find an end, use the last available position
+	if (!foundEnd || endPos === startPos) {
+		endPos = musicText.length;
 	}
 
 	// Reconstruct ABC

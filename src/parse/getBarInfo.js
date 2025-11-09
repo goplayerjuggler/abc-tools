@@ -57,6 +57,7 @@ const { Fraction } = require("../math.js");
  * @param {boolean} options.isPartial - Add isPartial flag to partial barLines. Default: true.
  * @param {boolean} options.cumulativeDuration - Add duration tracking to barLines. Default: true.
  * @param {number|null} options.divideBarsBy - Find midpoints for splitting (only 2 supported). Default: null.
+ * @param {number|null} options.stopAfterBarNumber - Stop processing after assigning this bar number. Default: null.
  * @returns {Object} - { barLines: enriched array, midpoints: insertion positions }
  */
 function getBarInfo(bars, barLines, meter, options = {}) {
@@ -65,6 +66,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		isPartial = true,
 		cumulativeDuration = true,
 		divideBarsBy = null,
+		stopAfterBarNumber = null,
 	} = options;
 
 	if (divideBarsBy !== null && divideBarsBy !== 2) {
@@ -205,6 +207,18 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 						maxBarNumberInVariantGroup,
 						barLine.barNumber
 					);
+				}
+
+				// Check if we should stop processing
+				if (
+					stopAfterBarNumber !== null &&
+					barLine.barNumber === stopAfterBarNumber
+				) {
+					// Stop here - return what we have so far
+					return {
+						barLines: barLines.slice(0, barLineIdx + 1),
+						midpoints,
+					};
 				}
 			}
 
