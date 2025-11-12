@@ -23,7 +23,7 @@ const { decodeChar } = require("./encode.js");
  * @property {number|null} maxDegree - Maximum degree for vertical range (null for auto)
  * @property {number|null} minDegree - Minimum degree for vertical range (null for auto)
  * @property {string} ariaLabel - Accessible label for screen readers
- * @property {string} baselineColor - Colour for the zero-degree baseline
+ * @property {string} baselineColour - Colour for the zero-degree baseline
  * @property {string} class - CSS class name for the SVG element
  * @property {string} heldColour - Colour for held note segments
  * @property {string} playedColour - Colour for played note segments
@@ -44,7 +44,7 @@ const contourToSvg_defaultConfig = {
 	unitWidth: 12,
 	playedColour: "#2563eb", // blue
 	heldColour: "#2563eb", // same as played (no longer lighter blue)
-	baselineColor: "#555555", // Davy's grey
+	baselineColour: "#555555", // Davy's grey
 	paddingLeft: 10,
 	paddingRight: 10,
 	minDegree: null,
@@ -235,7 +235,7 @@ function contourToSvg(contour, svgConfig = {}) {
 		pathElements.push(
 			`<line x1="${config.paddingLeft}" y1="${baselineY}" ` +
 				`x2="${config.paddingLeft + totalWidth}" y2="${baselineY}" ` +
-				`stroke="${config.baselineColor}" stroke-width="1" />`
+				`stroke="${config.baselineColour}" stroke-width="1" />`
 		);
 	}
 

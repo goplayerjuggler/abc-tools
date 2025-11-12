@@ -12,9 +12,9 @@ describe("ABC Tools - comparing", () => {
 			const abc1 = `X:1
 R: jig
 L:1/8
-M:1/8
+M:2/8
 K:G major
-DG`;
+DG|`;
 
 			const obj1 = getContour(abc1);
 			const decoded1 = Array.from(obj1.sortKey).map((c) => decodeChar(c));
@@ -30,7 +30,7 @@ R: jig
 L:1/8
 M:12/8
 K:G major
-G2B`;
+G2B|`;
 
 			const obj1 = getContour(abc1);
 			const decoded1 = Array.from(obj1.sortKey).map((c) => decodeChar(c));

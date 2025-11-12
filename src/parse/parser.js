@@ -118,9 +118,7 @@ function handleInlineFields(barLines, inlineFields) {
 	// const result = [...barLines];
 	let unitLength, meter;
 	for (const inlineField of sortedFields) {
-		const { field, value, sourceIndex } = inlineField;
-		const parsedValue = parseInlineFieldValue(field, value);
-		inlineField.parsedValue = parsedValue;
+		const { field, parsedValue, sourceIndex } = inlineField;
 
 		// Find the most recent bar line before or at this position
 		let targetBarLineIndex = -1;
@@ -440,6 +438,11 @@ function parseAbc(abc, options = {}) {
 
 				// Track inline fields for later attachment to bar lines
 				if (["K", "L", "M", "P"].includes(inlineField.field)) {
+					inlineFieldObj.parsedValue = parseInlineFieldValue(
+						inlineField.field,
+						inlineField.value
+					);
+
 					inlineFields.push(inlineFieldObj);
 				}
 

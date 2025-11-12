@@ -24,6 +24,10 @@ const { Fraction } = require("../math.js");
  * All bars at the same position across different variant endings share the same barNumber
  * but have different variantId values (0 for first ending, 1 for second, etc.).
  *
+ * Meter and unit length changes: When a barline has newMeter or newUnitLength fields (from inline
+ * field changes), the new meter/length is applied to the following bar. The fullBarDuration is
+ * recalculated accordingly. Partial bar accumulation continues under the new meter.
+ *
  * IMPORTANT: The music segment associated with a bar line is the segment PRECEDING the bar line.
  * Example: In `A4|B4||c2d2|]`, the segment for `|` is `A4`, for `||` is `B4`, and for `|]` is `c2d2`.
  *
@@ -47,7 +51,12 @@ const { Fraction } = require("../math.js");
  *   - After [1D2: isPartial: true, completesMusicBar: undefined (only 2 beats)
  *   - After [2DF: isPartial: true, completesMusicBar: undefined (only 2 beats)
  *
- * Not handled: Change of meter (inline M: fields).
+ * Example 4: `C4|[M:3/4]D3|E3|` (M:4/4 → 3/4, L:1/4)
+ *   - After C4: barNumber: 0 (complete 4/4 bar)
+ *   - After D3: barNumber: 1 (complete 3/4 bar under new meter)
+ *   - After E3: barNumber: 2 (complete 3/4 bar)
+ *
+ * Not handled: Change of meter or unit length mid-bar (inline M: or L: fields within a bar).
  *
  * @param {Array<Array<Object>>} bars - Array of bar arrays from parseAbc
  * @param {Array<Object>} barLines - Array of barLine objects from parseAbc
@@ -72,13 +81,10 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	if (divideBarsBy !== null && divideBarsBy !== 2) {
 		throw new Error("divideBarsBy currently only supports value 2");
 	}
-	// if (!barLines || barLines.length < bars.length) {
-	// 	throw new Error(
-	// 		"currently not handling bars without a bar line at the end"
-	// 	);
-	// }
 
-	const fullBarDuration = new Fraction(meter[0], meter[1]);
+	// Track current meter (can change via inline fields)
+	let currentMeter = [...meter];
+	let fullBarDuration = new Fraction(currentMeter[0], currentMeter[1]);
 	const midpoints = [];
 
 	let currentBarNumber = 0;
@@ -112,6 +118,19 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		const bar = bars[barIdx];
 		const barLineIdx = barIdx + barLineOffset;
 
+		// Check if the previous barline had a meter or unit length change
+		if (barLineIdx > 0) {
+			const prevBarLine = barLines[barLineIdx - 1];
+
+			if (prevBarLine.newMeter) {
+				currentMeter = [...prevBarLine.newMeter];
+				fullBarDuration = new Fraction(currentMeter[0], currentMeter[1]);
+			}
+
+			// Note: newUnitLength doesn't directly affect fullBarDuration
+			// (token durations are already calculated in the correct units)
+		}
+
 		// Calculate duration of this bar segment
 		// Process tokens and handle variant endings during traversal
 		let barDuration = new Fraction(0, 1);
@@ -138,6 +157,8 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 						barNumber: currentBarNumber,
 						durationSinceLastComplete: durationBeforeVariant.clone(),
 						lastCompleteBarLineIdx: lastCompleteBarLineIdx,
+						meter: [...currentMeter],
+						fullBarDuration: fullBarDuration.clone(),
 					};
 					variantCounter = 0;
 					currentVariantId = variantCounter;
@@ -150,6 +171,8 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 					durationSinceLastComplete =
 						variantBranchPoint.durationSinceLastComplete.clone();
 					lastCompleteBarLineIdx = variantBranchPoint.lastCompleteBarLineIdx;
+					currentMeter = [...variantBranchPoint.meter];
+					fullBarDuration = variantBranchPoint.fullBarDuration.clone();
 					// Discard barDuration accumulated so far (it's from the wrong variant path)
 					barDuration = token.duration
 						? token.duration.clone()
@@ -290,9 +313,25 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 
 	// Calculate midpoints if requested
 	if (divideBarsBy === 2) {
-		const halfBarDuration = fullBarDuration.divide(new Fraction(2, 1));
+		// Track meter for midpoint calculation
+		let midpointMeter = [...meter];
+		let halfBarDuration = new Fraction(
+			midpointMeter[0],
+			midpointMeter[1]
+		).divide(new Fraction(2, 1));
 
 		for (let barIdx = 0; barIdx < bars.length; barIdx++) {
+			const barLineIdx = barIdx + barLineOffset;
+
+			// Update meter if previous barline had a change
+			if (barLineIdx > 0 && barLines[barLineIdx - 1].newMeter) {
+				midpointMeter = [...barLines[barLineIdx - 1].newMeter];
+				halfBarDuration = new Fraction(
+					midpointMeter[0],
+					midpointMeter[1]
+				).divide(new Fraction(2, 1));
+			}
+
 			const bar = bars[barIdx];
 			let accumulated = new Fraction(0, 1);
 

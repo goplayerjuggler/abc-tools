@@ -25,7 +25,7 @@ K: D minor
 M:12/8
 L:1/8
 K: D minor
-FEF GFG  AGA dA^F | G/G/^FG A2g`;
+FEF GFG  AGA dA^F | G/G/^FG A2g  fed cAG |`;
 		const result = getIncipitForContourGeneration(abc);
 		expect(result.trim()).toBe(expected);
 	});
