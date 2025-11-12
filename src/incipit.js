@@ -308,7 +308,7 @@ function getIncipit(data) {
 
 function getIncipitForContourGeneration(
 	abc,
-	{ numBars = new Fraction(3, 2) } = {}
+	{ numBars = new Fraction(2, 1) } = {}
 ) {
 	return getIncipit({
 		abc,

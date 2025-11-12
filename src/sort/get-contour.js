@@ -49,7 +49,7 @@ function getContour(
 
 		maxNbBars = Fraction.min(maxNbBarsFromMaxUnitLength, maxNbBars);
 	}
-	const maxDuration = maxNbBars * meterFraction;
+	const maxDuration = maxNbBars.multiply(meterFraction);
 
 	const {
 		bars,
