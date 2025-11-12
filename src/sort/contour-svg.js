@@ -3,29 +3,31 @@ const { decodeChar } = require("./encode.js");
 /**
  * Configuration object for SVG rendering of tune contours
  * @typedef {Object} SvgConfig
- * @property {number} unitWidth - Width in pixels for one unit duration
+ * @property {boolean} connectingVerticalLines - vertical lines joining up notes of different heights
+ * @property {boolean} forceBaseline - Ensures the baseline at zero is displayed
+ * @property {boolean} onlyShowMeaningfulStartOfPlayedNotes - If true, only show start markers when previous note is same pitch; if false, show on all played notes
+ * @property {boolean} showYAxis - Whether to display the Y axis
+ * @property {number} connectingVerticalLinesWidth - Width of the vertical connecting lines between segments
  * @property {number} degreeHeight - Height in pixels between scale degrees
- * @property {number} strokeWidth - Width of the contour line segments
- * @property {string} playedColor - Colour for played note segments
- * @property {string} heldColor - Colour for held note segments (lighter shade of playedColor)
- * @property {string} baselineColor - Colour for the zero-degree baseline
- * @property {number} paddingTop - Top padding in pixels
+ * @property {number} noteStartRadius - Radius of the circle marking note starts (played notes only)
  * @property {number} paddingBottom - Bottom padding in pixels
  * @property {number} paddingLeft - Left padding in pixels
  * @property {number} paddingRight - Right padding in pixels
- * @property {boolean} forceBaseline - Ensures the baseline at zero is displayed
- * @property {number|null} minDegree - Minimum degree for vertical range (null for auto)
- * @property {number|null} maxDegree - Maximum degree for vertical range (null for auto)
- * @property {string} class - CSS class name for the SVG element
- * @property {string} ariaLabel - Accessible label for screen readers
- * @property {number} noteStartRadius - Radius of the circle marking note starts (played notes only)
- * @property {boolean} onlyShowMeaningfulStartOfPlayedNotes - If true, only show start markers when previous note is same pitch; if false, show on all played notes
- * @property {boolean} showYAxis - Whether to display the Y axis
- * @property {string} yAxisColor - Colour for the Y axis line
- * @property {number} yAxisWidth - Width of the Y axis line
+ * @property {number} paddingTop - Top padding in pixels
+ * @property {number} strokeWidth - Width of the contour line segments
+ * @property {number} unitWidth - Width in pixels for one unit duration
  * @property {number} yAxisTickLength - Length of regular ticks (for 5th degree markers)
- * @property {number} yAxisTonicTickLength - Length of tonic ticks (for tonic degree markers)
  * @property {number} yAxisTickWidth - Width of tick marks
+ * @property {number} yAxisTonicTickLength - Length of tonic ticks (for tonic degree markers)
+ * @property {number} yAxisWidth - Width of the Y axis line
+ * @property {number|null} maxDegree - Maximum degree for vertical range (null for auto)
+ * @property {number|null} minDegree - Minimum degree for vertical range (null for auto)
+ * @property {string} ariaLabel - Accessible label for screen readers
+ * @property {string} baselineColor - Colour for the zero-degree baseline
+ * @property {string} class - CSS class name for the SVG element
+ * @property {string} heldColour - Colour for held note segments
+ * @property {string} playedColour - Colour for played note segments
+ * @property {string} yAxisColour - Colour for the Y axis line
  */
 
 /**
@@ -33,13 +35,15 @@ const { decodeChar } = require("./encode.js");
  * @type {SvgConfig}
  */
 const contourToSvg_defaultConfig = {
+	connectingVerticalLines: true,
+	connectingVerticalLinesWidth: 0.8,
 	degreeHeight: 5,
 	paddingTop: 3,
 	paddingBottom: 3,
-	strokeWidth: 2,
-	unitWidth: 15,
-	playedColor: "#2563eb", // blue
-	heldColor: "#2563eb", // same as played (no longer lighter blue)
+	strokeWidth: 1.2,
+	unitWidth: 12,
+	playedColour: "#2563eb", // blue
+	heldColour: "#2563eb", // same as played (no longer lighter blue)
 	baselineColor: "#555555", // Davy's grey
 	paddingLeft: 10,
 	paddingRight: 10,
@@ -48,10 +52,10 @@ const contourToSvg_defaultConfig = {
 	forceBaseline: true,
 	class: "contour-svg",
 	ariaLabel: "Tune contour",
-	noteStartRadius: 3,
-	onlyShowMeaningfulStartOfPlayedNotes: true,
+	noteStartRadius: 2,
+	onlyShowMeaningfulStartOfPlayedNotes: false,
 	showYAxis: true,
-	yAxisColor: "#888888",
+	yAxisColour: "#888888",
 	yAxisWidth: 1,
 	yAxisTickLength: 4,
 	yAxisTonicTickLength: 6,
@@ -193,7 +197,7 @@ function contourToSvg(contour, svgConfig = {}) {
 		pathElements.push(
 			`<line x1="${yAxisX}" y1="${yAxisTop}" ` +
 				`x2="${yAxisX}" y2="${yAxisBottom}" ` +
-				`stroke="${config.yAxisColor}" stroke-width="${config.yAxisWidth}" />`
+				`stroke="${config.yAxisColour}" stroke-width="${config.yAxisWidth}" />`
 		);
 
 		// Add tick marks for positions within range
@@ -219,7 +223,7 @@ function contourToSvg(contour, svgConfig = {}) {
 				pathElements.push(
 					`<line x1="${yAxisX - tickLength}" y1="${tickY}" ` +
 						`x2="${yAxisX}" y2="${tickY}" ` +
-						`stroke="${config.yAxisColor}" stroke-width="${config.yAxisTickWidth}" />`
+						`stroke="${config.yAxisColour}" stroke-width="${config.yAxisTickWidth}" />`
 				);
 			}
 		}
@@ -248,7 +252,7 @@ function contourToSvg(contour, svgConfig = {}) {
 		const x2 = x1 + seg.width;
 		const y = positionToY(seg.position);
 
-		const color = seg.isHeld ? config.heldColor : config.playedColor;
+		const color = seg.isHeld ? config.heldColour : config.playedColour;
 
 		pathElements.push(
 			`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" ` +
@@ -290,23 +294,25 @@ function contourToSvg(contour, svgConfig = {}) {
 		}
 
 		// Add connecting vertical line to next non-silence segment if position changes
-		let nextNonSilenceIdx = i + 1;
-		while (
-			nextNonSilenceIdx < segments.length &&
-			segments[nextNonSilenceIdx].isSilence
-		) {
-			nextNonSilenceIdx++;
-		}
+		if (config.connectingVerticalLines) {
+			let nextNonSilenceIdx = i + 1;
+			while (
+				nextNonSilenceIdx < segments.length &&
+				segments[nextNonSilenceIdx].isSilence
+			) {
+				nextNonSilenceIdx++;
+			}
 
-		if (nextNonSilenceIdx < segments.length) {
-			const nextSeg = segments[nextNonSilenceIdx];
-			const nextY = positionToY(nextSeg.position);
-			if (y !== nextY) {
-				pathElements.push(
-					`<line x1="${x2}" y1="${y}" x2="${x2}" y2="${nextY}" ` +
-						`stroke="${config.playedColor}" stroke-width="${config.strokeWidth}" ` +
-						`stroke-linecap="round" />`
-				);
+			if (nextNonSilenceIdx < segments.length) {
+				const nextSeg = segments[nextNonSilenceIdx];
+				const nextY = positionToY(nextSeg.position);
+				if (y !== nextY) {
+					pathElements.push(
+						`<line x1="${x2}" y1="${y}" x2="${x2}" y2="${nextY}" ` +
+							`stroke="${config.playedColour}" stroke-width="${config.connectingVerticalLinesWidth}" ` +
+							`stroke-linecap="round" />`
+					);
+				}
 			}
 		}
 	}
