@@ -1,6 +1,6 @@
-const { parseAbc } = require("../src/parse/parser");
-const { parseGraceNotes } = require("../src/parse/note-parser");
-const { Fraction } = require("../src/math");
+const { parseAbc } = require("../../src/index");
+const { Fraction } = require("../../src/math");
+const { parseGraceNotes } = require("../../src/parse/note-parser");
 
 describe("grace notes", () => {
 	describe("parseGraceNotes", () => {

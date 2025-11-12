@@ -14,11 +14,11 @@ const {
 } = require("./note-parser.js");
 const { parseBarLine } = require("./barline-parser.js");
 const {
-	analyzeSpacing,
 	getTokenRegex,
 	parseInlineField,
-	parseTuplet,
+	repeat_1Or2,
 } = require("./token-utils.js");
+const { analyzeSpacing, parseTuplet } = require("./misc-parser.js");
 
 // ============================================================================
 // ABC PARSER - MAIN MODULE
@@ -44,6 +44,7 @@ const {
 // - Chords (multiple notes): [CEG], [CEG]2, etc.
 // - Annotations: "^text", "<text", etc. (parsed but position markers preserved)
 // - Inline fields: [K:...], [L:...], [M:...], [P:...]
+// - Inline field changes attached to bar lines with processed values
 // - Inline comments: % comment text
 // - Line continuations: \ at end of line
 // - Beaming: tracks whitespace between notes for beam grouping
@@ -61,6 +62,107 @@ const {
 // ============================================================================
 
 /**
+ * Parse inline field value into processed form
+ *
+ * @param {string} field - Field type ('K', 'L', 'M', 'P')
+ * @param {string} value - Field value string
+ * @returns {*} - Processed field value (Fraction for L, array for M, string for K/P)
+ */
+function parseInlineFieldValue(field, value) {
+	switch (field) {
+		case "L": {
+			// Parse unit length as Fraction
+			const lengthMatch = value.match(/^(\d+)\/(\d+)/);
+			if (lengthMatch) {
+				return new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
+			}
+			return new Fraction(1, 8); // Default
+		}
+		case "M": {
+			// Parse meter as [numerator, denominator]
+			const meterMatch = value.match(/^(\d+)\/(\d+)/);
+			if (meterMatch) {
+				return [parseInt(meterMatch[1]), parseInt(meterMatch[2])];
+			}
+			if (value.match(/^C\|/)) return [2, 2];
+			if (value.match(/^C/)) return [4, 4];
+			return null;
+		}
+		case "K":
+		case "P":
+			// Return as string
+			return value;
+		default:
+			return value;
+	}
+}
+
+/**
+ * Attach inline field changes to bar line objects
+ * initial inline L M fields: for cases ( L or M) where no bar line exists at the inline field position, then updates the corresponding variable
+ *
+ * @param {Array} barLines - Array of bar line objects
+ * @param {Array} inlineFields - Array of inline field objects with sourceIndex
+ * @returns {object} - object of the form {barLines, meter,  unitLength}
+ */
+function handleInlineFields(barLines, inlineFields) {
+	if (inlineFields.length === 0) {
+		return barLines;
+	}
+
+	// Sort inline fields by source index
+	const sortedFields = [...inlineFields].sort(
+		(a, b) => a.sourceIndex - b.sourceIndex
+	);
+
+	// const result = [...barLines];
+	let unitLength, meter;
+	for (const inlineField of sortedFields) {
+		const { field, value, sourceIndex } = inlineField;
+		const parsedValue = parseInlineFieldValue(field, value);
+		inlineField.parsedValue = parsedValue;
+
+		// Find the most recent bar line before or at this position
+		let targetBarLineIndex = -1;
+		for (let i = barLines.length - 1; i >= 0; i--) {
+			if (barLines[i].sourceIndex <= sourceIndex) {
+				targetBarLineIndex = i;
+				break;
+			}
+		}
+		if (targetBarLineIndex === -1) {
+			switch (field) {
+				case "L":
+					unitLength = parsedValue;
+					break;
+				case "M":
+					meter = parsedValue;
+					break;
+			}
+		} else {
+			const targetBarLine = barLines[targetBarLineIndex];
+			// Attach the processed field value to the bar line
+			switch (field) {
+				case "K":
+					targetBarLine.newKey = parsedValue;
+					break;
+				case "L":
+					targetBarLine.newUnitLength = parsedValue;
+					break;
+				case "M":
+					targetBarLine.newMeter = parsedValue;
+					break;
+				case "P":
+					targetBarLine.newPart = parsedValue;
+					break;
+			}
+		}
+	}
+
+	return { barLines, meter, unitLength };
+}
+
+/**
  * Parse ABC into structured data
  *
  * @param {string} abc - ABC notation string
@@ -73,8 +175,8 @@ const {
  *   bars: Array<Array<ScoreObject>>,  // Array of bars, each bar is array of ScoreObjects
  * 		// A ScoreObject is almost anything that isn’t a bar line: note/chord/field/broken rhythm/tuplet/1st or 2nd repeat or variant ending
  *   barLines: Array<BarLineObject>,  // Array of bar line information
- *   unitLength: Fraction,             // The L: field value (default 1/8)
- *   meter: [number, number],          // The M: field value (default [4,4])
+ *   unitLength: Fraction,             // The L: field value (default 1/8); may be overridden by an inline field if it’s before any music
+ *   meter: [number, number],          // The M: field value (default null); may be overridden by an inline field if it’s before any music
  *   lineMetadata: Array<LineMetadata>,// Info about original lines (comments, continuations)
  *   headerLines: Array<string>,       // Original header lines
  *   headerEndIndex: number,           // Index where headers end
@@ -188,7 +290,12 @@ const {
  * // indicates the start of a repeated section
  *   sourceIndex: number,        // Position in musicText
  *   sourceLength: number,       // Length of bar line
- *   hasLineBreak: boolean,      // Whether there's a newline after this bar line
+ *   hasLineBreak: boolean,      // Whether there’s a newline after this bar line
+ *   // Optional properties for inline field changes (processed values):
+ *   newKey: string,             // New key signature (e.g., 'D', 'G major')
+ *   newUnitLength: Fraction,    // New unit length (e.g., Fraction(1, 2))
+ *   newMeter: [number, number], // New meter (e.g., [3, 4])
+ *   newPart: string             // New part marker
  * }
  *
  * LineMetadata structure:
@@ -225,8 +332,8 @@ function parseAbc(abc, options = {}) {
 	// console.log(`parseAbc debug log. abc:${abc}`);
 	const { maxBars = Infinity } = options;
 
-	const unitLength = getUnitLength(abc);
-	const meter = getMeter(abc);
+	let unitLength = getUnitLength(abc),
+		meter = getMeter(abc);
 
 	const {
 		musicText,
@@ -239,223 +346,212 @@ function parseAbc(abc, options = {}) {
 	// Create a Set of newline positions for O(1) lookup
 	const newlineSet = new Set(newlinePositions);
 
-	/*
-	Bar line regex - includes trailing spaces; does not include: 1st & 2nd repeats and variant endings - tokenised by tokenRegex below
-	From the spec: "Abc parsers should be quite liberal in recognizing bar lines. In the wild, bar lines may have any shape, using a sequence of | (thin bar line), [ or ] (thick bar line), and : (dots), e.g. |[| or [|:::"
-	All the following bar lines are legal, given with most frequently seen first - according to my limited knowledge of what’s out there. AFAIK all but the last 4 are quite commonly seen.
-	`|`, `:|`, `|:`, `|]`, `||`, `:||:`, `:|:`, `::`, `[|`, `[|]`, `.|`
-	*/
-	const barLineRegex = /:*\.*[|[\]]*(?:\||::+)[|[\]]*:* */g; //captures expressions with at least one `|`, or at least two `:`.
-
 	const bars = [];
 	const barLines = [];
+	const inlineFields = []; // Track inline fields for attaching to bar lines
 	let currentBar = [];
 	let barCount = 0;
 	let previousRealNote = null; // Track last non-grace note for broken rhythms
 
 	// Split music text by bar lines while preserving positions
-	let lastBarPos = 0;
+	// let lastBarPos = 0;
 	let match;
-	let first = true;
+	// let firstBarLine = true;
 
-	while ((match = barLineRegex.exec(musicText)) !== null || first) {
-		first = false;
-		const { barLineText, barLinePos } =
-			match === null
-				? { barLineText: musicText, barLinePos: musicText.length }
-				: {
-						barLineText: match[0],
-						barLinePos: match.index,
-				  };
+	// while ((match = barLineRegex.exec(musicText)) !== null || first) { //barLineLoop
+	// first = false;
+	// const { barLineText, barLinePos } =
+	// 	match === null
+	// 		? { barLineText: musicText, barLinePos: musicText.length }
+	// 		: {
+	// 				barLineText: match[0],
+	// 				barLinePos: match.index,
+	// 		  };
 
-		if (lastBarPos > 0) lastBarPos--; //the last character in a barline expression may be needed to match variant endings - eg `|1`
-		// Process segment before this bar line
-		const segment = musicText.substring(lastBarPos, barLinePos);
+	// if (lastBarPos > 0) lastBarPos--; //the last character in a barline expression may be needed to match variant endings - eg `|1`
 
-		if (segment.trim()) {
-			// Parse tokens in this segment
-			const tokenRegex = getTokenRegex();
+	// Process segment before this bar line
+	// const segment = musicText.substring(lastBarPos, barLinePos);
 
-			let tokenMatch;
-			let currentTuple = null;
-			// let previousNote = null; // Track previous note for broken rhythms
+	if (musicText.trim()) {
+		// Parse tokens
+		const tokenRegex = getTokenRegex();
 
-			while ((tokenMatch = tokenRegex.exec(segment)) !== null) {
-				// Check if all notes of the tuple have been parsed
-				if (currentTuple && currentTuple.r === 0) {
-					currentTuple = null;
-				}
-				const fullToken = tokenMatch[0];
-				const tokenStartPos = lastBarPos + tokenMatch.index;
-				const spacing = analyzeSpacing(
-					segment,
-					tokenMatch.index + fullToken.length
-				);
+		let tokenMatch;
+		let currentTuple = null;
+		// let previousNote = null; // Track previous note for broken rhythms
 
-				if (fullToken.match(getTokenRegex({ variantEndings: true }))) {
-					const variantEnding = {
-						isVariantEnding: true,
-						token: fullToken,
-						sourceIndex: tokenStartPos,
-						sourceLength: fullToken.length,
-						spacing,
-					};
-					currentBar.push(variantEnding);
+		while ((tokenMatch = tokenRegex.exec(musicText)) !== null) {
+			// Check if all notes of the tuple have been parsed
+			if (currentTuple && currentTuple.r === 0) {
+				currentTuple = null;
+			}
+			let fullToken = tokenMatch[0];
+			const tokenStartPos = tokenMatch.index; //lastBarPos +
+			const spacing = analyzeSpacing(
+				musicText,
+				tokenMatch.index + fullToken.length
+			);
+			// if (firstBarLine && !fullToken.match(getTokenRegex({ barLine: true }))) {
+			// 	firstBarLine = false;
+			// }
 
-					continue;
-				}
-
-				// Check for grace notes
-				if (fullToken.startsWith("{")) {
-					const graceNotes = parseGraceNotes(fullToken);
-					if (graceNotes) {
-						// Add each grace note to the bar
-						graceNotes.forEach((graceNote, idx) => {
-							currentBar.push({
-								...graceNote,
-								token: fullToken,
-								sourceIndex: tokenStartPos,
-								sourceLength: fullToken.length,
-								// Only the last grace note gets the spacing
-								spacing:
-									idx === graceNotes.length - 1
-										? spacing
-										: {
-												whitespace: "",
-												backquotes: 0,
-												beamBreak: false,
-												lineBreak: false,
-										  },
-							});
-						});
-						// Grace notes don't update previousRealNote
-						continue;
-					}
-				}
-
-				// Check for inline field
-				const inlineField = parseInlineField(fullToken);
-				if (inlineField) {
-					const inlineFieldObj = {
-						isInlineField: true,
-						field: inlineField.field,
-						value: inlineField.value,
-						token: fullToken,
-						sourceIndex: tokenStartPos,
-						sourceLength: fullToken.length,
-						spacing,
-					};
-					currentBar.push(inlineFieldObj);
-					previousRealNote = null; // Inline fields break note sequences
-					continue;
-				}
-
-				// Check for broken rhythm
-				const brokenRhythm = parseBrokenRhythm(fullToken);
-				if (brokenRhythm) {
-					if (previousRealNote) {
-						// Find the next REAL note token (skip grace notes)
-						let nextTokenMatch = tokenRegex.exec(segment);
-						while (nextTokenMatch) {
-							const nextToken = nextTokenMatch[0];
-							// Skip grace notes
-							if (nextToken.startsWith("{")) {
-								nextTokenMatch = tokenRegex.exec(segment);
-								continue;
-							}
-							break;
-						}
-
-						if (nextTokenMatch) {
-							const nextToken = nextTokenMatch[0];
-							const nextTokenStartPos = lastBarPos + nextTokenMatch.index;
-							const nextSpacing = analyzeSpacing(
-								segment,
-								nextTokenMatch.index + nextToken.length
-							);
-
-							// Parse the next note
-							const nextNote = parseNote(nextToken, unitLength, currentTuple);
-							if (nextNote && nextNote.duration && previousRealNote.duration) {
-								// Apply broken rhythm to both notes
-								applyBrokenRhythm(previousRealNote, nextNote, brokenRhythm);
-
-								// Add the broken rhythm marker to the bar
-								currentBar.push({
-									...brokenRhythm,
-								});
-
-								// Add the next note to the bar
-								const nextNoteObj = {
-									...nextNote,
-									token: nextToken,
-									sourceIndex: nextTokenStartPos,
-									sourceLength: nextToken.length,
-									spacing: nextSpacing,
-								};
-								currentBar.push(nextNoteObj);
-								previousRealNote = null; //can't have successive broken rhythms
-								continue;
-							}
-						}
-					}
-					// If we couldn't apply the broken rhythm, just skip it
-					previousRealNote = null;
-					continue;
-				}
-
-				// Tuplets
-				if (fullToken.match(/\(\d(?::\d?){0,2}/g)) {
-					const isCompound =
-						meter &&
-						meter[1] === 8 &&
-						[6, 9, 12, 15, 18].indexOf(meter[0]) >= 0;
-					const tuple = parseTuplet(fullToken, isCompound);
-					if (tuple) {
-						if (currentTuple) {
-							throw new Error("nested tuples not handled");
-						}
-						currentTuple = tuple;
+			// Check for grace notes
+			if (fullToken.startsWith("{")) {
+				const graceNotes = parseGraceNotes(fullToken);
+				if (graceNotes) {
+					// Add each grace note to the bar
+					graceNotes.forEach((graceNote, idx) => {
 						currentBar.push({
-							...tuple,
+							...graceNote,
 							token: fullToken,
 							sourceIndex: tokenStartPos,
 							sourceLength: fullToken.length,
+							// Only the last grace note gets the spacing
+							spacing:
+								idx === graceNotes.length - 1
+									? spacing
+									: {
+											whitespace: "",
+											backquotes: 0,
+											beamBreak: false,
+											lineBreak: false,
+									  },
 						});
-						previousRealNote = null; // Tuplet markers break note sequences
-						continue;
+					});
+					// Grace notes don’t update previousRealNote
+					continue;
+				}
+			}
+
+			// Check for inline field
+			const inlineField = parseInlineField(fullToken);
+			if (inlineField) {
+				const inlineFieldObj = {
+					isInlineField: true,
+					field: inlineField.field,
+					value: inlineField.value,
+					token: fullToken,
+					sourceIndex: tokenStartPos,
+					sourceLength: fullToken.length,
+					spacing,
+				};
+				currentBar.push(inlineFieldObj);
+
+				// Track inline fields for later attachment to bar lines
+				if (["K", "L", "M", "P"].includes(inlineField.field)) {
+					inlineFields.push(inlineFieldObj);
+				}
+
+				previousRealNote = null; // Inline fields break note sequences
+				continue;
+			}
+
+			// Check for broken rhythm
+			const brokenRhythm = parseBrokenRhythm(fullToken);
+			if (brokenRhythm) {
+				if (previousRealNote) {
+					// Find the next REAL note token (skip grace notes)
+					let nextTokenMatch = tokenRegex.exec(musicText);
+					while (nextTokenMatch) {
+						const nextToken = nextTokenMatch[0];
+						// Skip grace notes
+						if (nextToken.startsWith("{")) {
+							nextTokenMatch = tokenRegex.exec(musicText);
+							continue;
+						}
+						break;
+					}
+
+					if (nextTokenMatch) {
+						const nextToken = nextTokenMatch[0];
+						const nextTokenStartPos = nextTokenMatch.index; //lastBarPos +
+						const nextSpacing = analyzeSpacing(
+							musicText,
+							nextTokenMatch.index + nextToken.length
+						);
+
+						// Parse the next note
+						const nextNote = parseNote(nextToken, unitLength, currentTuple);
+						if (nextNote && nextNote.duration && previousRealNote.duration) {
+							// Apply broken rhythm to both notes
+							applyBrokenRhythm(previousRealNote, nextNote, brokenRhythm);
+
+							// Add the broken rhythm marker to the bar
+							currentBar.push({
+								...brokenRhythm,
+							});
+
+							// Add the next note to the bar
+							const nextNoteObj = {
+								...nextNote,
+								token: nextToken,
+								sourceIndex: nextTokenStartPos,
+								sourceLength: nextToken.length,
+								spacing: nextSpacing,
+							};
+							currentBar.push(nextNoteObj);
+							previousRealNote = null; //can’t have successive broken rhythms
+							continue;
+						}
 					}
 				}
+				// If we couldn’t apply the broken rhythm, just skip it
+				previousRealNote = null;
+				continue;
+			}
 
-				// Standalone chord symbol
-				if (fullToken.match(/^"[^"]+"$/)) {
+			// Tuplets
+			if (fullToken.match(/\(\d(?::\d?){0,2}/g)) {
+				const isCompound =
+					meter && meter[1] === 8 && [6, 9, 12, 15, 18].indexOf(meter[0]) >= 0;
+				const tuple = parseTuplet(fullToken, isCompound);
+				if (tuple) {
+					if (currentTuple) {
+						throw new Error("nested tuples not handled");
+					}
+					currentTuple = tuple;
 					currentBar.push({
-						isChordSymbol: true,
-						chordSymbol: fullToken.slice(1, -1),
+						...tuple,
 						token: fullToken,
 						sourceIndex: tokenStartPos,
 						sourceLength: fullToken.length,
-						spacing,
 					});
-					// Chord symbols don't break note sequences
+					previousRealNote = null; // Tuplet markers break note sequences
 					continue;
 				}
+			}
 
-				// Standalone decoration
-				if (fullToken.match(/^!([^!]+)!$/)) {
-					currentBar.push({
-						isDecoration: true,
-						decoration: fullToken.slice(1, -1),
-						token: fullToken,
-						sourceIndex: tokenStartPos,
-						sourceLength: fullToken.length,
-						spacing,
-					});
-					// Decorations don't break note sequences
-					continue;
-				}
+			// Standalone chord symbol
+			if (fullToken.match(/^"[^"]+"$/)) {
+				currentBar.push({
+					isChordSymbol: true,
+					chordSymbol: fullToken.slice(1, -1),
+					token: fullToken,
+					sourceIndex: tokenStartPos,
+					sourceLength: fullToken.length,
+					spacing,
+				});
+				// Chord symbols don’t break note sequences
+				continue;
+			}
 
-				// Regular note, rest, or dummy, or chord in brackets
+			// Standalone decoration
+			if (fullToken.match(/^!([^!]+)!$/)) {
+				currentBar.push({
+					isDecoration: true,
+					decoration: fullToken.slice(1, -1),
+					token: fullToken,
+					sourceIndex: tokenStartPos,
+					sourceLength: fullToken.length,
+					spacing,
+				});
+				// Decorations don’t break note sequences
+				continue;
+			}
+
+			// Regular note, rest, or dummy, or chord in brackets
+			if (fullToken.match(getTokenRegex({ note: true }))) {
 				const note = parseNote(fullToken, unitLength, currentTuple);
 				if (note) {
 					const noteObj = {
@@ -471,64 +567,120 @@ function parseAbc(abc, options = {}) {
 						previousRealNote = noteObj;
 					}
 				}
+				continue;
 			}
-		}
 
-		// Check if bar line has a newline after it
-		const barLineEndPos = barLinePos + barLineText.length;
-		const hasLineBreakAfterBar =
-			newlineSet.has(barLineEndPos + 1) ||
-			(barLineEndPos < musicText.length && musicText[barLineEndPos] === "\n");
+			//variant endings
+			let variantEnding, firstOrSecondRepeat;
+			if (fullToken.match(getTokenRegex({ variantEndings: true }))) {
+				variantEnding = {
+					isVariantEnding: true,
+					token: fullToken,
+					sourceIndex: tokenStartPos,
+					sourceLength: fullToken.length,
+					spacing,
+				};
+				firstOrSecondRepeat = !!fullToken.match(new RegExp(repeat_1Or2));
+				if (firstOrSecondRepeat) {
+					fullToken = fullToken.substring(0, fullToken.length - 1);
 
-		// Store bar line information
-		const barLineInfo = parseBarLine(barLineText);
-		barLines.push({
-			...barLineInfo,
-			sourceIndex: barLinePos,
-			sourceLength: barLineText.length,
-			//barNumber: barCount,
-			hasLineBreak: hasLineBreakAfterBar,
-		});
+					//will also match the bar line in the next section (bar lines), and add the variant ending to the next bar
+				} else {
+					currentBar.push(variantEnding);
+					variantEnding = null;
 
-		// Update the last token in current bar to mark lineBreak if bar line has one
-		if (currentBar.length > 0 && hasLineBreakAfterBar) {
-			const lastToken = currentBar[currentBar.length - 1];
-			if (lastToken.spacing) {
-				lastToken.spacing.lineBreak = true;
+					continue;
+				}
 			}
-		}
 
-		// Save current bar if it has content
-		if (currentBar.length > 0) {
+			// barLine
+			if (fullToken.match(getTokenRegex({ barLine: true }))) {
+				{
+					// firstBarLine = false;
+					// todo;
+					const { barLineText, barLinePos } =
+						match === null
+							? { barLineText: musicText, barLinePos: musicText.length }
+							: {
+									barLineText: fullToken,
+									barLinePos: tokenStartPos,
+							  };
+
+					//if (lastBarPos > 0) lastBarPos--; //the last character in a barline expression may be needed to match variant endings - eg `|1`
+
+					// Check if bar line has a newline after it
+					const barLineEndPos = barLinePos + barLineText.length;
+					const hasLineBreakAfterBar =
+						newlineSet.has(barLineEndPos + 1) ||
+						(barLineEndPos < musicText.length &&
+							musicText[barLineEndPos] === "\n");
+
+					// Store bar line information
+					const barLineInfo = parseBarLine(barLineText);
+					barLines.push({
+						...barLineInfo,
+						sourceIndex: barLinePos,
+						sourceLength: barLineText.length,
+						//barNumber: barCount,
+						hasLineBreak: hasLineBreakAfterBar,
+					});
+
+					// Update the last token in current bar to mark lineBreak if bar line has one
+					if (currentBar.length > 0 && hasLineBreakAfterBar) {
+						const lastToken = currentBar[currentBar.length - 1];
+						if (lastToken.spacing) {
+							lastToken.spacing.lineBreak = true;
+						}
+					}
+
+					// Save current bar if it has content
+					if (currentBar.length > 0) {
+						bars.push(currentBar);
+						barCount++;
+						currentBar = [];
+						previousRealNote = null; // Bar lines break note sequences
+
+						if (variantEnding && firstOrSecondRepeat) {
+							currentBar.push(variantEnding);
+						}
+
+						// Check if we’ve reached max bars
+						if (barCount >= maxBars) {
+							break;
+						}
+					}
+
+					// lastBarPos = barLineEndPos;
+				}
+			}
+		} // end token matching loop
+
+		// } // end barLineLoop
+
+		// Add final bar if it has content and we haven’t reached max
+		if (currentBar.length > 0 && barCount < maxBars) {
 			bars.push(currentBar);
-			barCount++;
-			currentBar = [];
-			previousRealNote = null; // Bar lines break note sequences
-
-			// Check if we've reached max bars
-			if (barCount >= maxBars) {
-				break;
-			}
 		}
 
-		lastBarPos = barLineEndPos;
-	}
+		// Attach inline fields to bar lines & handle initial L M inline fields
+		if (inlineFields && inlineFields.length > 0) {
+			const inlineFieldsResult = handleInlineFields(barLines, inlineFields);
+			if (inlineFieldsResult.unitLength)
+				unitLength = inlineFieldsResult.unitLength;
+			if (inlineFieldsResult.meter) meter = inlineFieldsResult.meter;
+		}
 
-	// Add final bar if it has content and we haven't reached max
-	if (currentBar.length > 0 && barCount < maxBars) {
-		bars.push(currentBar);
+		return {
+			bars,
+			barLines,
+			unitLength,
+			meter,
+			lineMetadata,
+			headerLines,
+			headerEndIndex,
+			musicText,
+		};
 	}
-
-	return {
-		bars,
-		barLines,
-		unitLength,
-		meter,
-		lineMetadata,
-		headerLines,
-		headerEndIndex,
-		musicText,
-	};
 }
 
 /**
@@ -542,7 +694,7 @@ function calculateBarDurations(parsedData) {
 	const { bars, barLines } = parsedData;
 	const result = [];
 
-	// If there's a bar line at the start, add a zero-duration entry
+	// If there’s a bar line at the start, add a zero-duration entry
 	if (barLines && barLines[0] && barLines[0].sourceIndex === 0) {
 		result.push(new Fraction(0, 1));
 	}

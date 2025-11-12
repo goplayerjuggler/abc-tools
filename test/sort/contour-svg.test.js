@@ -1,4 +1,4 @@
-const { getContour, contourToSvg } = require("../src/index.js");
+const { getContour, contourToSvg } = require("../../src/index.js");
 
 const fs = require("fs");
 const path = require("path");

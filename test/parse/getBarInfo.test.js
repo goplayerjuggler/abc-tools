@@ -1,5 +1,5 @@
-const { getBarInfo } = require("../src/parse/getBarInfo.js");
-const { parseAbc } = require("../src/parse/parser.js");
+const { getBarInfo } = require("../../src/parse/getBarInfo.js");
+const { parseAbc } = require("../../src/parse/parser.js");
 
 describe("getBarInfo", () => {
 	test("initial repeat with partial bars", () => {

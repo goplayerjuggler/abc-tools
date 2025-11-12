@@ -28,10 +28,10 @@ function getTonalBase(abc) {
 }
 
 /**
- * Extract key signature from ABC header
+ * Extract full key signature from ABC header
  *
  * @param {string} abc - ABC notation string
- * @returns {string} - Tonic note (e.g., 'C', 'D', 'G')
+ * @returns {string} - Key (e.g., 'C dorian', 'D mixo', 'G')
  * @throws {Error} - If no key signature found
  */
 function getKey(abc) {

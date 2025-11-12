@@ -1,4 +1,4 @@
-const { positionToString } = require("../src/sort/display-contour");
+const { positionToString } = require("../../src/sort/display-contour");
 // Jest tests
 describe("positionToString", () => {
 	describe("base octave (0-6)", () => {

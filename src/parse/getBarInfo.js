@@ -72,11 +72,11 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	if (divideBarsBy !== null && divideBarsBy !== 2) {
 		throw new Error("divideBarsBy currently only supports value 2");
 	}
-	if (!barLines || barLines.length < bars.length) {
-		throw new Error(
-			"currently not handling bars without a bar line at the end"
-		);
-	}
+	// if (!barLines || barLines.length < bars.length) {
+	// 	throw new Error(
+	// 		"currently not handling bars without a bar line at the end"
+	// 	);
+	// }
 
 	const fullBarDuration = new Fraction(meter[0], meter[1]);
 	const midpoints = [];
@@ -130,9 +130,8 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 				if (!inVariantGroup) {
 					// Starting a new variant group - store state including duration accumulated up to this point
 					// Add current barDuration to get the state before this variant token
-					const durationBeforeVariant = durationSinceLastComplete.add(
-						barDuration.subtract(token.duration || new Fraction(0, 1))
-					);
+					const durationBeforeVariant =
+						durationSinceLastComplete.add(barDuration);
 
 					inVariantGroup = true;
 					variantBranchPoint = {

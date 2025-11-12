@@ -156,7 +156,7 @@ function hasAnacrucis(abc) {
  * @param {Array<number>} smallMeter - The smaller meter signature [numerator, denominator]
  * @param {Array<number>} largeMeter - The larger meter signature [numerator, denominator]
  * @returns {string} ABC notation with toggled meter
- * @throws {Error} If the current meter doesn't match either smallMeter or largeMeter
+ * @throws {Error} If the current meter doesn’t match either smallMeter or largeMeter
  */
 function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	const currentMeter = getMeter(abc);
@@ -307,7 +307,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 					decision.action === "remove" &&
 					!decision.variantToken
 				) {
-					// Remove bar line and ensure there's a space
+					// Remove bar line and ensure there’s a space
 					// Check if we already added a space (last char in newMusic)
 					const needsSpace =
 						newMusic.length === 0 || newMusic[newMusic.length - 1] !== " ";
@@ -393,7 +393,7 @@ function getFirstBars(
 	countAnacrucisInTotal = false,
 	headersToStrip
 ) {
-	// Convert numBars to Fraction if it's a number
+	// Convert numBars to Fraction if it’s a number
 	const numBarsFraction =
 		typeof numBars === "number" ? new Fraction(numBars) : numBars;
 
@@ -423,7 +423,7 @@ function getFirstBars(
 
 	const enrichedBarLines = barInfo.barLines;
 
-	// Detect if there's an anacrusis
+	// Detect if there’s an anacrusis
 	const firstNumberedBarLine = enrichedBarLines.find(
 		(bl) => bl.barNumber !== null
 	);
@@ -441,7 +441,6 @@ function getFirstBars(
 
 	// Determine starting position and how much duration we need to accumulate
 	let startPos = 0;
-	let targetBarNumber = 0;
 	let remainingDurationNeeded = targetDuration.clone();
 	let countingFromBarNumber = 0;
 
@@ -462,7 +461,7 @@ function getFirstBars(
 				}
 				countingFromBarNumber = 1; // Start counting from first complete bar
 			} else {
-				// Don't count anacrusis - we want full numBars after it
+				// Don’t count anacrusis - we want full numBars after it
 				countingFromBarNumber = 1;
 			}
 		} else {
@@ -571,7 +570,7 @@ function getFirstBars(
 		}
 	}
 
-	// Fallback: if we didn't find an end, use the last available position
+	// Fallback: if we didn’t find an end, use the last available position
 	if (!foundEnd || endPos === startPos) {
 		endPos = musicText.length;
 	}

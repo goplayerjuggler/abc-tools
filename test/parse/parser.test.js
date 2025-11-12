@@ -1,4 +1,4 @@
-const { getTunes } = require("../src/parse/parser");
+const { getTunes } = require("../../src/parse/parser");
 
 describe("getTunes", () => {
 	test("extracts a single ABC tune", () => {

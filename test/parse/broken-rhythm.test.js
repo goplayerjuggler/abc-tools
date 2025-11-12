@@ -1,5 +1,5 @@
-const { parseAbc } = require("../src/parse/parser.js");
-const { Fraction } = require("../src/math.js");
+const { parseAbc } = require("../../src/index.js");
+const { Fraction } = require("../../src/math.js");
 
 describe("broken rhythms", () => {
 	test("single dot dotted rhythm A>B", () => {

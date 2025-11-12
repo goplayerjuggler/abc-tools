@@ -4,7 +4,7 @@ const {
 	sortArray,
 	decodeChar,
 	getContourFromFullAbc,
-} = require("../src/index.js");
+} = require("../../src/index.js");
 
 describe("ABC Tools - comparing", () => {
 	describe("Basic encoding", () => {
