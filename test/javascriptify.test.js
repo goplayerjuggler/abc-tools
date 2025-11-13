@@ -165,6 +165,8 @@ And a dollar: $
 And interpolation: \${var}`,
 		};
 		const result = javascriptify(obj);
+		// It’s safe to use eval here so we disable ESLint’s rule
+		// eslint-disable-next-line no-eval
 		const evaluated = eval(`(${result})`);
 		expect(evaluated.complex).toBe(obj.complex);
 	});
