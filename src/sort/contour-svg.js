@@ -293,17 +293,14 @@ function contourToSvg(contour, svgConfig = {}) {
 			}
 		}
 
-		// Add connecting vertical line to next non-silence segment if position changes
+		// Add a connecting vertical line to the next segment if it’s not a silence and if the position changes
 		if (config.connectingVerticalLines) {
-			let nextNonSilenceIdx = i + 1;
-			while (
-				nextNonSilenceIdx < segments.length &&
-				segments[nextNonSilenceIdx].isSilence
-			) {
-				nextNonSilenceIdx++;
-			}
+			const nextNonSilenceIdx = i + 1;
 
-			if (nextNonSilenceIdx < segments.length) {
+			if (
+				nextNonSilenceIdx < segments.length &&
+				!segments[nextNonSilenceIdx].isSilence
+			) {
 				const nextSeg = segments[nextNonSilenceIdx];
 				const nextY = positionToY(nextSeg.position);
 				if (y !== nextY) {

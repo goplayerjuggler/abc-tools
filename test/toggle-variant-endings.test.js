@@ -164,4 +164,100 @@ C4|D4|E4|E4|]`;
 			expect(backTo4_4).toContain("||");
 		});
 	});
+
+	describe("toggleMeterDoubling with section-initial anacrusis", () => {
+		test("6/8 to 12/8 round trip with anacrusis after repeat marker", () => {
+			const original = `X:1
+T:I Ne'er Shall Wean Her
+R:jig
+L:1/8
+M:12/8
+K:C
+|:G|EGG GED EGG c2B|AcA AGA cde ecd|
+cde g2a ged c2d|eaa e2d cAA A2:|
+|:d|egg ged egg g2d|eaa aga baa a2g|
+cde g2a ged c2d|eaa e2d cAA A2:|`;
+
+			const toggled = toggleMeter_6_8_to_12_8(original);
+			const retoggled = toggleMeter_6_8_to_12_8(toggled);
+
+			// The round trip should preserve the original structure
+			expect(retoggled).toBe(original);
+		});
+
+		test("6/8 to 12/8 with anacrusis after repeat preserves bar line", () => {
+			const original = `X:1
+M:12/8
+L:1/8
+K:D
+|:d|egg ged egg g2d|eaa aga baa a2g|]`;
+
+			const toggled = toggleMeter_6_8_to_12_8(original);
+
+			// When split to 6/8, should have bar line after anacrusis
+			expect(toggled).toContain("M:6/8");
+			expect(toggled).toContain("|:d|egg ged |");
+
+			const retoggled = toggleMeter_6_8_to_12_8(toggled);
+
+			// When merged back, should restore original
+			expect(retoggled).toBe(original);
+		});
+
+		test("4/4 to 4/2 with anacrusis after repeat marker", () => {
+			const original = `X:1
+M:4/2
+L:1/4
+K:C
+|:FG|ABCD EFGA|bcde f2:|
+|:AB|cdef gabc|d2e2 f4|]`;
+
+			const toggled = toggleMeter_4_4_to_4_2(original);
+			const retoggled = toggleMeter_4_4_to_4_2(toggled);
+
+			expect(retoggled).toBe(original);
+		});
+		test("4/4 to 4/2 with anacrusis after repeat marker - 2", () => {
+			const original = `X:1
+M:4/2
+L:1/4
+K:C
+|:FG|ABCD EFGA|bcde f2:|
+|:AB|cdef gabc|d2e2 f2:|
+|:AB|cdef gabc|d2e2 f4|]`;
+
+			const toggled = toggleMeter_4_4_to_4_2(original);
+			const retoggled = toggleMeter_4_4_to_4_2(toggled);
+
+			expect(retoggled).toBe(original);
+		});
+
+		test("multiple sections with anacrusis after repeats", () => {
+			const original = `X:1
+M:12/8
+L:1/8
+K:G
+|:D|GBd gdB GBd g2f|eed cBA GED D2:|
+|:d|egg dgg Bee dBB|ABA AGA BGG G2:|`;
+
+			const toggled = toggleMeter_6_8_to_12_8(original);
+			const retoggled = toggleMeter_6_8_to_12_8(toggled);
+
+			expect(retoggled).toBe(original);
+		});
+		test("multiple sections with anacrusis after repeats - 2", () => {
+			const original = `X:1
+M:12/8
+L:1/8
+K:G
+|:D|GBd gdB GBd g2f|eed cBA GED D2:|
+|:G|BAG AGA BGG GBd|eed cBA GED D2:|
+|:d|egg dgg Bee dBB|ABA AGA BGG G2:|`;
+
+			const toggled = toggleMeter_6_8_to_12_8(original);
+			const retoggled = toggleMeter_6_8_to_12_8(toggled);
+
+			expect(retoggled).toBe(original);
+		});
+	});
 });

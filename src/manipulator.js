@@ -158,6 +158,7 @@ function hasAnacrucis(abc) {
  * @returns {string} ABC notation with toggled meter
  * @throws {Error} If the current meter doesn’t match either smallMeter or largeMeter
  */
+
 function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	const currentMeter = getMeter(abc);
 
@@ -186,8 +187,8 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	});
 
 	if (isSmall) {
-		// Going from small to large: remove every other bar line
-		// Get bar info with barNumbers to understand the musical structure
+		// Going from small to large: remove every other complete musical bar line
+		// Get bar info to understand musical structure
 		getBarInfo(bars, barLines, meter, {
 			barNumbers: true,
 			isPartial: true,
@@ -202,24 +203,31 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		}
 
 		// Determine which bar lines to keep or remove
-		const barLineDecisions = new Map(); // barLineIndex -> {action, variantToken?}
-		let barPosition = 0; // Position within current pairing (0 or 1)
-		let barNumberOfStartOfSection = 0;
+		const barLineDecisions = new Map();
+		const barLinesToConvert = new Map(); // variant markers to convert from |N to [N
+
+		// Map bar numbers to their sequential index among complete bars
+		// This handles cases where bar numbers skip (due to anacrusis or partials)
+		const completeBarIndexByNumber = new Map();
+		let completeBarIndex = 0;
+
+		for (let i = 0; i < barLines.length; i++) {
+			const barLine = barLines[i];
+			if (barLine.barNumber !== null && !barLine.isSectionBreak) {
+				const isCompleteMusicBar =
+					!barLine.isPartial || barLine.completesMusicBar === true;
+				if (isCompleteMusicBar) {
+					completeBarIndexByNumber.set(barLine.barNumber, completeBarIndex);
+					completeBarIndex++;
+				}
+			}
+		}
 
 		for (let i = 0; i < barLines.length; i++) {
 			const barLine = barLines[i];
 
-			// Initial bar line is always kept
+			// Initial bar line (no barNumber) is always kept
 			if (barLine.barNumber === null) {
-				barLineDecisions.set(i, { action: "keep" });
-				continue;
-			}
-
-			// initial anacrucis bar line of section is always kept
-			if (
-				barLine.barNumber === barNumberOfStartOfSection &&
-				barLine.isPartial
-			) {
 				barLineDecisions.set(i, { action: "keep" });
 				continue;
 			}
@@ -230,56 +238,47 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 				continue;
 			}
 
-			// Section breaks are always kept and reset pairing
+			// Section breaks are always kept
 			if (barLine.isSectionBreak) {
 				barLineDecisions.set(i, { action: "keep" });
-				barPosition = 0;
-				barNumberOfStartOfSection = barLine.barNumber;
+				// Don't count section breaks - they're structural markers, not part of pairing
 				continue;
 			}
 
-			// barLines[i] comes after bars[i], so the NEXT bar is bars[i+1]
-			const nextBarIdx = i + 1;
-			const nextBarVariant =
-				nextBarIdx < bars.length ? barStartsWithVariant.get(nextBarIdx) : null;
+			// Check if this bar line represents a complete musical bar
+			const isCompleteMusicBar =
+				!barLine.isPartial || barLine.completesMusicBar === true;
 
-			// If the current bar (bars[i]) starts with a variant, keep its bar line and reset position
+			// If not a complete bar, keep it (it's a partial that doesn't complete)
+			if (!isCompleteMusicBar) {
+				barLineDecisions.set(i, { action: "keep" });
+				continue;
+			}
+
+			// If the current bar starts with a variant, keep its bar line
 			const currentBarVariant = barStartsWithVariant.get(i);
 			if (currentBarVariant) {
 				barLineDecisions.set(i, { action: "keep" });
-				barPosition = 0;
 				continue;
 			}
 
-			// Normal pairing logic
-			if (barPosition === 0) {
-				// First of pair - remove
-				if (nextBarVariant) {
-					barLineDecisions.set(i, {
-						action: "remove",
-						variantToken: nextBarVariant,
+			// This is a complete bar - use its index to decide
+			// Remove even-indexed complete bars (0th, 2nd, 4th...), keep odd-indexed (1st, 3rd, 5th...)
+			const index = completeBarIndexByNumber.get(barLine.barNumber);
+			if (index !== undefined && index % 2 === 0) {
+				// This is 0th, 2nd, 4th... complete bar - remove it
+				const nextBarIdx = i + 1;
+				if (nextBarIdx < bars.length && barStartsWithVariant.has(nextBarIdx)) {
+					const variantToken = barStartsWithVariant.get(nextBarIdx);
+					barLinesToConvert.set(variantToken.sourceIndex, {
+						oldLength: variantToken.sourceLength,
+						oldText: variantToken.token,
 					});
-				} else {
-					barLineDecisions.set(i, { action: "remove" });
 				}
-				barPosition = 1;
+				barLineDecisions.set(i, { action: "remove" });
 			} else {
-				// Second of pair - keep
+				// This is 1st, 3rd, 5th... complete bar - keep it
 				barLineDecisions.set(i, { action: "keep" });
-				barPosition = 0;
-			}
-		}
-
-		// Track variant replacements
-		const variantReplacements = new Map();
-		for (const [, decision] of barLineDecisions) {
-			if (decision.action === "remove" && decision.variantToken) {
-				const token = decision.variantToken;
-				const newToken = token.token.replace(/^\|/, "[");
-				variantReplacements.set(token.sourceIndex, {
-					oldLength: token.sourceLength,
-					newText: " " + newToken,
-				});
 			}
 		}
 
@@ -288,11 +287,12 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		let pos = 0;
 
 		while (pos < musicText.length) {
-			// Check for variant replacement
-			if (variantReplacements.has(pos)) {
-				const replacement = variantReplacements.get(pos);
-				newMusic += replacement.newText;
-				pos += replacement.oldLength;
+			// Check for variant marker conversion
+			if (barLinesToConvert.has(pos)) {
+				const conversion = barLinesToConvert.get(pos);
+				const newText = conversion.oldText.replace(/^\|/, "[");
+				newMusic += newText;
+				pos += conversion.oldLength;
 				continue;
 			}
 
@@ -302,13 +302,8 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 				const decision = barLineDecisions.get(barLineIdx);
 				const barLine = barLines[barLineIdx];
 
-				if (
-					decision &&
-					decision.action === "remove" &&
-					!decision.variantToken
-				) {
-					// Remove bar line and ensure there’s a space
-					// Check if we already added a space (last char in newMusic)
+				if (decision && decision.action === "remove") {
+					// Remove bar line and ensure there's a space
 					const needsSpace =
 						newMusic.length === 0 || newMusic[newMusic.length - 1] !== " ";
 					if (needsSpace) {

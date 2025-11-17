@@ -1,5 +1,17 @@
 const { Fraction } = require("../math.js");
 
+function processSkippedBarLines(barLines, skippedBarLineIndexes) {
+	for (let i = 0; i < skippedBarLineIndexes.length; i++) {
+		const skippedIndex = skippedBarLineIndexes[i];
+		if (skippedIndex === 0) continue; //don't see how this can happen, but seems best to check
+		//copy any properties in the preceding barLine not in the skipped barLine over to the skipped barLine
+		barLines[skippedIndex] = {
+			...barLines[skippedIndex - 1],
+			...barLines[skippedIndex],
+		};
+	}
+}
+
 /**
  * Enriches parsed ABC bar data with musical bar information
  *
@@ -99,6 +111,8 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	let maxBarNumberInVariantGroup = -1; // Track highest bar number across all variants
 	let variantCounter = 0; // Sequential counter for variant IDs (0, 1, 2, ...)
 
+	const skippedBarLineIndexes = [];
+
 	// Check for initial bar line (before any music)
 	if (
 		bars.length > 0 &&
@@ -116,7 +130,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	// Process each bar and its following bar line
 	for (let barIdx = 0; barIdx < bars.length; barIdx++) {
 		const bar = bars[barIdx];
-		const barLineIdx = barIdx + barLineOffset;
+		let barLineIdx = barIdx + barLineOffset;
 
 		// Check if the previous barline had a meter or unit length change
 		if (barLineIdx > 0) {
@@ -135,6 +149,25 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		// Process tokens and handle variant endings during traversal
 		let barDuration = new Fraction(0, 1);
 		let variantEncountered = false;
+
+		// check if this barLine actually comes after the bar (compare source positions)
+		// If the bar starts after the barLine, it means there are consecutive barLines
+		// with no notes between them, so we skip the current barLine and keep skipping
+		// until we find the next barLine that is after the bar.
+		{
+			let barLine = barLines[barLineIdx];
+			while (
+				bar.length > 0 &&
+				barLine &&
+				bar[0].sourceIndex > barLine.sourceIndex &&
+				barLineIdx < barLines.length
+			) {
+				skippedBarLineIndexes.push(barLineIdx);
+				barLineIdx++;
+				barLineOffset++;
+				barLine = barLines[barLineIdx];
+			}
+		}
 
 		for (const token of bar) {
 			// Add token duration first (before checking for variants)
@@ -237,6 +270,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 					barLine.barNumber === stopAfterBarNumber
 				) {
 					// Stop here - return what we have so far
+					processSkippedBarLines(barLines, skippedBarLineIndexes);
 					return {
 						barLines: barLines.slice(0, barLineIdx + 1),
 						midpoints,
@@ -374,6 +408,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		}
 	}
 
+	processSkippedBarLines(barLines, skippedBarLineIndexes);
 	return {
 		barLines,
 		midpoints,

@@ -14,11 +14,13 @@ const incipit = require("./incipit.js");
 const javascriptify = require("./javascriptify.js");
 const getContour = require("./sort/get-contour.js");
 const math = require("./math.js");
+const { getBarInfo } = require("./parse/getBarInfo.js");
 
 module.exports = {
 	// Parser functions
 	...parser,
 	...miscParser,
+	getBarInfo,
 
 	// Manipulator functions
 	...manipulator,

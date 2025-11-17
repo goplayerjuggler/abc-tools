@@ -443,4 +443,35 @@ c4|]`;
 		expect(barLines[7].barNumber).toBe(5);
 		expect(barLines[7].variantId).toBeUndefined();
 	});
+
+	test("partials around section breaks", () => {
+		const abc = `X:1
+T:I Ne'er Shall Wean Her
+R:jig
+L:1/8
+M:6/8
+K:C
+|:G|EGG GED | EGG c2B|AcA AGA | cde ecd|
+cde g2a | ged c2d|eaa e2d | cAA A2:|
+|:d|egg ged | egg g2d|eaa aga | baa a2g|
+cde g2a | ged c2d|eaa e2d | cAA A2:|
+`;
+		const parsed = parseAbc(abc);
+		getBarInfo(parsed.bars, parsed.barLines, parsed.meter);
+
+		const barLines = parsed.barLines;
+		expect(barLines[9].text).toBe(":|");
+		expect(barLines[9].isPartial).toBe(true);
+		expect(barLines[9].barNumber).toBe(8);
+
+		expect(barLines[10].text).toBe("|:");
+		expect(barLines[10].isPartial).toBe(true);
+		expect(barLines[10].barNumber).toBe(8);
+		expect(barLines[10].completesMusicBar).toBeUndefined();
+
+		expect(barLines[11].text).toBe("|");
+		expect(barLines[11].isPartial).toBe(true);
+		expect(barLines[11].barNumber).toBe(8);
+		expect(barLines[11].completesMusicBar).toBe(true);
+	});
 });
