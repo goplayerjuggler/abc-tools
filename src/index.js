@@ -15,12 +15,15 @@ const javascriptify = require("./javascriptify.js");
 const getContour = require("./sort/get-contour.js");
 const math = require("./math.js");
 const { getBarInfo } = require("./parse/getBarInfo.js");
+const { getMetadata } = require("./parse/getMetadata.js");
 
 module.exports = {
 	// Parser functions
 	...parser,
 	...miscParser,
 	getBarInfo,
+	getMetadata,
+	...incipit,
 
 	// Manipulator functions
 	...manipulator,
@@ -31,8 +34,6 @@ module.exports = {
 	...contourToSvg,
 	...getContour,
 
-	// Incipit functions
-	...incipit,
 
 	// other
 	javascriptify,

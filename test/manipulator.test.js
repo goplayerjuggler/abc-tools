@@ -563,6 +563,21 @@ c2 BA G2 FE | D4 D4 |]`;
 			const restored = toggleMeter_4_4_to_4_2(result);
 			expect(restored).toBe(tune_4_4_anacrusis);
 		});
+
+		test("3-part tune with repeats", () => {
+			const result = toggleMeter_4_4_to_4_2(`X:1
+M:4/4
+L:1/2
+K:C
+|:CD|EF|GA|Bc:|
+|:cd|ef|ga|bc':|
+|:c'b|ag|fe|dc:|`);
+
+			expect(result).toContain("M:4/2");
+			expect(result).toContain("|:CD EF|GA Bc:|");
+			expect(result).toContain("|:c'b ag|fe dc:|");
+			expect(result).toContain("|:cd ef|ga bc':|");
+		});
 	});
 
 	describe("4/2 to 4/4 conversion", () => {

@@ -1,10 +1,24 @@
 const { Fraction } = require("../math.js");
 
+/**
+ * Enriches skipped barLines with information from the preceding barLine
+ *
+ * When consecutive barLines occur with no notes between them (e.g., `:|` followed by `|:`),
+ * the intermediate barLines are skipped during processing. This function copies relevant
+ * properties (barNumber, isPartial, cumulativeDuration, etc.) from the preceding barLine
+ * to ensure skipped barLines have complete information.
+ *
+ * Properties in the skipped barLine (like text, sourceIndex, isSectionBreak) are preserved,
+ * while missing properties are filled in from the preceding barLine.
+ *
+ * @param {Array<Object>} barLines - Array of barLine objects
+ * @param {Array<number>} skippedBarLineIndexes - Indices of barLines that were skipped
+ */
 function processSkippedBarLines(barLines, skippedBarLineIndexes) {
 	for (let i = 0; i < skippedBarLineIndexes.length; i++) {
 		const skippedIndex = skippedBarLineIndexes[i];
-		if (skippedIndex === 0) continue; //don't see how this can happen, but seems best to check
-		//copy any properties in the preceding barLine not in the skipped barLine over to the skipped barLine
+		if (skippedIndex === 0) continue; // Initial barLine can’t inherit from predecessor
+		// Copy any properties from the preceding barLine not already in the skipped barLine
 		barLines[skippedIndex] = {
 			...barLines[skippedIndex - 1],
 			...barLines[skippedIndex],

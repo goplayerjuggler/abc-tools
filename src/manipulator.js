@@ -89,28 +89,31 @@ function filterHeaders(headerLines, headersToStrip) {
 }
 
 /**
- * Detect if ABC notation has an anacrusis (pickup bar) from parsed data
+ * Detect if ABC notation has an anacrusis (pickup bar) from parsed data or from barLines array
  * @param {object} parsed - Parsed ABC data from parseAbc
+ * @param {Array<object>} barLines - enriched barLine array from getBarInfo
  * @returns {boolean} - True if anacrusis is present
  */
-function hasAnacrucisFromParsed(parsed) {
-	const { bars, barLines, meter } = parsed;
+function hasAnacrucisFromParsed(parsed, barLines) {
+	const callParse = !barLines;
+	if (callParse) {
+		const { bars, meter } = parsed;
+		if (bars.length === 0) return false;
+		({ barLines } = parsed);
+		// Use getBarInfo to analyse the first bar
+		getBarInfo(bars, barLines, meter, {
+			barNumbers: true,
+			isPartial: true,
+			cumulativeDuration: false,
+		});
+	}
 
-	if (bars.length === 0 || barLines.length === 0) {
+	if (barLines.length === 0) {
 		return false;
 	}
 
-	// Use getBarInfo to analyse the first bar
-	const barInfo = getBarInfo(bars, barLines, meter, {
-		barNumbers: true,
-		isPartial: true,
-		cumulativeDuration: false,
-	});
-
 	// Find the first bar line with a barNumber (skip initial bar line if present)
-	const firstNumberedBarLine = barInfo.barLines.find(
-		(bl) => bl.barNumber !== null
-	);
+	const firstNumberedBarLine = barLines.find((bl) => bl.barNumber !== null);
 
 	if (!firstNumberedBarLine) {
 		return false;
@@ -158,7 +161,6 @@ function hasAnacrucis(abc) {
  * @returns {string} ABC notation with toggled meter
  * @throws {Error} If the current meter doesn’t match either smallMeter or largeMeter
  */
-
 function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 	const currentMeter = getMeter(abc);
 
@@ -175,6 +177,10 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 
 	const parsed = parseAbc(abc);
 	const { headerLines, barLines, musicText, bars, meter } = parsed;
+	// throw if there's a change of meter or unit length in the tune
+	if (barLines.find((bl) => bl.newMeter || bl.newUnitLength)) {
+		throw new Error("change of meter or unit length not handled");
+	}
 
 	// Change meter in headers
 	const newHeaders = headerLines.map((line) => {
@@ -206,22 +212,28 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 		const barLineDecisions = new Map();
 		const barLinesToConvert = new Map(); // variant markers to convert from |N to [N
 
-		// Map bar numbers to their sequential index among complete bars
-		// This handles cases where bar numbers skip (due to anacrusis or partials)
-		const completeBarIndexByNumber = new Map();
-		let completeBarIndex = 0;
+		//Discarded
+		// // Map bar numbers to their sequential index among complete bars
+		// // This handles cases where bar numbers skip (due to anacrusis or partials)
+		// const completeBarIndexByNumber = new Map();
+		// let completeBarIndex = 0;
 
-		for (let i = 0; i < barLines.length; i++) {
-			const barLine = barLines[i];
-			if (barLine.barNumber !== null && !barLine.isSectionBreak) {
-				const isCompleteMusicBar =
-					!barLine.isPartial || barLine.completesMusicBar === true;
-				if (isCompleteMusicBar) {
-					completeBarIndexByNumber.set(barLine.barNumber, completeBarIndex);
-					completeBarIndex++;
-				}
-			}
-		}
+		// for (let i = 0; i < barLines.length; i++) {
+		// 	const barLine = barLines[i];
+		// 	if (
+		// 		barLine.barNumber !== null
+		// 		//&& !barLine.isSectionBreak
+		// 	) {
+		// 		const isCompleteMusicBar =
+		// 			!barLine.isPartial || barLine.completesMusicBar === true;
+		// 		if (isCompleteMusicBar) {
+		// 			completeBarIndexByNumber.set(barLine.barNumber, completeBarIndex);
+		// 			completeBarIndex++;
+		// 		}
+		// 	}
+		// }
+
+		const hasAnacrucis = hasAnacrucisFromParsed(null, barLines);
 
 		for (let i = 0; i < barLines.length; i++) {
 			const barLine = barLines[i];
@@ -262,11 +274,17 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
 				continue;
 			}
 
-			// This is a complete bar - use its index to decide
-			// Remove even-indexed complete bars (0th, 2nd, 4th...), keep odd-indexed (1st, 3rd, 5th...)
-			const index = completeBarIndexByNumber.get(barLine.barNumber);
-			if (index !== undefined && index % 2 === 0) {
-				// This is 0th, 2nd, 4th... complete bar - remove it
+			// This is a complete bar - use its barNumber to decide
+			// Without anacrucis: Remove complete bars with even barNumber (0, 2, 4, ...), keep odd ones (1, 3, 5, ...)
+			// With anacrucis: the other way round!
+
+			//Discarded
+			// const index = completeBarIndexByNumber.get(barLine.barNumber);
+			// if (index !== undefined && index % 2 === 0) {
+			const remove = hasAnacrucis
+				? barLine.barNumber % 2 !== 0
+				: barLine.barNumber % 2 === 0;
+			if (remove) {
 				const nextBarIdx = i + 1;
 				if (nextBarIdx < bars.length && barStartsWithVariant.has(nextBarIdx)) {
 					const variantToken = barStartsWithVariant.get(nextBarIdx);
@@ -360,6 +378,30 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
  */
 function toggleMeter_4_4_to_4_2(abc) {
 	return toggleMeterDoubling(abc, [4, 4], [4, 2]);
+}
+/**
+ * Adjusts bar lengths and L field to convert a
+ * reel written in the normal way (M:4/4 L:1/8) to the same reel
+ * written with M:4/4 L:1/16*.
+ * Bars are twice as long, and the quick notes are semiquavers
+ * rather than quavers.
+ * @param {string} reel
+ * @param {string} comment - when non falsey, the comment will be injected as an N: header
+ * @returns
+ */
+function convertStandardReel(
+	reel,
+	comment = "*abc-tools convert reel to M:4/4 L:1/16*",
+	withSemiquavers = true
+) {
+	let result = toggleMeter_4_4_to_4_2(reel);
+	if (comment) {
+		result = result.replace(/\nK:/, `N:${comment}$0`);
+	}
+	if (withSemiquavers) {
+		result = result.replace("M:4/2", "M:4/4").replace("L:1/8", "L:1/16");
+	}
+	return result;
 }
 
 /**
