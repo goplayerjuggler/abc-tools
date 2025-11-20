@@ -1,5 +1,5 @@
 const { Fraction } = require("./math.js");
-const { parseAbc, getMeter } = require("./parse/parser.js");
+const { parseAbc, getMeter, getUnitLength } = require("./parse/parser.js");
 
 const { getBarInfo } = require("./parse/getBarInfo.js");
 
@@ -158,11 +158,12 @@ function hasAnacrucis(abc) {
  * @param {string} abc - ABC notation string
  * @param {Array<number>} smallMeter - The smaller meter signature [numerator, denominator]
  * @param {Array<number>} largeMeter - The larger meter signature [numerator, denominator]
+ * @param {Array<number>} currentMeter - The current meter signature [numerator, denominator] of the abc tune - may be omitted. (If omitted, it gets fetched from `abc`)
  * @returns {string} ABC notation with toggled meter
  * @throws {Error} If the current meter doesn’t match either smallMeter or largeMeter
  */
-function toggleMeterDoubling(abc, smallMeter, largeMeter) {
-	const currentMeter = getMeter(abc);
+function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
+	if (!currentMeter) currentMeter = getMeter(abc);
 
 	const isSmall =
 		currentMeter[0] === smallMeter[0] && currentMeter[1] === smallMeter[1];
@@ -376,30 +377,82 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter) {
  * This is a true inverse operation - going there and back preserves the ABC exactly
  * Handles anacrusis correctly and preserves line breaks
  */
-function toggleMeter_4_4_to_4_2(abc) {
-	return toggleMeterDoubling(abc, [4, 4], [4, 2]);
+function toggleMeter_4_4_to_4_2(abc, currentMeter) {
+	return toggleMeterDoubling(abc, [4, 4], [4, 2], currentMeter);
 }
+
+const defaultCommentForReelConversion =
+	"*abc-tools: convert reel to M:4/4 & L:1/16*";
 /**
  * Adjusts bar lengths and L field to convert a
  * reel written in the normal way (M:4/4 L:1/8) to the same reel
- * written with M:4/4 L:1/16*.
+ * written with M:4/4 L:1/16.
  * Bars are twice as long, and the quick notes are semiquavers
  * rather than quavers.
  * @param {string} reel
  * @param {string} comment - when non falsey, the comment will be injected as an N: header
+ * @param {bool} withSemiquavers - when unflagged, the L stays at 1/8, and the M is 4/2
+
  * @returns
  */
 function convertStandardReel(
 	reel,
-	comment = "*abc-tools convert reel to M:4/4 L:1/16*",
+	comment = defaultCommentForReelConversion,
 	withSemiquavers = true
 ) {
-	let result = toggleMeter_4_4_to_4_2(reel);
+	const meter = getMeter(reel);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
+		throw new Error("invalid meter");
+	}
+	const unitLength = getUnitLength(reel);
+	if (unitLength.den !== 8) {
+		throw new Error("invalid L header");
+	}
+
+	let result = //toggleMeter_4_4_to_4_2(reel, meter);
+		toggleMeterDoubling(reel, [4, 4], [4, 2], meter);
 	if (comment) {
-		result = result.replace(/\nK:/, `N:${comment}$0`);
+		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
 	}
 	if (withSemiquavers) {
 		result = result.replace("M:4/2", "M:4/4").replace("L:1/8", "L:1/16");
+	}
+	return result;
+}
+
+/**
+ * Adjusts bar lengths and L field to convert a
+ * reel written in the abnormal way (M:4/4 L:1/16) to the same reel
+ * written with M:4/4 L:1/8, the normal or standard way.
+ * Bars are half as long, and the quick notes are quavers
+ * rather than semiquavers. Inverse operation to convertStandardReel
+ * @param {string} reel
+ * @param {string} comment - when non falsey, the comment (as an N:) will removed from the header
+ * @param {bool} withSemiquavers - when unflagged, the original reel was written in M:4/2 L:1/8
+ * @returns
+ */
+function convertToStandardReel(
+	reel,
+	comment = defaultCommentForReelConversion,
+	withSemiquavers = true
+) {
+	if (withSemiquavers) {
+		reel = reel.replace("M:4/4", "M:4/2").reel("L:1/16", "L:1/8");
+	}
+
+	const unitLength = getUnitLength(reel);
+	if (unitLength.den !== 8) {
+		throw new Error("invalid L header");
+	}
+	const meter = getMeter(reel);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
+		throw new Error("invalid meter");
+	}
+
+	let result = // toggleMeter_4_4_to_4_2(reel, meter);
+		toggleMeterDoubling(reel, [4, 4], [4, 2], meter);
+	if (comment) {
+		result = result.replace(`\nN:${comment}`, "");
 	}
 	return result;
 }
@@ -620,10 +673,14 @@ function getFirstBars(
 }
 
 module.exports = {
+	convertStandardReel,
+	convertToStandardReel,
+	defaultCommentForReelConversion,
+	filterHeaders,
 	getFirstBars,
 	hasAnacrucis,
+	normaliseKey,
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8,
-	filterHeaders,
-	normaliseKey,
+	toggleMeterDoubling,
 };
