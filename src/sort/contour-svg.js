@@ -16,6 +16,7 @@ const { decodeChar } = require("./encode.js");
  * @property {number} paddingTop - Top padding in pixels
  * @property {number} strokeWidth - Width of the contour line segments
  * @property {number} unitWidth - Width in pixels for one unit duration
+ * @property {number} baselineWidth - Width in pixels for the baseline
  * @property {number} yAxisTickLength - Length of regular ticks (for 5th degree markers)
  * @property {number} yAxisTickWidth - Width of tick marks
  * @property {number} yAxisTonicTickLength - Length of tonic ticks (for tonic degree markers)
@@ -36,7 +37,7 @@ const { decodeChar } = require("./encode.js");
  */
 const contourToSvg_defaultConfig = {
 	connectingVerticalLines: true,
-	connectingVerticalLinesWidth: 0.8,
+	connectingVerticalLinesWidth: 0.5,
 	degreeHeight: 5,
 	paddingTop: 3,
 	paddingBottom: 3,
@@ -45,6 +46,7 @@ const contourToSvg_defaultConfig = {
 	playedColour: "#2563eb", // blue
 	heldColour: "#2563eb", // same as played (no longer lighter blue)
 	baselineColour: "#555555", // Davy's grey
+	baselineWidth: 0.5,
 	paddingLeft: 10,
 	paddingRight: 10,
 	minDegree: null,
@@ -56,10 +58,10 @@ const contourToSvg_defaultConfig = {
 	onlyShowMeaningfulStartOfPlayedNotes: false,
 	showYAxis: true,
 	yAxisColour: "#888888",
-	yAxisWidth: 1,
+	yAxisWidth: 0.5,
 	yAxisTickLength: 4,
 	yAxisTonicTickLength: 6,
-	yAxisTickWidth: 1,
+	yAxisTickWidth: 0.5,
 };
 
 /**
@@ -235,7 +237,7 @@ function contourToSvg(contour, svgConfig = {}) {
 		pathElements.push(
 			`<line x1="${config.paddingLeft}" y1="${baselineY}" ` +
 				`x2="${config.paddingLeft + totalWidth}" y2="${baselineY}" ` +
-				`stroke="${config.baselineColour}" stroke-width="1" />`
+				`stroke="${config.baselineColour}" stroke-width="${config.baselineWidth}" />`
 		);
 	}
 
