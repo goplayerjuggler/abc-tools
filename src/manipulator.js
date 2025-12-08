@@ -420,6 +420,25 @@ function convertStandardReel(
 	return result;
 }
 
+function doubleBarLength(abc, comment = null) {
+	const meter = getMeter(abc);
+	if (!Array.isArray(meter) || !meter) {
+		throw new Error("invalid meter");
+	}
+	const newMeter = [meter[0], meter[1]];
+	if ([16, 8, 4, 2].indexOf(meter[1]) >= 0) newMeter[1] /= 2;
+	else {
+		newMeter[0] *= 2;
+	}
+
+	let result = //toggleMeter_4_4_to_4_2(reel, meter);
+		toggleMeterDoubling(abc, meter, newMeter, meter);
+	if (comment) {
+		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
+	}
+	return result;
+}
+
 /**
  * Adjusts bar lengths and L field to convert a
  * reel written in the abnormal way (M:4/4 L:1/16) to the same reel
@@ -676,6 +695,7 @@ module.exports = {
 	convertStandardReel,
 	convertToStandardReel,
 	defaultCommentForReelConversion,
+	doubleBarLength,
 	filterHeaders,
 	getFirstBars,
 	hasAnacrucis,
