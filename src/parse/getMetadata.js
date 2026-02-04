@@ -23,7 +23,7 @@ function getMetadata(abc) {
 		} else if (trimmed.startsWith("R:")) {
 			metadata.rhythm = trimmed.substring(2).trim().toLowerCase();
 		} else if (trimmed.startsWith("C:")) {
-			metadata.composer = trimmed.substring(2).trim().toLowerCase();
+			metadata.composer = trimmed.substring(2).trim();
 		} else if (trimmed.startsWith("M:")) {
 			metadata.meter = trimmed.substring(2).trim();
 		} else if (trimmed.startsWith("K:")) {
@@ -32,6 +32,8 @@ function getMetadata(abc) {
 			break;
 		} else if (trimmed.startsWith("S:")) {
 			metadata.source = trimmed.substring(2).trim();
+		} else if (trimmed.startsWith("O:")) {
+			metadata.origin = trimmed.substring(2).trim();
 		} else if (trimmed.startsWith("F:")) {
 			metadata.url = trimmed.substring(2).trim();
 		} else if (trimmed.startsWith("D:")) {

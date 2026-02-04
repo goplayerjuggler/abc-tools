@@ -1,7 +1,7 @@
 const {
 	getContour,
 	compare,
-	sortArray,
+	sort,
 	decodeChar,
 	getContourFromFullAbc,
 } = require("../../src/index.js");
@@ -239,7 +239,7 @@ G2B AGA B2d gdB`;
 				{ name: "Tune 3", abc: "X:1\nL:1/8\nK:C\nCDE" },
 			];
 
-			sortArray(tunes);
+			sort(tunes);
 
 			expect(tunes[0].name).toBe("Tune 2");
 			expect(tunes[1].name).toBe("Tune 3");
@@ -283,7 +283,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 
 		test("compares two tunes correctly (original order)", () => {
 			const tunes = [theFlogging, theColliers];
-			sortArray(tunes);
+			sort(tunes);
 
 			expect(tunes[0].name).toBe("The Flogging");
 			expect(tunes[1].name).toBe("The Colliers");
@@ -291,7 +291,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 
 		test("compares two tunes correctly (reversed order)", () => {
 			const tunes = [theColliers, theFlogging];
-			sortArray(tunes);
+			sort(tunes);
 
 			expect(tunes[0].name).toBe("The Flogging");
 			expect(tunes[1].name).toBe("The Colliers");
@@ -299,7 +299,7 @@ FD(3EFG A2AB cAdB cAG2 |`,
 
 		test("compares three tunes with triplet variation", () => {
 			const tunes = [theColliers2, theColliers, theFlogging];
-			sortArray(tunes);
+			sort(tunes);
 
 			expect(tunes[0].name).toBe("The Flogging");
 			expect(tunes[1].name).toBe("The Colliers (triplet)");

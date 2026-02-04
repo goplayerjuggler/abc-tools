@@ -425,11 +425,12 @@ function doubleBarLength(abc, comment = null) {
 	if (!Array.isArray(meter) || !meter) {
 		throw new Error("invalid meter");
 	}
-	const newMeter = [meter[0], meter[1]];
-	if ([16, 8, 4, 2].indexOf(meter[1]) >= 0) newMeter[1] /= 2;
-	else {
-		newMeter[0] *= 2;
-	}
+	// const newMeter = [meter[0], meter[1]];
+	// if ([16, 8, 4, 2].indexOf(meter[1]) >= 0) newMeter[1] /= 2;
+	// else {
+	// 	newMeter[0] *= 2;
+	// }
+	const newMeter = [meter[0] * 2, meter[1]];
 
 	let result = //toggleMeter_4_4_to_4_2(reel, meter);
 		toggleMeterDoubling(abc, meter, newMeter, meter);

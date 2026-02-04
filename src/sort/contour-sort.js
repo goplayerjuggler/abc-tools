@@ -1,3 +1,4 @@
+const { getIncipitForContourGeneration } = require("../incipit.js");
 const { Fraction } = require("../math.js");
 
 const { decodeChar, encodeToChar, silenceChar } = require("./encode.js");
@@ -161,10 +162,105 @@ function compare(objA, objB) {
 	return posA >= keyA.length ? -1 : 1;
 }
 
+function canBeCompared(tune1, tune2) {
+	if (!tune1.contour || !tune2.contour) return false;
+
+	// but not hop jigs with different meters
+	if (
+		tune1.rhythm?.indexOf("hop jig") >= 0 &&
+		tune2.rhythm?.indexOf("hop jig") >= 0 &&
+		tune1.meter !== tune2.meter
+	)
+		return false;
+
+	return true;
+}
+
+function getAbcForContour_default(tune) {
+	return getIncipitForContourGeneration(
+		tune.incipit
+			? tune.incipit
+			: Array.isArray(tune.abc)
+			? tune.abc[0]
+			: tune.abc
+	);
+}
+
 /**
  * Sort an array of objects containing ABC notation
+ * - based on a contour property
+ * - when the contour is missing, attempts to generate it
+ * - adds info to each object like the contour, the type of rhythm
+ * @param {Array<Object>} arr - array of tune objects to sort
+ * @param {Object} [options] - options for the sorting
+ * @param {function(Object):string} [options.getAbc] - function returning an abc fragment to be used to calculate the contour.
  */
-function sortArray(arr) {
+function sort(arr, options = {}) {
+	const {
+		comparable = [
+			["jig", "slide", "single jig", "double jig"],
+			["reel", "single reel", "reel (single)", "strathspey", "double reel"],
+			["hornpipe", "barndance", "fling"],
+		],
+		applySwingTransform = ["hornpipe", "barndance", "fling", "mazurka"],
+		getAbc: getAbcForContour = getAbcForContour_default,
+		getContourOptions = {
+			withSvg: true,
+		},
+	} = options;
+
+	const comparableMap = {};
+	//set up comparableMap s.t. all entries in each list of index i go under i_<first entry of i>
+	//that way we show the jigs with similar rhythms followed by reels etc.
+	for (let i = 0; i < comparable.length; i++) {
+		const list = comparable[i];
+		//map subsequent entries to the first entry
+		for (let j = 0; j < list.length; j++) {
+			comparableMap[list[j]] = `${i}_${list[0]}`;
+		}
+	}
+
+	for (const tune of arr) {
+		if (!tune.contour) {
+			try {
+				const withSwingTransform =
+					applySwingTransform.indexOf(tune.rhythm) >= 0;
+				const shortAbc = getAbcForContour(tune);
+
+				if (shortAbc) {
+					getContourOptions.withSwingTransform = withSwingTransform;
+					tune.contour = getContour(shortAbc, getContourOptions);
+				}
+			} catch (error) {
+				console.log(error);
+			}
+		}
+		if (!tune.baseRhythm)
+			tune.baseRhythm = comparableMap[tune.rhythm] ?? tune.rhythm;
+	}
+	arr.sort((a, b) => {
+		const comparison =
+			a.baseRhythm !== b.baseRhythm
+				? a.baseRhythm < b.baseRhythm
+					? -1
+					: 1
+				: canBeCompared(a, b)
+				? compare(a.contour, b.contour)
+				: a.contour && !b.contour
+				? -1
+				: b.contour && !a.contour
+				? 1
+				: a.name !== b.name
+				? a.name < b.name
+					? -1
+					: 1
+				: 0;
+		return comparison;
+	});
+	arr.forEach((t) => delete t.baseRhythm);
+}
+
+function simpleSort(arr) {
 	for (const item of arr) {
 		if (!item.contour && item.abc) {
 			try {
@@ -198,6 +294,7 @@ function sortArray(arr) {
 
 module.exports = {
 	compare,
-	sortArray,
+	sort,
+	simpleSort,
 	decodeChar,
 };
