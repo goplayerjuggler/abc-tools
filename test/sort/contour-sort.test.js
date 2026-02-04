@@ -52,7 +52,7 @@ G2B|`;
 
 			const decodedHeld = Array.from(objHeld.sortKey).map((c) => decodeChar(c));
 			const decodedRep = Array.from(objRepeated.sortKey).map((c) =>
-				decodeChar(c)
+				decodeChar(c),
 			);
 
 			expect(decodedHeld[1].isHeld).toBe(true);
@@ -194,7 +194,7 @@ FDE/F/G A2AB cAdB cAG2 | A`,
 			const objOctaves = getContour(abcOctaves);
 
 			const decodedOct = Array.from(objOctaves.sortKey).map((c) =>
-				decodeChar(c)
+				decodeChar(c),
 			);
 
 			expect(decodedOct[0].position).toBeLessThan(decodedOct[1].position);
@@ -234,9 +234,9 @@ G2B AGA B2d gdB`;
 	describe("Array comparing", () => {
 		test("compares array correctly", () => {
 			const tunes = [
-				{ name: "Tune 1", abc: "X:1\nL:1/8\nK:C\nccc" },
-				{ name: "Tune 2", abc: "X:1\nL:1/8\nK:C\nCCC" },
-				{ name: "Tune 3", abc: "X:1\nL:1/8\nK:C\nCDE" },
+				{ name: "Tune 1", abc: "X:1\nL:1/8\nM:3/8\nK:C\nccc|" },
+				{ name: "Tune 2", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCCC|" },
+				{ name: "Tune 3", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCDE|" },
 			];
 
 			sort(tunes);
@@ -330,7 +330,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			const objSilence = getContour(abcSilence);
 
 			const decodedSilence = Array.from(objSilence.sortKey).map((c) =>
-				decodeChar(c)
+				decodeChar(c),
 			);
 
 			expect(decodedSilence[1].isSilence).toBe(true);
@@ -353,7 +353,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			const objLongSilence = getContour(abcLongSilence);
 
 			const decodedLongSilence = Array.from(objLongSilence.sortKey).map((c) =>
-				decodeChar(c)
+				decodeChar(c),
 			);
 
 			expect(decodedLongSilence.length).toBe(3);
