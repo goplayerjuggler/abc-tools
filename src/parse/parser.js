@@ -4,19 +4,19 @@ const {
 	getMeter,
 	getKey,
 	getUnitLength,
-	getMusicLines,
+	getMusicLines
 } = require("./header-parser.js");
 const {
 	parseNote,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
-	parseGraceNotes,
+	parseGraceNotes
 } = require("./note-parser.js");
 const { parseBarLine } = require("./barline-parser.js");
 const {
 	getTokenRegex,
 	parseInlineField,
-	repeat_1Or2,
+	repeat_1Or2
 } = require("./token-utils.js");
 const { analyzeSpacing, parseTuplet } = require("./misc-parser.js");
 
@@ -338,7 +338,7 @@ function parseAbc(abc, options = {}) {
 		lineMetadata,
 		headerLines,
 		headerEndIndex,
-		newlinePositions,
+		newlinePositions
 	} = getMusicLines(abc);
 
 	// Create a Set of newline positions for O(1) lookup
@@ -413,8 +413,8 @@ function parseAbc(abc, options = {}) {
 											whitespace: "",
 											backquotes: 0,
 											beamBreak: false,
-											lineBreak: false,
-									  },
+											lineBreak: false
+										}
 						});
 					});
 					// Grace notes don’t update previousRealNote
@@ -432,7 +432,7 @@ function parseAbc(abc, options = {}) {
 					token: fullToken,
 					sourceIndex: tokenStartPos,
 					sourceLength: fullToken.length,
-					spacing,
+					spacing
 				};
 				currentBar.push(inlineFieldObj);
 
@@ -482,7 +482,7 @@ function parseAbc(abc, options = {}) {
 
 							// Add the broken rhythm marker to the bar
 							currentBar.push({
-								...brokenRhythm,
+								...brokenRhythm
 							});
 
 							// Add the next note to the bar
@@ -491,7 +491,7 @@ function parseAbc(abc, options = {}) {
 								token: nextToken,
 								sourceIndex: nextTokenStartPos,
 								sourceLength: nextToken.length,
-								spacing: nextSpacing,
+								spacing: nextSpacing
 							};
 							currentBar.push(nextNoteObj);
 							previousRealNote = null; //can’t have successive broken rhythms
@@ -518,7 +518,7 @@ function parseAbc(abc, options = {}) {
 						...tuple,
 						token: fullToken,
 						sourceIndex: tokenStartPos,
-						sourceLength: fullToken.length,
+						sourceLength: fullToken.length
 					});
 					previousRealNote = null; // Tuplet markers break note sequences
 					continue;
@@ -533,7 +533,7 @@ function parseAbc(abc, options = {}) {
 					token: fullToken,
 					sourceIndex: tokenStartPos,
 					sourceLength: fullToken.length,
-					spacing,
+					spacing
 				});
 				// Chord symbols don’t break note sequences
 				continue;
@@ -547,7 +547,7 @@ function parseAbc(abc, options = {}) {
 					token: fullToken,
 					sourceIndex: tokenStartPos,
 					sourceLength: fullToken.length,
-					spacing,
+					spacing
 				});
 				// Decorations don’t break note sequences
 				continue;
@@ -562,7 +562,7 @@ function parseAbc(abc, options = {}) {
 						token: fullToken,
 						sourceIndex: tokenStartPos,
 						sourceLength: fullToken.length,
-						spacing,
+						spacing
 					};
 					currentBar.push(noteObj);
 					// Only track as previous note if it has non-zero duration (for broken rhythms)
@@ -581,7 +581,7 @@ function parseAbc(abc, options = {}) {
 					token: fullToken,
 					sourceIndex: tokenStartPos,
 					sourceLength: fullToken.length,
-					spacing,
+					spacing
 				};
 				firstOrSecondRepeat = !!fullToken.match(new RegExp(repeat_1Or2));
 				if (firstOrSecondRepeat) {
@@ -606,8 +606,8 @@ function parseAbc(abc, options = {}) {
 							? { barLineText: musicText, barLinePos: musicText.length }
 							: {
 									barLineText: fullToken,
-									barLinePos: tokenStartPos,
-							  };
+									barLinePos: tokenStartPos
+								};
 
 					//if (lastBarPos > 0) lastBarPos--; //the last character in a barline expression may be needed to match variant endings - eg `|1`
 
@@ -625,7 +625,7 @@ function parseAbc(abc, options = {}) {
 						sourceIndex: barLinePos,
 						sourceLength: barLineText.length,
 						//barNumber: barCount,
-						hasLineBreak: hasLineBreakAfterBar,
+						hasLineBreak: hasLineBreakAfterBar
 					});
 
 					// Update the last token in current bar to mark lineBreak if bar line has one
@@ -681,7 +681,7 @@ function parseAbc(abc, options = {}) {
 			lineMetadata,
 			headerLines,
 			headerEndIndex,
-			musicText,
+			musicText
 		};
 	}
 }
@@ -768,5 +768,5 @@ module.exports = {
 	getUnitLength,
 	getMusicLines,
 	analyzeSpacing,
-	parseBarLine,
+	parseBarLine
 };

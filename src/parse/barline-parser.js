@@ -40,7 +40,7 @@ function parseBarLine(barLineStr) {
 	const trimmed = barLineStr.trim();
 	const result = {
 		text: barLineStr,
-		trimmed,
+		trimmed
 	};
 	// Start repeat
 	if (trimmed.match(/:$/)) {
@@ -60,5 +60,5 @@ function parseBarLine(barLineStr) {
 }
 
 module.exports = {
-	parseBarLine,
+	parseBarLine
 };

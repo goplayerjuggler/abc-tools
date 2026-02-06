@@ -6,7 +6,7 @@ const {
 	getIncipit,
 	normaliseKey,
 	getIncipitForContourGeneration,
-	convertStandardReel,
+	convertStandardReel
 } = require("../src/index.js");
 
 const tarbuka = `X: 8
@@ -199,7 +199,7 @@ K:D`);
 		test("extracts first bar from complex tune, including anacrucis", () => {
 			const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, true);
 			expect(result).toContain(
-				"K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB",
+				"K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB"
 			);
 			expect(result).not.toContain("AGFG");
 		});
@@ -420,7 +420,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
 			const resultFrac = getFirstBars(
 				tuneWithAnacrusis,
 				new Fraction(2, 1),
-				false,
+				false
 			);
 
 			expect(resultFrac).toBe(resultInt);
@@ -502,33 +502,33 @@ describe("hasAnacrucis detection", () => {
 			{
 				meter: "4/4",
 				abc: "X:1\nM:4/4\nL:1/8\nK:D\nFA | d2 cB A2 FA |",
-				expected: true,
+				expected: true
 			},
 			{
 				meter: "4/4",
 				abc: "X:1\nM:4/4\nL:1/8\nK:D\nD2 FA dA FD | G2 Bc d2 cB |",
-				expected: false,
+				expected: false
 			},
 			{
 				meter: "6/8",
 				abc: "X:1\nM:6/8\nL:1/8\nK:D\nFA | DFA dAF |",
-				expected: true,
+				expected: true
 			},
 			{
 				meter: "6/8",
 				abc: "X:1\nM:6/8\nL:1/8\nK:D\nDFA dAF | GBd gdB |",
-				expected: false,
+				expected: false
 			},
 			{
 				meter: "4/2",
 				abc: "X:1\nM:4/2\nL:1/8\nK:D\nFA | d2 cB A2 FA d2 f2 e2 d2 |",
-				expected: true,
+				expected: true
 			},
 			{
 				meter: "12/8",
 				abc: "X:1\nM:12/8\nL:1/8\nK:D\nDFA dAF GBd gdB |",
-				expected: false,
-			},
+				expected: false
+			}
 		];
 
 		cases.forEach(({ abc, expected }) => {
@@ -855,7 +855,7 @@ K:C
 "Am"A2 a4 gf|e4 c4|"G"B2 g4 fe|"(Em)"d2 ed "G"edcB|\
 "Am"A2 a4 gf|e4 c4|`,
 			1,
-			true,
+			true
 		);
 
 		expect(result).toContain(`A2`);
@@ -873,7 +873,7 @@ K:D
 "A"cAAB cABG|"G"(EG)DG (EG)DB|
 `,
 			1,
-			true,
+			true
 		);
 
 		expect(result).toContain(`(ed)|cAAB cABG`);
@@ -887,7 +887,7 @@ L:1/4
 K:D
 D{E}D|A{B}A|B/c/d/B/|A2|]`,
 			2,
-			true,
+			true
 		);
 
 		expect(result).toContain(`D{E}D|A{B}A`);
@@ -903,7 +903,7 @@ K:G
 BG~G2 BGcG|BG~G2 Bdgd|BG~G2 BdcB|1 ADFG ABcA:|2 AGFG ABcA||
 ~g3d BGBd
 `,
-			1,
+			1
 		);
 		expect(result).toContain("K:G");
 	});

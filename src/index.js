@@ -34,8 +34,7 @@ module.exports = {
 	...contourToSvg,
 	...getContour,
 
-
 	// other
 	javascriptify,
-	...math,
+	...math
 };

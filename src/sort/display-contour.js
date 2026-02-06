@@ -63,5 +63,5 @@ function sortKeyToString(sortKey, showHeld = false) {
 
 module.exports = {
 	positionToString,
-	sortKeyToString,
+	sortKeyToString
 };

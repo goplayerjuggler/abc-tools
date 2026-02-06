@@ -105,6 +105,6 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		// lcm,
 		// gcd,
-		Fraction,
+		Fraction
 	};
 }

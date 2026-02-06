@@ -278,7 +278,7 @@ function sanitise(theTune) {
 function getIncipit(data) {
 	let {
 		abc,
-		numBars, //, part=null
+		numBars //, part=null
 	} = typeof data === "string" ? { abc: data } : data;
 
 	const { withAnacrucis = true } =
@@ -313,7 +313,7 @@ function getIncipitForContourGeneration(
 	return getIncipit({
 		abc,
 		withAnacrucis: false,
-		numBars,
+		numBars
 	});
 }
 
@@ -322,7 +322,7 @@ function getContourFromFullAbc(
 	{
 		withSvg = true,
 		withSwingTransform = false,
-		numBars = new Fraction(3, 2),
+		numBars = new Fraction(3, 2)
 	} = {}
 ) {
 	if (Array.isArray(abc)) {
@@ -331,12 +331,12 @@ function getContourFromFullAbc(
 	}
 	return getContour(getIncipitForContourGeneration(abc, { numBars }), {
 		withSvg,
-		withSwingTransform,
+		withSwingTransform
 	});
 }
 
 module.exports = {
 	getIncipit,
 	getIncipitForContourGeneration,
-	getContourFromFullAbc,
+	getContourFromFullAbc
 };

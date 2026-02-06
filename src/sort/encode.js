@@ -56,5 +56,5 @@ module.exports = {
 	calculateModalPosition,
 	encodeToChar,
 	decodeChar,
-	silenceChar,
+	silenceChar
 };

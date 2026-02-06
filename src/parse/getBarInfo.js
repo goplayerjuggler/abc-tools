@@ -21,7 +21,7 @@ function processSkippedBarLines(barLines, skippedBarLineIndexes) {
 		// Copy any properties from the preceding barLine not already in the skipped barLine
 		barLines[skippedIndex] = {
 			...barLines[skippedIndex - 1],
-			...barLines[skippedIndex],
+			...barLines[skippedIndex]
 		};
 	}
 }
@@ -101,7 +101,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 		isPartial = true,
 		cumulativeDuration = true,
 		divideBarsBy = null,
-		stopAfterBarNumber = null,
+		stopAfterBarNumber = null
 	} = options;
 
 	if (divideBarsBy !== null && divideBarsBy !== 2) {
@@ -205,7 +205,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 						durationSinceLastComplete: durationBeforeVariant.clone(),
 						lastCompleteBarLineIdx: lastCompleteBarLineIdx,
 						meter: [...currentMeter],
-						fullBarDuration: fullBarDuration.clone(),
+						fullBarDuration: fullBarDuration.clone()
 					};
 					variantCounter = 0;
 					currentVariantId = variantCounter;
@@ -287,7 +287,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 					processSkippedBarLines(barLines, skippedBarLineIndexes);
 					return {
 						barLines: barLines.slice(0, barLineIdx + 1),
-						midpoints,
+						midpoints
 					};
 				}
 			}
@@ -313,7 +313,7 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 			if (cumulativeDuration) {
 				barLine.cumulativeDuration = {
 					sinceLastBarLine: barDuration.clone(),
-					sinceLastComplete: durationSinceLastComplete.clone(),
+					sinceLastComplete: durationSinceLastComplete.clone()
 				};
 			}
 
@@ -425,10 +425,10 @@ function getBarInfo(bars, barLines, meter, options = {}) {
 	processSkippedBarLines(barLines, skippedBarLineIndexes);
 	return {
 		barLines,
-		midpoints,
+		midpoints
 	};
 }
 
 module.exports = {
-	getBarInfo,
+	getBarInfo
 };

@@ -1,7 +1,7 @@
 const {
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8,
-	convertStandardReel,
+	convertStandardReel
 } = require("../src/index.js");
 const { tarbuka } = require("./manipulator.test.js");
 

@@ -84,7 +84,7 @@ const // captures not only |1 |2, but also :|1 :||1 :|2 :||2
 		 *
 		 * Strategy: Match `[` only when NOT followed by inline field or digit; match `|` and `]` freely
 		 */
-		barLine: String.raw`:*\.*(?:[|\]]|\[(?![KLMP]:|[0-9]))*(?:\||::+)(?:[|\]:]|\[(?![KLMP]:|[0-9]))* *`,
+		barLine: String.raw`:*\.*(?:[|\]]|\[(?![KLMP]:|[0-9]))*(?:\||::+)(?:[|\]:]|\[(?![KLMP]:|[0-9]))* *`
 	};
 
 /**
@@ -133,7 +133,7 @@ const getTokenRegex = (options = {}) => {
 		s.broken,
 		s.variantEnding,
 		s.repeat_1Or2,
-		s.barLine,
+		s.barLine
 	].join("|");
 
 	return new RegExp(fullPattern, "g");
@@ -157,7 +157,7 @@ function parseInlineField(token) {
 	if (fieldMatch) {
 		return {
 			field: fieldMatch[1],
-			value: fieldMatch[2].trim(),
+			value: fieldMatch[2].trim()
 		};
 	}
 	return null;
@@ -165,5 +165,5 @@ function parseInlineField(token) {
 module.exports = {
 	repeat_1Or2,
 	getTokenRegex,
-	parseInlineField,
+	parseInlineField
 };

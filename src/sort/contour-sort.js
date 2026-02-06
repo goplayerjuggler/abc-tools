@@ -181,8 +181,8 @@ function getAbcForContour_default(tune) {
 		tune.incipit
 			? tune.incipit
 			: Array.isArray(tune.abc)
-			? tune.abc[0]
-			: tune.abc
+				? tune.abc[0]
+				: tune.abc
 	);
 }
 
@@ -200,13 +200,13 @@ function sort(arr, options = {}) {
 		comparable = [
 			["jig", "slide", "single jig", "double jig"],
 			["reel", "single reel", "reel (single)", "strathspey", "double reel"],
-			["hornpipe", "barndance", "fling"],
+			["hornpipe", "barndance", "fling"]
 		],
 		applySwingTransform = ["hornpipe", "barndance", "fling", "mazurka"],
 		getAbc: getAbcForContour = getAbcForContour_default,
 		getContourOptions = {
-			withSvg: true,
-		},
+			withSvg: true
+		}
 	} = options;
 
 	const comparableMap = {};
@@ -245,16 +245,16 @@ function sort(arr, options = {}) {
 					? -1
 					: 1
 				: canBeCompared(a, b)
-				? compare(a.contour, b.contour)
-				: a.contour && !b.contour
-				? -1
-				: b.contour && !a.contour
-				? 1
-				: a.name !== b.name
-				? a.name < b.name
-					? -1
-					: 1
-				: 0;
+					? compare(a.contour, b.contour)
+					: a.contour && !b.contour
+						? -1
+						: b.contour && !a.contour
+							? 1
+							: a.name !== b.name
+								? a.name < b.name
+									? -1
+									: 1
+								: 0;
 		return comparison;
 	});
 	arr.forEach((t) => delete t.baseRhythm);
@@ -296,5 +296,5 @@ module.exports = {
 	compare,
 	sort,
 	simpleSort,
-	decodeChar,
+	decodeChar
 };

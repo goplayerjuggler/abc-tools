@@ -21,7 +21,7 @@ function analyzeSpacing(segment, tokenEndPos) {
 			whitespace: "",
 			backquotes: 0,
 			beamBreak: false,
-			lineBreak: false,
+			lineBreak: false
 		};
 	}
 
@@ -35,7 +35,7 @@ function analyzeSpacing(segment, tokenEndPos) {
 			whitespace: "",
 			backquotes: 0,
 			beamBreak: false,
-			lineBreak: false,
+			lineBreak: false
 		};
 	}
 
@@ -51,7 +51,7 @@ function analyzeSpacing(segment, tokenEndPos) {
 		whitespace,
 		backquotes,
 		beamBreak: whitespace.length > 1 || whitespace.includes("\n"), // Multiple spaces or newline breaks beam
-		lineBreak: whitespace.includes("\n"),
+		lineBreak: whitespace.includes("\n")
 	};
 }
 
@@ -68,7 +68,7 @@ function parseTuplet(token, isCompoundTimeSignature) {
 		const pqr = {
 			p: parseInt(tupleMatch[1]),
 			q: tupleMatch[2],
-			r: tupleMatch[3],
+			r: tupleMatch[3]
 		};
 		const { p } = pqr;
 		let { q, r } = pqr;
@@ -107,12 +107,12 @@ function parseTuplet(token, isCompoundTimeSignature) {
 			isTuple: true,
 			p,
 			q,
-			r,
+			r
 		};
 	}
 	return null;
 }
 module.exports = {
 	analyzeSpacing,
-	parseTuplet,
+	parseTuplet
 };

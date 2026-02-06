@@ -61,7 +61,7 @@ const contourToSvg_defaultConfig = {
 	yAxisWidth: 0.5,
 	yAxisTickLength: 4,
 	yAxisTonicTickLength: 6,
-	yAxisTickWidth: 0.5,
+	yAxisTickWidth: 0.5
 };
 
 /**
@@ -150,7 +150,7 @@ function contourToSvg(contour, svgConfig = {}) {
 			width: segmentWidth,
 			position: decoded.position,
 			isHeld: decoded.isHeld,
-			isSilence: decoded.isSilence,
+			isSilence: decoded.isSilence
 		});
 
 		xPosition += segmentWidth;
@@ -332,5 +332,5 @@ function contourToSvg(contour, svgConfig = {}) {
 
 module.exports = {
 	contourToSvg,
-	contourToSvg_defaultConfig,
+	contourToSvg_defaultConfig
 };

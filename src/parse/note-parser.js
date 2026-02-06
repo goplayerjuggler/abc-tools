@@ -38,7 +38,7 @@ function parseDecorations(noteStr) {
 		T: "trill",
 		H: "fermata",
 		u: "upbow",
-		v: "downbow",
+		v: "downbow"
 	};
 
 	for (const [symbol, name] of Object.entries(symbolDecorations)) {
@@ -82,7 +82,7 @@ function parseAnnotation(noteStr) {
 	if (annotationMatch) {
 		return {
 			position: annotationMatch[1],
-			text: annotationMatch[2],
+			text: annotationMatch[2]
 		};
 	}
 	return null;
@@ -190,7 +190,7 @@ function parseChord(chordStr, unitLength) {
 	}
 	return {
 		isChord: true,
-		notes,
+		notes
 	};
 }
 
@@ -256,7 +256,7 @@ function parseGraceNotes(graceStr) {
 					isGraceNote: true,
 					duration: new Fraction(0, 1),
 					isChord: true,
-					chordNotes: chord.notes,
+					chordNotes: chord.notes
 				});
 			}
 		} else {
@@ -266,7 +266,7 @@ function parseGraceNotes(graceStr) {
 				graceNotes.push({
 					...pitchData,
 					isGraceNote: true,
-					duration: new Fraction(0, 1),
+					duration: new Fraction(0, 1)
 				});
 			}
 		}
@@ -298,7 +298,7 @@ function parseBrokenRhythm(token) {
 		return {
 			isBrokenRhythm: true,
 			direction: symbol[0],
-			dots: symbol.length,
+			dots: symbol.length
 		};
 	}
 	return null;
@@ -375,7 +375,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
 	if (cleanStr.match(/^y$/)) {
 		return {
 			isDummy: true,
-			duration: new Fraction(0, 1, decorations, annotation),
+			duration: new Fraction(0, 1, decorations, annotation)
 		};
 	}
 
@@ -385,7 +385,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
 		const duration = getDuration({
 			unitLength,
 			noteString: cleanStr,
-			currentTuple,
+			currentTuple
 		});
 		const result = { isSilence: true, duration, text: silenceMatch[0] };
 		if (decorations) {
@@ -427,7 +427,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
 			const duration = getDuration({
 				unitLength,
 				noteString: cleanStr,
-				currentTuple,
+				currentTuple
 			});
 			topNote.duration = duration;
 			// Apply duration to all notes in chord
@@ -442,7 +442,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
 				chordSymbol: chordSymbol || chord.chordSymbol,
 				decorations: decorations || chord.decorations,
 				isChord: true,
-				tied,
+				tied
 			};
 		}
 	}
@@ -453,7 +453,7 @@ function parseNote(noteStr, unitLength, currentTuple) {
 	const duration = getDuration({
 		unitLength,
 		noteString: cleanStr,
-		currentTuple,
+		currentTuple
 	});
 
 	const result = { pitch, octave, duration, tied };
@@ -480,5 +480,5 @@ module.exports = {
 	parseNote,
 	parseBrokenRhythm,
 	applyBrokenRhythm,
-	parseGraceNotes,
+	parseGraceNotes
 };

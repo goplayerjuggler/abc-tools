@@ -3,14 +3,14 @@ const { Fraction } = require("../math.js");
 const {
 	calculateModalPosition,
 	encodeToChar,
-	silenceChar,
+	silenceChar
 } = require("./encode.js");
 
 const {
 	getTonalBase,
 	getUnitLength,
 	parseAbc,
-	getMeter,
+	getMeter
 } = require("../parse/parser.js");
 
 const { contourToSvg } = require("./contour-svg.js");
@@ -32,7 +32,7 @@ function getContour(
 		withSwingTransform = false,
 		maxNbBars = new Fraction(3, 2),
 		maxNbUnitLengths = 12,
-		svgConfig = {},
+		svgConfig = {}
 	} = {}
 ) {
 	const tonalBase = getTonalBase(abc);
@@ -52,10 +52,10 @@ function getContour(
 	const maxDuration = maxNbBars.multiply(meterFraction);
 
 	const {
-		bars,
+		bars
 	} = //todo: could add as an argument; default null
 		parseAbc(abc, {
-			maxBars: Math.ceil(maxNbBars.toNumber()),
+			maxBars: Math.ceil(maxNbBars.toNumber())
 		});
 
 	let cumulatedDuration = new Fraction(0, 1);
@@ -141,7 +141,7 @@ function getContour(
 	});
 
 	const result = {
-		sortKey: sortKey.join(""),
+		sortKey: sortKey.join("")
 		//debugPositions: debugPositions.join(","),
 	};
 	if (durations.length > 0) {
@@ -304,7 +304,7 @@ function pushShortNote(
 	const relativeDuration = duration.divide(unitLength),
 		d = {
 			i: index,
-			d: relativeDuration.den,
+			d: relativeDuration.den
 		};
 	if (relativeDuration.num !== 1) {
 		d.n = relativeDuration.num;
@@ -324,10 +324,10 @@ function getEncodedFromNote(note, tonalBase, tied, previousPosition) {
 	return {
 		encoded: tied && position === previousPosition ? encodedHeld : encoded,
 		encodedHeld,
-		position,
+		position
 	};
 }
 
 module.exports = {
-	getContour,
+	getContour
 };

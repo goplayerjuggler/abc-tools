@@ -12,8 +12,12 @@ function javascriptify(value, indent = 0) {
 	const nextIndentStr = "  ".repeat(indent + 1);
 
 	// Handle null and undefined
-	if (value === null) {return "null";}
-	if (value === undefined) {return "undefined";}
+	if (value === null) {
+		return "null";
+	}
+	if (value === undefined) {
+		return "undefined";
+	}
 
 	// Handle primitives
 	if (typeof value === "number") {
@@ -39,7 +43,9 @@ function javascriptify(value, indent = 0) {
 
 	// Handle arrays
 	if (Array.isArray(value)) {
-		if (value.length === 0) {return "[]";}
+		if (value.length === 0) {
+			return "[]";
+		}
 
 		const items = value
 			.map((item) => nextIndentStr + javascriptify(item, indent + 1))
@@ -54,15 +60,23 @@ function javascriptify(value, indent = 0) {
 		const keys = Object.keys(value).filter((k) => {
 			const val = value[k];
 			// Omit all falsey values (including false, but keep 0)
-			if (val === 0) {return true;}
+			if (val === 0) {
+				return true;
+			}
 			//if (val === null || val === undefined || val === "") return false;
-			if (!val) {return false;}
+			if (!val) {
+				return false;
+			}
 			// Omit empty arrays
-			if (Array.isArray(val) && val.length === 0) {return false;}
+			if (Array.isArray(val) && val.length === 0) {
+				return false;
+			}
 			return true;
 		});
 
-		if (keys.length === 0) {return "{}";}
+		if (keys.length === 0) {
+			return "{}";
+		}
 
 		const properties = keys
 			.map((key) => {

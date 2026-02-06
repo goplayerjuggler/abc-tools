@@ -138,7 +138,7 @@ function getMusicLines(abc) {
 				originalLine: line,
 				content: trimmed,
 				comment,
-				hasContinuation,
+				hasContinuation
 			});
 
 			// Track position where newline would be (unless continuation)
@@ -155,7 +155,7 @@ function getMusicLines(abc) {
 		lineMetadata,
 		newlinePositions,
 		headerLines,
-		headerEndIndex,
+		headerEndIndex
 	};
 }
 
@@ -165,5 +165,5 @@ module.exports = {
 	getUnitLength,
 	getMusicLines,
 	getTitles,
-	getKey,
+	getKey
 };
