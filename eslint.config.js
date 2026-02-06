@@ -32,7 +32,7 @@ module.exports = [
 			"no-with": "error",
 			"prefer-const": "error",
 			// "prefer-template": "error",
-			// "comma-dangle": ["error", "never"],
+			"comma-dangle": ["error", "never"],
 			// "indent": ["error", 2],
 			// "quotes": ["error", "single", { avoidEscape: true }],
 			// "semi": ["error", "always"],

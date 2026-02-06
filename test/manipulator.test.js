@@ -6,8 +6,22 @@ const {
 	getIncipit,
 	normaliseKey,
 	getIncipitForContourGeneration,
+	convertStandardReel,
 } = require("../src/index.js");
 
+const tarbuka = `X: 8
+T: Tommy’s Tarbukas
+C: Alasdair Fraser
+R: reel
+M: 4/4
+N: Setting from thesession (*) adapted 13 & 14 May 2025%250514
+N: (*) https://thesession.org/tunes/140#setting46226
+L: 1/8
+K: B minor
+de|:"Bm"f2 ef dBBd|"A"cAeA fAeA|"Bm"f2 ef dBBd|"A"cAec "Bm"dBde|
+"Bm"f2 ef dBBd|"A"cAeA fAeA|"Bm"f2 df "A"cAAc|1 "Bm"Bbfe dBde:|2 "Bm"Bbfe dBBA||
+|:"Bm"FBdB "G"GBed|"A"ceag "D"fdA(F|"Bm"F)BdB "G"GBed|"A"caec "Bm"dBBA|
+"Bm"FBdB "G"GBed|"A"ceag "D"fdAF|"Bm"afdg "A"ecAG|1 "Bm"FB^Ac dBB=A:|2 "Bm"FB^Ac dBde||`;
 // ============================================================================
 // ABC MANIPULATION TESTS
 // Based on manipulation.js - comprehensive tests for ABC manipulations
@@ -185,7 +199,7 @@ K:D`);
 		test("extracts first bar from complex tune, including anacrucis", () => {
 			const result = getFirstBars(cotillon_aComplexMultiFeaturedTune, 1, true);
 			expect(result).toContain(
-				"K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB"
+				"K: Gmaj\nG3A[P:A] |:!segno! B2[BE][BE] EBGB dedB cdcB",
 			);
 			expect(result).not.toContain("AGFG");
 		});
@@ -406,7 +420,7 @@ E/F/ | DEF | EFG | FGA | GAB |]`;
 			const resultFrac = getFirstBars(
 				tuneWithAnacrusis,
 				new Fraction(2, 1),
-				false
+				false,
 			);
 
 			expect(resultFrac).toBe(resultInt);
@@ -841,7 +855,7 @@ K:C
 "Am"A2 a4 gf|e4 c4|"G"B2 g4 fe|"(Em)"d2 ed "G"edcB|\
 "Am"A2 a4 gf|e4 c4|`,
 			1,
-			true
+			true,
 		);
 
 		expect(result).toContain(`A2`);
@@ -859,7 +873,7 @@ K:D
 "A"cAAB cABG|"G"(EG)DG (EG)DB|
 `,
 			1,
-			true
+			true,
 		);
 
 		expect(result).toContain(`(ed)|cAAB cABG`);
@@ -873,7 +887,7 @@ L:1/4
 K:D
 D{E}D|A{B}A|B/c/d/B/|A2|]`,
 			2,
-			true
+			true,
 		);
 
 		expect(result).toContain(`D{E}D|A{B}A`);
@@ -889,8 +903,18 @@ K:G
 BG~G2 BGcG|BG~G2 Bdgd|BG~G2 BdcB|1 ADFG ABcA:|2 AGFG ABcA||
 ~g3d BGBd
 `,
-			1
+			1,
 		);
 		expect(result).toContain("K:G");
 	});
 });
+
+describe("convertStandardReel", () => {
+	test("tommy's tarbukas", () => {
+		const r = convertStandardReel(tarbuka);
+		console.log(r);
+		expect(r.indexOf("L: 1/16") > 0).toBe(true);
+		// expect(r.indexOf("|1") < 0).toBe(true); //fails currently - moved to failing tests
+	});
+});
+module.exports = { tarbuka };

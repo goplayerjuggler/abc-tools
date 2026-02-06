@@ -56,7 +56,7 @@ function normaliseKey(keyHeader) {
 		lyd: "lydian",
 		lydian: "lydian",
 		loc: "locrian",
-		locrian: "locrian",
+		locrian: "locrian"
 	};
 	const mode = Object.keys(modeMap).find((m) => key.includes(m)) || "major";
 
@@ -104,7 +104,7 @@ function hasAnacrucisFromParsed(parsed, barLines) {
 		getBarInfo(bars, barLines, meter, {
 			barNumbers: true,
 			isPartial: true,
-			cumulativeDuration: false,
+			cumulativeDuration: false
 		});
 	}
 
@@ -198,7 +198,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 		// Get bar info to understand musical structure
 		getBarInfo(bars, barLines, meter, {
 			barNumbers: true,
-			isPartial: true,
+			isPartial: true
 		});
 
 		// Build a map of which bars start with variant endings
@@ -291,7 +291,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 					const variantToken = barStartsWithVariant.get(nextBarIdx);
 					barLinesToConvert.set(variantToken.sourceIndex, {
 						oldLength: variantToken.sourceLength,
-						oldText: variantToken.token,
+						oldText: variantToken.token
 					});
 				}
 				barLineDecisions.set(i, { action: "remove" });
@@ -355,7 +355,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 	} else {
 		// Going from large to small: add bar lines at midpoints
 		const barInfo = getBarInfo(bars, barLines, meter, {
-			divideBarsBy: 2,
+			divideBarsBy: 2
 		});
 
 		const { midpoints } = barInfo;
@@ -383,10 +383,11 @@ function toggleMeter_4_4_to_4_2(abc, currentMeter) {
 
 const defaultCommentForReelConversion =
 	"*abc-tools: convert reel to M:4/4 & L:1/16*";
+const defaultCommentForJigConversion = "*abc-tools: convert jig to M:12/8*";
 /**
- * Adjusts bar lengths and L field to convert a
- * reel written in the normal way (M:4/4 L:1/8) to the same reel
- * written with M:4/4 L:1/16.
+ * Adjusts bar lengths and L, M fields - a 
+ * reel written in the normal way (M:4/4 L:1/8) is written
+ * written with M:4/4 and L:1/16 (or M:4/2 and L:1/8, if withSemiquavers is unflagged)
  * Bars are twice as long, and the quick notes are semiquavers
  * rather than quavers.
  * @param {string} reel
@@ -416,6 +417,30 @@ function convertStandardReel(
 	}
 	if (withSemiquavers) {
 		result = result.replace("M:4/2", "M:4/4").replace("L:1/8", "L:1/16");
+	}
+	return result;
+}
+
+/**
+ * Adjusts bar lengths and M field to alter a
+ * jig written in the normal way (M:6/8) so it’s
+ * written with M:12/8.
+ * Bars are twice as long.
+ * @param {string} jig
+ * @param {string} comment - when non falsey, the comment will be injected as an N: header
+
+ * @returns
+ */
+function convertStandardJig(jig, comment = defaultCommentForJigConversion) {
+	const meter = getMeter(jig);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 6 || !meter[1] === 8) {
+		throw new Error("invalid meter");
+	}
+
+	let result = //toggleMeter_4_4_to_4_2(reel, meter);
+		toggleMeterDoubling(jig, [6, 8], [12, 8], meter);
+	if (comment) {
+		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
 	}
 	return result;
 }
@@ -528,7 +553,7 @@ function getFirstBars(
 		barNumbers: true,
 		isPartial: true,
 		cumulativeDuration: true,
-		stopAfterBarNumber,
+		stopAfterBarNumber
 	});
 
 	const enrichedBarLines = barInfo.barLines;
@@ -693,6 +718,7 @@ function getFirstBars(
 }
 
 module.exports = {
+	convertStandardJig,
 	convertStandardReel,
 	convertToStandardReel,
 	defaultCommentForReelConversion,
@@ -703,5 +729,5 @@ module.exports = {
 	normaliseKey,
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8,
-	toggleMeterDoubling,
+	toggleMeterDoubling
 };
