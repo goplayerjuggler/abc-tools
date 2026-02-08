@@ -77,7 +77,13 @@ function getUnitLength(abc) {
  * @returns {[string]} - array of titles
  */
 function getTitles(abc) {
-	return [...abc.matchAll(/^(?:T:\s*.(.+)\n)/gm)];
+	return [...abc.matchAll(/^(?:T:\s*(.+)\n)/gm)];
+}
+
+function getHeaderValue(abc, header) {
+	const r = new RegExp(String.raw`(?:${header}:\s*(.+)\n)`, "m"),
+		m = abc.match(r);
+	return m ? m[1]?.trim() : null;
 }
 
 /**
@@ -160,10 +166,11 @@ function getMusicLines(abc) {
 }
 
 module.exports = {
-	getTonalBase,
+	getHeaderValue,
+	getKey,
 	getMeter,
-	getUnitLength,
 	getMusicLines,
 	getTitles,
-	getKey
+	getTonalBase,
+	getUnitLength
 };

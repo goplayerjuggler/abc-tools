@@ -52,9 +52,15 @@ function decodeChar(char) {
 	return { position, isHeld, isSilence: false };
 }
 
+function shiftChar(char, nbOctaves) {
+	const { position, isHeld } = decodeChar(char);
+	return encodeToChar(position + nbOctaves * OCTAVE_SHIFT, isHeld);
+}
+
 module.exports = {
 	calculateModalPosition,
 	encodeToChar,
 	decodeChar,
+	shiftChar,
 	silenceChar
 };

@@ -3,7 +3,8 @@ const { Fraction } = require("../math.js");
 const {
 	calculateModalPosition,
 	encodeToChar,
-	silenceChar
+	silenceChar,
+	shiftChar
 } = require("./encode.js");
 
 const {
@@ -28,9 +29,10 @@ const { contourToSvg } = require("./contour-svg.js");
 function getContour(
 	abc,
 	{
+		contourShift = null,
 		withSvg = false,
 		withSwingTransform = false,
-		maxNbBars = new Fraction(3, 2),
+		maxNbBars = new Fraction(3, 1),
 		maxNbUnitLengths = 12,
 		svgConfig = {}
 	} = {}
@@ -65,6 +67,7 @@ function getContour(
 	let index = 0;
 	// get the parsed notes - notes are tokens with a duration
 	const notes = [];
+	let totalPosition = 0;
 	let tied = false,
 		previousPosition = null;
 	for (let i = 0; i < bars.length; i++) {
@@ -89,6 +92,10 @@ function getContour(
 		const { encoded, encodedHeld, position } = isSilence
 			? { encoded: silenceChar, encodedHeld: silenceChar, position: 0 }
 			: getEncodedFromNote(note, tonalBase, tied, previousPosition);
+
+		if (!isSilence) {
+			totalPosition += position;
+		}
 
 		if (note.tied) {
 			tied = true;
@@ -139,6 +146,25 @@ function getContour(
 			index++;
 		}
 	});
+
+	// next loops shift the base octave so as to mninimise the average absolute distance
+	if (contourShift !== 0) {
+		if (Number.isInteger(contourShift))
+			sortKey.forEach((c, i) => (sortKey[i] = shiftChar(c, contourShift)));
+		else {
+			let avg = totalPosition / notes.length;
+			if (avg > 0)
+				while (avg >= 7) {
+					sortKey.forEach((c, i) => (sortKey[i] = shiftChar(c, -1)));
+					avg -= 7;
+				}
+			else
+				while (avg < -0.5) {
+					sortKey.forEach((c, i) => (sortKey[i] = shiftChar(c, 1)));
+					avg += 7;
+				}
+		}
+	}
 
 	const result = {
 		sortKey: sortKey.join("")

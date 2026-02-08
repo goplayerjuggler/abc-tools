@@ -2,6 +2,7 @@ const { Fraction } = require("./math.js");
 const { parseAbc, getMeter, getUnitLength } = require("./parse/parser.js");
 
 const { getBarInfo } = require("./parse/getBarInfo.js");
+const { getHeaderValue } = require("./parse/header-parser.js");
 
 // ============================================================================
 // ABC manipulation functions
@@ -383,6 +384,8 @@ function toggleMeter_4_4_to_4_2(abc, currentMeter) {
 
 const defaultCommentForReelConversion =
 	"*abc-tools: convert reel to M:4/4 & L:1/16*";
+const defaultCommentForHornpipeConversion =
+	"*abc-tools: convert hornpipe to M:4/2*";
 const defaultCommentForJigConversion = "*abc-tools: convert jig to M:12/8*";
 /**
  * Adjusts bar lengths and L, M fields - a 
@@ -445,6 +448,32 @@ function convertStandardJig(jig, comment = defaultCommentForJigConversion) {
 	return result;
 }
 
+/**
+ * Adjusts bar lengths and M field to alter a
+ * hornpipe written in the normal way (M:6/8) so it’s
+ * written with M:12/8.
+ * Bars are twice as long.
+ * @param {string} hornpipe
+ * @param {string} comment - when non falsey, the comment will be injected as an N: header
+
+ * @returns
+ */
+function convertStandardHornpipe(
+	hornpipe,
+	comment = defaultCommentForHornpipeConversion
+) {
+	const meter = getMeter(hornpipe);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
+		throw new Error("invalid meter");
+	}
+
+	let result = toggleMeter_4_4_to_4_2(hornpipe, meter);
+
+	if (comment) {
+		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
+	}
+	return result;
+}
 function doubleBarLength(abc, comment = null) {
 	const meter = getMeter(abc);
 	if (!Array.isArray(meter) || !meter) {
@@ -482,7 +511,9 @@ function convertToStandardReel(
 	withSemiquavers = true
 ) {
 	if (withSemiquavers) {
-		reel = reel.replace("M:4/4", "M:4/2").reel("L:1/16", "L:1/8");
+		reel = reel
+			.replace(/\nM:\s*4\/4/, "\nM:4/2")
+			.replace(/\nL:\s*1\/16/, "\nL:1/8");
 	}
 
 	const unitLength = getUnitLength(reel);
@@ -496,6 +527,51 @@ function convertToStandardReel(
 
 	let result = // toggleMeter_4_4_to_4_2(reel, meter);
 		toggleMeterDoubling(reel, [4, 4], [4, 2], meter);
+	if (comment) {
+		result = result.replace(`\nN:${comment}`, "");
+	}
+	return result;
+}
+/**
+ * Adjusts bar lengths to rewrite a
+ * jig written in the abnormal way (M:12/8) to M:6/8, the normal or standard way.
+ * Bars are half as long. Inverse operation to convertStandardJig
+ * @param {string} jig
+ * @param {string} comment - when non falsey, the comment (as an N:) will removed from the header
+ * @param {bool} withSemiquavers - when unflagged, the original jig was written in M:4/2 L:1/8
+ * @returns
+ */
+function convertToStandardJig(jig, comment = defaultCommentForJigConversion) {
+	const unitLength = getUnitLength(jig);
+	if (unitLength.den !== 8) {
+		throw new Error("invalid L header");
+	}
+	const meter = getMeter(jig);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 12 || !meter[1] === 8) {
+		throw new Error("invalid meter");
+	}
+
+	let result = toggleMeter_6_8_to_12_8(jig); // toggleMeter_4_4_to_4_2(jig, meter);
+	if (comment) {
+		result = result.replace(`\nN:${comment}`, "");
+	}
+	return result;
+}
+
+function convertToStandardHornpipe(
+	hornpipe,
+	comment = defaultCommentForHornpipeConversion
+) {
+	const unitLength = getUnitLength(hornpipe);
+	if (unitLength.den !== 8) {
+		throw new Error("invalid L header");
+	}
+	const meter = getMeter(hornpipe);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 2) {
+		throw new Error("invalid meter");
+	}
+
+	let result = toggleMeter_4_4_to_4_2(hornpipe); // toggleMeter_4_4_to_4_2(jig, meter);
 	if (comment) {
 		result = result.replace(`\nN:${comment}`, "");
 	}
@@ -717,9 +793,72 @@ function getFirstBars(
 	)}`;
 }
 
+function canDoubleBarLength(abc) {
+	const meter = getMeter(abc),
+		l = getUnitLength(abc),
+		rhythm = getHeaderValue(abc, "R");
+	if (
+		!rhythm ||
+		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
+	) {
+		return false;
+	}
+	return (
+		!abc.match(/\[M:/) && //inline meter marking
+		!abc.match(/\[L:/) &&
+		(((rhythm === "reel" || rhythm === "hornpipe") &&
+			l.equals(new Fraction(1, 8)) &&
+			meter[0] === 4 &&
+			meter[1] === 4) ||
+			(rhythm === "jig" &&
+				l.equals(new Fraction(1, 8)) &&
+				meter[0] === 6 &&
+				meter[1] === 8))
+	);
+}
+function canHalveBarLength(abc) {
+	const meter = getMeter(abc),
+		l = getUnitLength(abc),
+		rhythm = getHeaderValue(abc, "R");
+	if (
+		!rhythm ||
+		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
+	) {
+		return false;
+	}
+
+	if (
+		!rhythm ||
+		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
+	) {
+		return false;
+	}
+	return (
+		!abc.match(/\[M:/) && //inline meter marking
+		!abc.match(/\[L:/) &&
+		((rhythm === "reel" &&
+			l.equals(new Fraction(1, 16)) &&
+			meter[0] === 4 &&
+			meter[1] === 4) ||
+			((rhythm === "reel" || rhythm === "hornpipe") &&
+				l.equals(new Fraction(1, 8)) &&
+				meter[0] === 4 &&
+				meter[1] === 2) ||
+			(rhythm === "jig" &&
+				l.equals(new Fraction(1, 8)) &&
+				meter[0] === 12 &&
+				meter[1] === 8))
+	);
+}
+
 module.exports = {
+	canDoubleBarLength,
+	canHalveBarLength,
 	convertStandardJig,
+	convertStandardHornpipe,
 	convertStandardReel,
+	convertToStandardJig,
+	convertToStandardHornpipe,
 	convertToStandardReel,
 	defaultCommentForReelConversion,
 	doubleBarLength,

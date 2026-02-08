@@ -3,7 +3,7 @@ const {
 	compare,
 	sort,
 	decodeChar,
-	getContourFromFullAbc,
+	getContourFromFullAbc
 } = require("../../src/index.js");
 
 describe("ABC Tools - comparing", () => {
@@ -52,7 +52,7 @@ G2B|`;
 
 			const decodedHeld = Array.from(objHeld.sortKey).map((c) => decodeChar(c));
 			const decodedRep = Array.from(objRepeated.sortKey).map((c) =>
-				decodeChar(c),
+				decodeChar(c)
 			);
 
 			expect(decodedHeld[1].isHeld).toBe(true);
@@ -177,7 +177,7 @@ R: reel
 L: 1/16
 M:4/4
 K:D mixo
-FDE/F/G A2AB cAdB cAG2 | A`,
+FDE/F/G A2AB cAdB cAG2 | A`
 			};
 			const objSub14 = getContour(theColliers14.abc, { maxNbUnitLengths: 16 });
 
@@ -194,7 +194,7 @@ FDE/F/G A2AB cAdB cAG2 | A`,
 			const objOctaves = getContour(abcOctaves);
 
 			const decodedOct = Array.from(objOctaves.sortKey).map((c) =>
-				decodeChar(c),
+				decodeChar(c)
 			);
 
 			expect(decodedOct[0].position).toBeLessThan(decodedOct[1].position);
@@ -234,16 +234,16 @@ G2B AGA B2d gdB`;
 	describe("Array comparing", () => {
 		test("compares array correctly", () => {
 			const tunes = [
-				{ name: "Tune 1", abc: "X:1\nL:1/8\nM:3/8\nK:C\nccc|" },
-				{ name: "Tune 2", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCCC|" },
-				{ name: "Tune 3", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCDE|" },
+				{ name: "Tune 1", abc: "X:1\nL:1/8\nM:3/8\nK:C\ncd2|" },
+				{ name: "Tune 2", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCDF|" },
+				{ name: "Tune 3", abc: "X:1\nL:1/8\nM:3/8\nK:C\nCDE|" }
 			];
 
 			sort(tunes);
 
-			expect(tunes[0].name).toBe("Tune 2");
+			expect(tunes[0].name).toBe("Tune 1");
 			expect(tunes[1].name).toBe("Tune 3");
-			expect(tunes[2].name).toBe("Tune 1");
+			expect(tunes[2].name).toBe("Tune 2");
 		});
 	});
 
@@ -256,7 +256,7 @@ R: reel
 M: 4/2
 L: 1/8
 K: Gmaj
-BGGA BGdG BGGA Bdgd|`,
+BGGA BGdG BGGA Bdgd|`
 		};
 
 		const theColliers = {
@@ -267,7 +267,7 @@ R: reel
 L:1/8
 M:4/2
 K:D mixo
-FDE/F/G A2AB cAdB cAG2 |`,
+FDE/F/G A2AB cAdB cAG2 |`
 		};
 
 		const theColliers2 = {
@@ -278,7 +278,7 @@ R: reel
 L:1/8
 M:4/2
 K:D mixo
-FD(3EFG A2AB cAdB cAG2 |`,
+FD(3EFG A2AB cAdB cAG2 |`
 		};
 
 		test("compares two tunes correctly (original order)", () => {
@@ -315,7 +315,7 @@ R: reel
 L: 1/16
 M:4/4
 K:D mixo
-FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
+FDE/F/G A2AB cAdB cAG2 |` //L:1/16
 			};
 
 			const objSub14 = getContour(theColliers14.abc);
@@ -330,7 +330,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			const objSilence = getContour(abcSilence);
 
 			const decodedSilence = Array.from(objSilence.sortKey).map((c) =>
-				decodeChar(c),
+				decodeChar(c)
 			);
 
 			expect(decodedSilence[1].isSilence).toBe(true);
@@ -353,7 +353,7 @@ FDE/F/G A2AB cAdB cAG2 |`, //L:1/16
 			const objLongSilence = getContour(abcLongSilence);
 
 			const decodedLongSilence = Array.from(objLongSilence.sortKey).map((c) =>
-				decodeChar(c),
+				decodeChar(c)
 			);
 
 			expect(decodedLongSilence.length).toBe(3);

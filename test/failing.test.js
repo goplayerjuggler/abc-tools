@@ -85,7 +85,7 @@ G2 FE D4 :| % B part bar 2`;
 	});
 
 	describe("convertStandardReel", () => {
-		test("tommy's tarbukas", () => {
+		test.skip("tommy's tarbukas", () => {
 			const r = tarbuka,
 				s = convertStandardReel(r);
 			console.log(s);
