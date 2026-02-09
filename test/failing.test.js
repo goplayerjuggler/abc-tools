@@ -1,9 +1,7 @@
 const {
 	toggleMeter_4_4_to_4_2,
-	toggleMeter_6_8_to_12_8,
-	convertStandardReel
+	toggleMeter_6_8_to_12_8
 } = require("../src/index.js");
-const { tarbuka } = require("./manipulator.test.js");
 
 // ============================================================================
 // FAILING TESTS
@@ -81,16 +79,6 @@ G2 FE D4 :| % B part bar 2`;
 			// KNOWN ISSUE: Repeat signs combined with inline comments
 			// create additional complexity in bar line tracking
 			expect(restored).toBe(repeated_with_comments);
-		});
-	});
-
-	describe("convertStandardReel", () => {
-		test.skip("tommy's tarbukas", () => {
-			const r = tarbuka,
-				s = convertStandardReel(r);
-			console.log(s);
-
-			expect(s.indexOf("|1") < 0).toBe(true); //fails currently
 		});
 	});
 });

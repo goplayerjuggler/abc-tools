@@ -179,6 +179,7 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 
 	const parsed = parseAbc(abc);
 	const { headerLines, barLines, musicText, bars, meter } = parsed;
+
 	// throw if there's a change of meter or unit length in the tune
 	if (barLines.find((bl) => bl.newMeter || bl.newUnitLength)) {
 		throw new Error("change of meter or unit length not handled");
@@ -269,13 +270,6 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 				continue;
 			}
 
-			// If the current bar starts with a variant, keep its bar line
-			const currentBarVariant = barStartsWithVariant.get(i);
-			if (currentBarVariant) {
-				barLineDecisions.set(i, { action: "keep" });
-				continue;
-			}
-
 			// This is a complete bar - use its barNumber to decide
 			// Without anacrucis: Remove complete bars with even barNumber (0, 2, 4, ...), keep odd ones (1, 3, 5, ...)
 			// With anacrucis: the other way round!
@@ -287,6 +281,15 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 				? barLine.barNumber % 2 !== 0
 				: barLine.barNumber % 2 === 0;
 			if (remove) {
+				// Check if current bar starts with variant
+				if (barStartsWithVariant.has(i)) {
+					const variantToken = barStartsWithVariant.get(i);
+					barLinesToConvert.set(variantToken.sourceIndex, {
+						oldLength: variantToken.sourceLength,
+						oldText: variantToken.token
+					});
+				}
+				// Also check if next bar starts with variant
 				const nextBarIdx = i + 1;
 				if (nextBarIdx < bars.length && barStartsWithVariant.has(nextBarIdx)) {
 					const variantToken = barStartsWithVariant.get(nextBarIdx);
@@ -301,6 +304,26 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 				barLineDecisions.set(i, { action: "keep" });
 			}
 		}
+
+		//  --- Debugging - may be helpful ----
+		// console.log(
+		// 	"Bar line decisions:",
+		// 	Array.from(barLineDecisions.entries()).map(([i, d]) => ({
+		// 		index: i,
+		// 		barLine: barLines[i]?.text,
+		// 		sourceIndex: barLines[i]?.sourceIndex,
+		// 		action: d.action
+		// 	}))
+		// );
+
+		// console.log(
+		// 	"Bar lines:",
+		// 	barLines.map((bl) => ({ text: bl.text, sourceIndex: bl.sourceIndex }))
+		// );
+		// console.log(
+		// 	"Bars starting with variants:",
+		// 	Array.from(barStartsWithVariant.entries())
+		// );
 
 		// Reconstruct music
 		let newMusic = "";

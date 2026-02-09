@@ -912,9 +912,9 @@ BG~G2 BGcG|BG~G2 Bdgd|BG~G2 BdcB|1 ADFG ABcA:|2 AGFG ABcA||
 describe("convertStandardReel", () => {
 	test("tommy's tarbukas", () => {
 		const r = convertStandardReel(tarbuka);
-		console.log(r);
+		// console.log(r);
 		expect(r.indexOf("L: 1/16") > 0 || r.indexOf("L:1/16") > 0).toBe(true);
-		// expect(r.indexOf("|1") < 0).toBe(true); //fails currently - moved to failing tests
+		expect(r.indexOf("|1") < 0).toBe(true);
 	});
 });
 module.exports = { tarbuka };
