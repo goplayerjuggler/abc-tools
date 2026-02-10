@@ -159,7 +159,7 @@ function getContour(
 					avg -= 7;
 				}
 			else
-				while (avg < -0.5) {
+				while (avg < -5) {
 					sortKey.forEach((c, i) => (sortKey[i] = shiftChar(c, 1)));
 					avg += 7;
 				}

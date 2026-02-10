@@ -406,10 +406,9 @@ function toggleMeter_4_4_to_4_2(abc, currentMeter) {
 }
 
 const defaultCommentForReelConversion =
-	"*abc-tools: convert reel to M:4/4 & L:1/16*";
-const defaultCommentForHornpipeConversion =
-	"*abc-tools: convert hornpipe to M:4/2*";
-const defaultCommentForJigConversion = "*abc-tools: convert jig to M:12/8*";
+	"*abc-tools: convert to M:4/4 & L:1/16*";
+const defaultCommentForHornpipeConversion = "*abc-tools: convert to M:4/2*";
+const defaultCommentForJigConversion = "*abc-tools: convert to M:12/8*";
 /**
  * Adjusts bar lengths and L, M fields - a 
  * reel written in the normal way (M:4/4 L:1/8) is written
