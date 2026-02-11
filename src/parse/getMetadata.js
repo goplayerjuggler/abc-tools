@@ -14,7 +14,8 @@ const { normaliseKey } = require("../manipulator");
 function getMetadata(abc) {
 	const lines = abc.split("\n"),
 		metadata = {},
-		comments = [];
+		comments = [],
+		hComments = [];
 
 	for (const line of lines) {
 		const trimmed = line.trim();
@@ -40,10 +41,15 @@ function getMetadata(abc) {
 			metadata.recording = trimmed.substring(2).trim();
 		} else if (trimmed.startsWith("N:")) {
 			comments.push(trimmed.substring(2).trim());
+		} else if (trimmed.startsWith("H:")) {
+			hComments.push(trimmed.substring(2).trim());
 		}
 	}
 	if (comments.length > 0) {
 		metadata.comments = comments;
+	}
+	if (hComments.length > 0) {
+		metadata.hComments = hComments.join(" ");
 	}
 
 	return metadata;
