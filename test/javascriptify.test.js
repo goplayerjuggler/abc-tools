@@ -11,7 +11,7 @@ describe("javascriptify", () => {
 			bar: `
     multi-line content
 ...
-    `,
+    `
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("`");
@@ -31,9 +31,9 @@ describe("javascriptify", () => {
 					bar: `
     multi-line content
 ...
-    `,
-				},
-			],
+    `
+				}
+			]
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain('myProp: "foo"');
@@ -61,7 +61,7 @@ describe("javascriptify", () => {
 			omitUndefined: undefined,
 			omitEmptyString: "",
 			omitFalse: false,
-			keepZero: 0,
+			keepZero: 0
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("keep:");
@@ -76,7 +76,7 @@ describe("javascriptify", () => {
 		const obj = {
 			items: [1, 2, 3],
 			emptyItems: [],
-			name: "test",
+			name: "test"
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("items:");
@@ -120,9 +120,9 @@ describe("javascriptify", () => {
 		const obj = {
 			level1: {
 				level2: {
-					level3: "deep",
-				},
-			},
+					level3: "deep"
+				}
+			}
 		};
 		const result = javascriptify(obj);
 		const lines = result.split("\n");
@@ -132,7 +132,7 @@ describe("javascriptify", () => {
 	test("escapes backticks in multiline strings", () => {
 		const obj = {
 			code: `const msg = \`hello\`;
-console.log(msg);`,
+console.log(msg);`
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("\\`");
@@ -142,7 +142,7 @@ console.log(msg);`,
 	test("escapes backslashes in multiline strings", () => {
 		const obj = {
 			path: `C:\\Users\\name
-D:\\Projects`,
+D:\\Projects`
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("\\\\");
@@ -151,7 +151,7 @@ D:\\Projects`,
 	test("escapes dollar signs in multiline strings to prevent interpolation", () => {
 		const obj = {
 			text: `Price is $50
-Total: ${100}`,
+Total: ${100}`
 		};
 		const result = javascriptify(obj);
 		expect(result).toContain("\\$");
@@ -162,7 +162,7 @@ Total: ${100}`,
 			complex: `Here's a backtick: \`
 And a backslash: \\
 And a dollar: $
-And interpolation: \${var}`,
+And interpolation: \${var}`
 		};
 		const result = javascriptify(obj);
 		// It’s safe to use eval here so we disable ESLint’s rule

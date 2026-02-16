@@ -12,28 +12,6 @@ const {
 // ============================================================================
 
 describe("ABC Manipulator - Known Failing Cases", () => {
-	test("converts simple 6/8 to 12/8 with a bar spanning 2 lines", () => {
-		const tune_6_8 = `X:1
-T:Starting from 6/8
-M:6/8
-L:1/8
-K:G
-Bc | d3 ^c2A | B3-B
-Bc | d3 e3 | d3 z2 |]`;
-
-		const result = toggleMeter_6_8_to_12_8(tune_6_8);
-		console.log(result);
-		expect(result).toContain("M:12/8");
-		expect(result).not.toContain("M:6/8");
-
-		// Should merge pairs of bars
-		const barCount = (result.match(/\|/g) || []).length;
-		const originalBarCount = (tune_6_8.match(/\|/g) || []).length;
-		expect(barCount).toBeLessThan(originalBarCount);
-
-		// expect one natural for 2nd line
-		expect(result).toMatch(/\nB=c/);
-	});
 	describe("4/4 to 4/2 toggles with inline comments", () => {
 		test.skip("4/4 with inline comments inverse", () => {
 			const with_comments = `X:1

@@ -1,6 +1,6 @@
 const {
 	getIncipit,
-	getIncipitForContourGeneration,
+	getIncipitForContourGeneration
 } = require("../src/index.js");
 
 describe("getIncipit", () => {
