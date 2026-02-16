@@ -38,8 +38,8 @@ const // captures not only |1 |2, but also :|1 :||1 :|2 :||2
 			return String.raw`(?:${this.bangDecoration}\s*)*`;
 		},
 
-		// Accidental: :, ^, _ (natural, sharp, flat)
-		accidental: String.raw`[:^_]?`,
+		// Accidental: :, ^, _ (natural, sharp, flat; and double flat/sharp; and even add rarer ones like natural+sharp)
+		accidental: String.raw`(_|\^|=|\^\^|__|==|=_|=\^)?`,
 
 		// Note pitch: A-G (lower octave), a-g (middle octave), z/x (rest), y (dummy)
 		// Or chord in brackets: [CEG], [DF#A]

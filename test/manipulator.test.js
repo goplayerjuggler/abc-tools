@@ -6,7 +6,8 @@ const {
 	getIncipit,
 	normaliseKey,
 	getIncipitForContourGeneration,
-	convertStandardReel
+	convertStandardReel,
+	toggleMeterDoubling
 } = require("../src/index.js");
 
 const tarbuka = `X: 8
@@ -663,6 +664,173 @@ D2 FA dA FD G2 Bc d2 cB |A2 AB c2 BA G2 FE D4 |]`;
 			expect(back_to_4_2).toBe(original);
 		});
 	});
+
+	describe("meter toggles with accidentals", () => {
+		describe("4/4 to 4/2 conversion with accidentals", () => {
+			test("converts simple 4/4 to 4/2", () => {
+				const tune_4_4 = `X:1
+T:Example in 4/4
+M:4/4
+L:1/8
+K: D dorian
+D2 F2 D2 G^F | D2 F2 D2 G^F |]`;
+
+				const result = toggleMeter_4_4_to_4_2(tune_4_4);
+
+				expect(result).toContain("M:4/2");
+				expect(result).not.toContain("M:4/4");
+
+				// Should merge pairs of bars
+				const barCount = (result.match(/\|/g) || []).length;
+				const originalBarCount = (tune_4_4.match(/\|/g) || []).length;
+				expect(barCount).toBeLessThan(originalBarCount);
+				//
+				//expect(result).toContain("D2 F2 D2 G^F D2 =F2 D2 G^F"); //should have F natural (`=F`)
+				expect(result).toMatch(
+					/D2\s+F2\s+D2\s+G\^F\s+D2\s+=F2\s+D2\s+G\^F\s+\|\]/
+				);
+			});
+		});
+
+		describe("4/2 to 4/4 conversion", () => {
+			test("converts simple 4/2 to 4/4 with accidentals", () => {
+				const tune_4_2 = `X:1
+T:Example in 4/2
+M:4/2
+L:1/8
+K:D dorian
+D2 F2 D2 G^F D2 =F2 D2 G^F |]`;
+
+				const result = toggleMeter_4_4_to_4_2(tune_4_2);
+
+				expect(result).toContain("M:4/4");
+				expect(result).not.toContain("M:4/2");
+
+				// Should split bars in half
+				const barCount = (result.match(/\|/g) || []).length;
+				const originalBarCount = (tune_4_2.match(/\|/g) || []).length;
+				expect(barCount).toBeGreaterThan(originalBarCount);
+
+				expect(result).toMatch(
+					/D2\s+F2\s+D2\s+G\^F\s+\|\s+D2\s+F2\s+D2\s+G\^F\s*\|\]/
+				); //"no F natural"
+			});
+		});
+
+		test("D major: natural in first bar requires sharp in merged second bar", () => {
+			const tune_2_4 = `X:1
+T:Natural to Sharp
+M:2/4
+L:1/4
+K:D major
+F=F|F=F|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:4/4");
+			expect(result).toContain("F=F ^F=F|]");
+		});
+		test("D major: natural in first bar requires sharp in merged second bar 260215 3", () => {
+			const tune_2_4 = `X:1
+T:Natural to Sharp
+M:2/4
+L:1/8
+K:D major
+F=FFF|F=FFF|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:4/4");
+			console.log(result);
+		});
+
+		test("F major: natural in first bar requires flat in merged second bar", () => {
+			const tune_2_4 = `X:1
+T:Natural to Flat
+M:2/4
+L:1/4
+K:F major
+B=B|B=B|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:4/4");
+			expect(result).toContain("B=B _B=B|]");
+		});
+
+		test("D major: sharp to natural in merged bar", () => {
+			const tune_2_4 = `X:1
+T:Sharp to Natural
+M:2/8
+L:1/8
+K:D major
+=F^F|F=F|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 8], [4, 8]);
+
+			expect(result).toContain("M:4/8");
+			expect(result).toContain("=F^F F=F|]");
+		});
+
+		test("D dorian: sharp to sharp (2nd sharp to be removed)", () => {
+			const tune_2_4 = `X:1
+T:Natural to Natural
+M:2/4
+L:1/4
+K:D dorian
+ F^F|^F=F|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:4/4");
+			// First bar ends with F sharp, second bar also wants F sharp
+			// No accidental needed on third F
+			expect(result).toContain("F^F F=F|]");
+		});
+
+		test("Reverse: split bar removes redundant sharp", () => {
+			const tune_4_4 = `X:1
+T:Split removes redundant
+M:4/4
+L:1/4
+K:D major
+F=F^F=F|]`;
+
+			const result = toggleMeterDoubling(tune_4_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:2/4");
+			expect(result).toMatch(/F=F\|\s?F=F\|\]/);
+		});
+
+		test("Complex: multiple different accidentals", () => {
+			const tune_3_4 = `X:1
+T:Multiple Accidentals
+M:3/4
+L:1/4
+K:C major
+F^F_A|FAF|]`;
+
+			const result = toggleMeterDoubling(tune_3_4, [3, 4], [6, 4]);
+
+			expect(result).toContain("M:6/4");
+			expect(result).toContain("F^F_A =F=AF|]");
+		});
+
+		test("Octave-specific: different octaves need different handling", () => {
+			const tune_2_4 = `X:1
+T:Octave Specific
+M:2/4
+L:1/4
+K:D major
+F=F|=f^f|]`;
+
+			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
+
+			expect(result).toContain("M:4/4");
+			// F (high) ends as natural, f (low) starts fresh and needs sharp from key
+			expect(result).toContain("F=F =f^f|]");
+		});
+	});
 });
 
 describe("meter toggles (6/8 ↔ 12/8)", () => {
@@ -685,6 +853,28 @@ AFD DFA | G2E E3 |]`;
 			const barCount = (result.match(/\|/g) || []).length;
 			const originalBarCount = (tune_6_8.match(/\|/g) || []).length;
 			expect(barCount).toBeLessThan(originalBarCount);
+		});
+
+		test("converts simple 6/8 to 12/8 260215 2", () => {
+			const tune_6_8 = `X:1
+T:Starting from 12/8
+M:6/8
+L:1/8
+K:D
+DFA dAF | GBd gdB | AFD DFA | G2E E3 |]`;
+
+			const result = toggleMeter_6_8_to_12_8(tune_6_8);
+			console.log(result);
+			expect(result).toContain("M:12/8");
+			expect(result).not.toContain("M:6/8");
+
+			// Should merge pairs of bars
+			const barCount = (result.match(/\|/g) || []).length;
+			const originalBarCount = (tune_6_8.match(/\|/g) || []).length;
+			expect(barCount).toBeLessThan(originalBarCount);
+
+			// expect no naturals
+			expect(result).not.toMatch(/=/);
 		});
 
 		test("converts 6/8 with anacrusis to 12/8, normalising spacing when removing bars", () => {

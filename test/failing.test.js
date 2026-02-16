@@ -12,54 +12,6 @@ const {
 // ============================================================================
 
 describe("ABC Manipulator - Known Failing Cases", () => {
-	describe("meter toggles (4/4 ↔ 4/2)", () => {
-		describe("4/4 to 4/2 conversion with accidentals", () => {
-			test("converts simple 4/4 to 4/2", () => {
-				const tune_4_4 = `X:1
-T:Example in 4/4
-M:4/4
-L:1/8
-K: D dorian
-D2 F2 D2 G^F | D2 F2 D2 G^F |]`;
-
-				const result = toggleMeter_4_4_to_4_2(tune_4_4);
-
-				expect(result).toContain("M:4/2");
-				expect(result).not.toContain("M:4/4");
-
-				// Should merge pairs of bars
-				const barCount = (result.match(/\|/g) || []).length;
-				const originalBarCount = (tune_4_4.match(/\|/g) || []).length;
-				expect(barCount).toBeLessThan(originalBarCount);
-				//
-				expect(result).toContain("D2 F2 D2 G^F D2 =F2 D2 G^F"); //should have F natural (`=F`)
-			});
-		});
-
-		describe("4/2 to 4/4 conversion", () => {
-			test("converts simple 4/2 to 4/4", () => {
-				const tune_4_2 = `X:1
-T:Example in 4/2
-M:4/2
-L:1/8
-K:D dorian
-D2 F2 D2 G^F D2 =F2 D2 G^F |]`;
-
-				const result = toggleMeter_4_4_to_4_2(tune_4_2);
-
-				expect(result).toContain("M:4/4");
-				expect(result).not.toContain("M:4/2");
-
-				// Should split bars in half
-				const barCount = (result.match(/\|/g) || []).length;
-				const originalBarCount = (tune_4_2.match(/\|/g) || []).length;
-				expect(barCount).toBeGreaterThan(originalBarCount);
-
-				expect(result.toContain("D2 F2 D2 G^F | D2 F2 D2 G^F")); //"no F natural"
-			});
-		});
-	});
-
 	describe("4/4 to 4/2 toggles with inline comments", () => {
 		test.skip("4/4 with inline comments inverse", () => {
 			const with_comments = `X:1

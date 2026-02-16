@@ -4,6 +4,14 @@ const { parseAbc, getMeter, getUnitLength } = require("./parse/parser.js");
 const { getBarInfo } = require("./parse/getBarInfo.js");
 const { getHeaderValue } = require("./parse/header-parser.js");
 
+const {
+	getKeySignatureAccidentals,
+	getBarAccidentals,
+	addAccidentalsForMergedBar,
+	removeRedundantAccidentals,
+	reconstructMusicFromTokens
+} = require("./parse/accidental-helpers.js");
+
 // ============================================================================
 // ABC manipulation functions
 // ============================================================================
@@ -146,22 +154,25 @@ function hasAnacrucis(abc) {
  * - Converts variant ending markers from |1, |2 to [1, [2 format
  * - Respects section breaks (||, :|, etc.) and resets pairing after them
  * - Handles bars starting with variant endings by keeping the bar line after them
+ * - Adds accidentals when merging bars to restore key signature defaults
  *
  * When going from large to small meters (e.g., 4/2→4/4):
  * - Inserts bar lines at halfway points within each bar
  * - Preserves variant ending markers in [1, [2 format (does not convert back to |1, |2)
  * - Inserts bar lines before variant endings when they occur at the split point
+ * - Removes redundant accidentals in the second half of split bars
  *
  * This is nearly a true inverse operation - going there and back preserves musical content
  * but may change spacing around bar lines and normalises variant ending syntax to [1, [2 format.
- * Correctly handles anacrusis (pickup bars), multi-bar variant endings, partial bars, and preserves line breaks.
+ * Correctly handles anacrusis (pickup bars), multi-bar variant endings, partial bars, preserves line breaks,
+ * and manages accidentals correctly when bars are merged or split.
  *
  * @param {string} abc - ABC notation string
  * @param {Array<number>} smallMeter - The smaller meter signature [numerator, denominator]
  * @param {Array<number>} largeMeter - The larger meter signature [numerator, denominator]
  * @param {Array<number>} currentMeter - The current meter signature [numerator, denominator] of the abc tune - may be omitted. (If omitted, it gets fetched from `abc`)
  * @returns {string} ABC notation with toggled meter
- * @throws {Error} If the current meter doesn’t match either smallMeter or largeMeter
+ * @throws {Error} If the current meter doesn't match either smallMeter or largeMeter
  */
 function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 	if (!currentMeter) currentMeter = getMeter(abc);
@@ -197,6 +208,11 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 
 	if (isSmall) {
 		// Going from small to large: remove every other complete musical bar line
+
+		// Get initial key and build key map
+		const initialKey = getHeaderValue(abc, "K");
+		const keyAtBar = getKeyAtEachBar(barLines, initialKey);
+
 		// Get bar info to understand musical structure
 		getBarInfo(bars, barLines, meter, {
 			barNumbers: true,
@@ -214,27 +230,6 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 		// Determine which bar lines to keep or remove
 		const barLineDecisions = new Map();
 		const barLinesToConvert = new Map(); // variant markers to convert from |N to [N
-
-		//Discarded
-		// // Map bar numbers to their sequential index among complete bars
-		// // This handles cases where bar numbers skip (due to anacrusis or partials)
-		// const completeBarIndexByNumber = new Map();
-		// let completeBarIndex = 0;
-
-		// for (let i = 0; i < barLines.length; i++) {
-		// 	const barLine = barLines[i];
-		// 	if (
-		// 		barLine.barNumber !== null
-		// 		//&& !barLine.isSectionBreak
-		// 	) {
-		// 		const isCompleteMusicBar =
-		// 			!barLine.isPartial || barLine.completesMusicBar === true;
-		// 		if (isCompleteMusicBar) {
-		// 			completeBarIndexByNumber.set(barLine.barNumber, completeBarIndex);
-		// 			completeBarIndex++;
-		// 		}
-		// 	}
-		// }
 
 		const hasAnacrucis = hasAnacrucisFromParsed(null, barLines);
 
@@ -256,7 +251,6 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 			// Section breaks are always kept
 			if (barLine.isSectionBreak) {
 				barLineDecisions.set(i, { action: "keep" });
-				// Don't count section breaks - they're structural markers, not part of pairing
 				continue;
 			}
 
@@ -273,10 +267,6 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 			// This is a complete bar - use its barNumber to decide
 			// Without anacrucis: Remove complete bars with even barNumber (0, 2, 4, ...), keep odd ones (1, 3, 5, ...)
 			// With anacrucis: the other way round!
-
-			//Discarded
-			// const index = completeBarIndexByNumber.get(barLine.barNumber);
-			// if (index !== undefined && index % 2 === 0) {
 			const remove = hasAnacrucis
 				? barLine.barNumber % 2 !== 0
 				: barLine.barNumber % 2 === 0;
@@ -305,25 +295,87 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 			}
 		}
 
-		//  --- Debugging - may be helpful ----
-		// console.log(
-		// 	"Bar line decisions:",
-		// 	Array.from(barLineDecisions.entries()).map(([i, d]) => ({
-		// 		index: i,
-		// 		barLine: barLines[i]?.text,
-		// 		sourceIndex: barLines[i]?.sourceIndex,
-		// 		action: d.action
-		// 	}))
-		// );
+		// === ACCIDENTAL HANDLING ===
+		// Build map of bars to replace: bar start position -> {originalEnd, replacementText}
 
-		// console.log(
-		// 	"Bar lines:",
-		// 	barLines.map((bl) => ({ text: bl.text, sourceIndex: bl.sourceIndex }))
-		// );
-		// console.log(
-		// 	"Bars starting with variants:",
-		// 	Array.from(barStartsWithVariant.entries())
-		// );
+		const barReplacements = new Map();
+
+		for (let i = 0; i < barLines.length; i++) {
+			const decision = barLineDecisions.get(i);
+
+			if (decision && decision.action === "remove") {
+				// Find which bar comes after this bar line
+				const barLineEnd = barLines[i].sourceIndex + barLines[i].sourceLength;
+
+				let bar2Idx = -1;
+				for (let b = 0; b < bars.length; b++) {
+					if (bars[b].length > 0 && bars[b][0].sourceIndex >= barLineEnd) {
+						bar2Idx = b;
+						break;
+					}
+				}
+
+				// Find the bar that ends at or before this bar line
+				let bar1Idx = -1;
+				for (let b = bars.length - 1; b >= 0; b--) {
+					if (bars[b].length > 0) {
+						const barEnd =
+							bars[b][bars[b].length - 1].sourceIndex +
+							bars[b][bars[b].length - 1].sourceLength;
+						if (barEnd <= barLines[i].sourceIndex) {
+							bar1Idx = b;
+							break;
+						}
+					}
+				}
+
+				if (bar1Idx >= 0 && bar2Idx >= 0 && bar2Idx < bars.length) {
+					// Get current key
+					const currentKey = keyAtBar.get(bar1Idx) || initialKey;
+					const keyAccidentals = getKeySignatureAccidentals(
+						currentKey,
+						normaliseKey
+					);
+
+					// Get accidentals at end of bar 1
+					const firstBarAccidentals = getBarAccidentals(
+						bars[bar1Idx],
+						keyAccidentals
+					);
+
+					// Modify bar 2 tokens
+					const modifiedBar2Tokens = addAccidentalsForMergedBar(
+						bars[bar2Idx],
+						firstBarAccidentals,
+						keyAccidentals,
+						musicText
+					);
+
+					// Reconstruct bar 2 text
+					const bar2Start = bars[bar2Idx][0].sourceIndex;
+					const bar2End =
+						bars[bar2Idx][bars[bar2Idx].length - 1].sourceIndex +
+						bars[bar2Idx][bars[bar2Idx].length - 1].sourceLength;
+
+					const modifiedText = reconstructMusicFromTokens(
+						modifiedBar2Tokens,
+						musicText
+					);
+					// console.log(
+					// 	`Replacement text: "${modifiedText}" (length: ${modifiedText.length})`
+					// );
+					// console.log(`First char code: ${modifiedText.charCodeAt(0)}`);
+
+					// Store replacement: when we reach bar2Start, replace until bar2End with modifiedText
+					barReplacements.set(bar2Start, {
+						originalEnd: bar2End,
+						replacementText: modifiedText
+					});
+				}
+			}
+		}
+
+		// === END ACCIDENTAL HANDLING ===
 
 		// Reconstruct music
 		let newMusic = "";
@@ -361,6 +413,23 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 						skipLength++;
 					}
 					pos += skipLength;
+
+					// NOW check if the bar after this removed bar line needs replacement
+					if (barReplacements.has(pos)) {
+						// const replacement = barReplacements.get(pos);
+						// newMusic += replacement.replacementText;
+						// pos = replacement.originalEnd;
+
+						const replacement = barReplacements.get(pos);
+						// console.log(`REPLACING: adding "${replacement.replacementText}"`);
+						// console.log(
+						// 	`REPLACING: jumping from ${pos} to ${replacement.originalEnd}`
+						// );
+						newMusic += replacement.replacementText;
+						pos = replacement.originalEnd;
+						// console.log(`newMusic so far: "${newMusic}"`);
+					}
+
 					continue;
 				} else if (decision && decision.action === "keep") {
 					// Keep this bar line
@@ -378,22 +447,165 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	} else {
 		// Going from large to small: add bar lines at midpoints
+
+		// Get initial key and build key map
+		const initialKey = getHeaderValue(abc, "K");
+		const keyAtBar = getKeyAtEachBar(barLines, initialKey);
+
 		const barInfo = getBarInfo(bars, barLines, meter, {
 			divideBarsBy: 2
 		});
 
 		const { midpoints } = barInfo;
 
+		// === ACCIDENTAL HANDLING ===
+		// Build map of bar sections to replace
+
+		const barReplacements = new Map();
+
+		for (let i = 0; i < bars.length; i++) {
+			const bar = bars[i];
+			if (bar.length === 0) continue;
+
+			const barStart = bar[0].sourceIndex;
+			const barEnd =
+				bar[bar.length - 1].sourceIndex + bar[bar.length - 1].sourceLength;
+			const midpoint = midpoints.find((mp) => mp > barStart && mp < barEnd);
+
+			if (midpoint) {
+				// Get current key
+				const currentKey = keyAtBar.get(i) || initialKey;
+				const keyAccidentals = getKeySignatureAccidentals(
+					currentKey,
+					normaliseKey
+				);
+
+				// Split into first and second half
+				const firstHalfTokens = bar.filter((t) => t.sourceIndex < midpoint);
+				const secondHalfTokens = bar.filter((t) => t.sourceIndex >= midpoint);
+
+				if (secondHalfTokens.length > 0) {
+					// Get accidentals from first half
+					const firstHalfAccidentals = getBarAccidentals(
+						firstHalfTokens,
+						keyAccidentals
+					);
+
+					// Remove redundant accidentals from second half
+					const modifiedSecondHalf = removeRedundantAccidentals(
+						secondHalfTokens,
+						firstHalfAccidentals,
+						keyAccidentals
+					);
+
+					// Reconstruct
+					const secondHalfStart = secondHalfTokens[0].sourceIndex;
+					const secondHalfEnd =
+						secondHalfTokens[secondHalfTokens.length - 1].sourceIndex +
+						secondHalfTokens[secondHalfTokens.length - 1].sourceLength;
+
+					const modifiedText = reconstructMusicFromTokens(
+						modifiedSecondHalf,
+						musicText
+					);
+
+					// console.log(
+					// 	`Replacement text: "${modifiedText}" (length: ${modifiedText.length})`
+					// );
+					// console.log(`First char code: ${modifiedText.charCodeAt(0)}`);
+
+					barReplacements.set(secondHalfStart, {
+						originalEnd: secondHalfEnd,
+						replacementText: modifiedText
+					});
+				}
+			}
+		}
+
+		// Reconstruct music with replacements
+		let newMusic = "";
+		let pos = 0;
+
+		while (pos < musicText.length) {
+			// Check if we're at a bar section that needs replacement
+			if (barReplacements.has(pos)) {
+				// const replacement = barReplacements.get(pos);
+				// newMusic += replacement.replacementText;
+				// pos = replacement.originalEnd;
+				// continue;
+
+				const replacement = barReplacements.get(pos);
+				// console.log(`REPLACING: adding "${replacement.replacementText}"`);
+				// console.log(
+				// 	`REPLACING: jumping from ${pos} to ${replacement.originalEnd}`
+				// );
+				newMusic += replacement.replacementText;
+				pos = replacement.originalEnd;
+				// console.log(`newMusic so far: "${newMusic}"`);
+			}
+
+			// Regular character
+			newMusic += musicText[pos];
+			pos++;
+		}
+
+		// === END ACCIDENTAL HANDLING ===
+
 		// Insert bar lines at calculated positions
 		const insertionPoints = [...midpoints].sort((a, b) => b - a);
-		let newMusic = musicText;
+
+		// Adjust positions based on replacements
+		const adjustedInsertionPoints = [];
 
 		for (const pos of insertionPoints) {
+			let adjustedPos = pos;
+
+			// Calculate offset from replacements before this position
+			for (const [replStart, replInfo] of barReplacements.entries()) {
+				if (replStart < pos) {
+					const originalLength = replInfo.originalEnd - replStart;
+					const newLength = replInfo.replacementText.length;
+					adjustedPos += newLength - originalLength;
+				}
+			}
+
+			adjustedInsertionPoints.push(adjustedPos);
+		}
+
+		// Insert bar lines (in reverse order to maintain positions)
+		adjustedInsertionPoints.sort((a, b) => b - a);
+		for (const pos of adjustedInsertionPoints) {
 			newMusic = newMusic.substring(0, pos) + "| " + newMusic.substring(pos);
 		}
 
 		return `${newHeaders.join("\n")}\n${newMusic}`;
 	}
+}
+
+/**
+ * Build a map of bar index to active key signature
+ * Tracks key changes from barLines[].newKey
+ *
+ * @param {Array} barLines - Bar line array from parseAbc
+ * @param {string} initialKey - Initial K: header value
+ * @returns {Map<number, string>} - Map from bar index to key signature string
+ */
+function getKeyAtEachBar(barLines, initialKey) {
+	const keyMap = new Map();
+	let currentKey = initialKey;
+
+	// Bar index 0 is before the first bar line (or at it if there's an initial bar line)
+	keyMap.set(0, currentKey);
+
+	for (let i = 0; i < barLines.length; i++) {
+		if (barLines[i].newKey) {
+			currentKey = barLines[i].newKey;
+		}
+		// The key after this bar line applies to the next bar
+		keyMap.set(i + 1, currentKey);
+	}
+
+	return keyMap;
 }
 
 /**

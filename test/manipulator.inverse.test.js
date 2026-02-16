@@ -2,7 +2,7 @@ const {
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8,
 	getFirstBars,
-	hasAnacrucis,
+	hasAnacrucis
 } = require("../src/index.js");
 
 describe("ABC Manipulator - Inverse Operations", () => {
@@ -127,7 +127,8 @@ A(3fed cBA | G3 G3 |]`;
 			expect(restored).toBe(complex_6_8);
 		});
 
-		test("starting from 12/8", () => {
+		test("starting from 12/8 260215", () => {
+			//this looks like a good failing test to look at
 			const start_12_8 = `X:1
 T:Starting from 12/8
 M:12/8
@@ -136,8 +137,8 @@ K:D
 DFA dAF GBd gdB |AFD DFA G2E E3 |]`;
 
 			const transformed = toggleMeter_6_8_to_12_8(start_12_8);
+			console.log(transformed);
 			const restored = toggleMeter_6_8_to_12_8(transformed);
-
 			expect(restored).toBe(start_12_8);
 		});
 
