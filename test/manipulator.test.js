@@ -741,7 +741,7 @@ F=FFF|F=FFF|]`;
 			const result = toggleMeterDoubling(tune_2_4, [2, 4], [4, 4]);
 
 			expect(result).toContain("M:4/4");
-			console.log(result);
+			// console.log(result);
 		});
 
 		test("F major: natural in first bar requires flat in merged second bar", () => {
@@ -831,6 +831,28 @@ F=F|=f^f|]`;
 			expect(result).toContain("F=F =f^f|]");
 		});
 	});
+	test("converts simple 6/8 to 12/8 with a bar spanning 2 lines", () => {
+		const tune_6_8 = `X:1
+T:Starting from 6/8
+M:6/8
+L:1/8
+K:G
+Bc | d3 ^c2A | B3-B
+Bc | d3 e3 | d3 z2 |]`;
+
+		const result = toggleMeter_6_8_to_12_8(tune_6_8);
+		// console.log(result);
+		expect(result).toContain("M:12/8");
+		expect(result).not.toContain("M:6/8");
+
+		// Should merge pairs of bars
+		const barCount = (result.match(/\|/g) || []).length;
+		const originalBarCount = (tune_6_8.match(/\|/g) || []).length;
+		expect(barCount).toBeLessThan(originalBarCount);
+
+		// expect one natural for 2nd line
+		expect(result).toMatch(/\nB=c/);
+	});
 });
 
 describe("meter toggles (6/8 ↔ 12/8)", () => {
@@ -864,7 +886,7 @@ K:D
 DFA dAF | GBd gdB | AFD DFA | G2E E3 |]`;
 
 			const result = toggleMeter_6_8_to_12_8(tune_6_8);
-			console.log(result);
+			// console.log(result);
 			expect(result).toContain("M:12/8");
 			expect(result).not.toContain("M:6/8");
 

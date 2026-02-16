@@ -137,7 +137,7 @@ K:D
 DFA dAF GBd gdB |AFD DFA G2E E3 |]`;
 
 			const transformed = toggleMeter_6_8_to_12_8(start_12_8);
-			console.log(transformed);
+			// console.log(transformed);
 			const restored = toggleMeter_6_8_to_12_8(transformed);
 			expect(restored).toBe(start_12_8);
 		});

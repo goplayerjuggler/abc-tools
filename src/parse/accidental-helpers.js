@@ -135,12 +135,7 @@ function getBarAccidentals(barTokens, keyAccidentals) {
 
 		const noteInfos = extractNoteInfo(token);
 
-		for (const {
-			noteLetter,
-			octaveMarkers,
-			accidental,
-			noteWithOctave
-		} of noteInfos) {
+		for (const { noteLetter, accidental, noteWithOctave } of noteInfos) {
 			const baseNoteLetter = noteLetter.toUpperCase();
 
 			if (accidental) {
@@ -171,8 +166,7 @@ function getBarAccidentals(barTokens, keyAccidentals) {
 function addAccidentalsForMergedBar(
 	secondBarTokens,
 	firstBarAccidentals,
-	keyAccidentals,
-	musicText
+	keyAccidentals
 ) {
 	const modifiedTokens = [];
 	const secondBarAccidentals = new Map();
@@ -206,12 +200,7 @@ function addAccidentalsForMergedBar(
 		let needsModification = false;
 		const modificationsNeeded = [];
 
-		for (const {
-			noteLetter,
-			octaveMarkers,
-			accidental,
-			noteWithOctave
-		} of noteInfos) {
+		for (const { noteLetter, accidental, noteWithOctave } of noteInfos) {
 			const baseNoteLetter = noteLetter.toUpperCase();
 			const firstBarAccidental = firstBarAccidentals.get(noteWithOctave);
 			const keyAccidental = keyAccidentals.get(baseNoteLetter) || null;
@@ -347,12 +336,7 @@ function removeRedundantAccidentals(
 		let needsModification = false;
 		const modificationsNeeded = [];
 
-		for (const {
-			noteLetter,
-			octaveMarkers,
-			accidental,
-			noteWithOctave
-		} of noteInfos) {
+		for (const { noteLetter, accidental, noteWithOctave } of noteInfos) {
 			const baseNoteLetter = noteLetter.toUpperCase();
 			const keyAccidental = keyAccidentals.get(baseNoteLetter) || null;
 			const currentAccidental = secondHalfAccidentals.get(noteWithOctave);
@@ -422,10 +406,9 @@ function removeRedundantAccidentals(
 /**
  * Reconstruct music text from tokens
  * @param {Array<object>} tokens - Array of token objects
- * @param {string} originalMusicText - Original music text for spacing reference
  * @returns {string} - Reconstructed music text
  */
-function reconstructMusicFromTokens(tokens, originalMusicText) {
+function reconstructMusicFromTokens(tokens) {
 	if (tokens.length === 0) return "";
 
 	let result = "";

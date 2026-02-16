@@ -127,7 +127,7 @@ K:C
 CDE`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: true,
+				onlyShowMeaningfulStartOfPlayedNotes: true
 			});
 
 			// With default onlyShowMeaningfulStartOfPlayedNotes=true,
@@ -143,7 +143,7 @@ K:C
 EDCC`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: true,
+				onlyShowMeaningfulStartOfPlayedNotes: true
 			});
 
 			// Should have 1 circle (the second C, which repeats the pitch of the first C)
@@ -159,7 +159,7 @@ K:C
 CDE`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: false,
+				onlyShowMeaningfulStartOfPlayedNotes: false
 			});
 
 			// Should have 3 circle elements (one for each played note)
@@ -175,7 +175,7 @@ K:C
 C2C`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: false,
+				onlyShowMeaningfulStartOfPlayedNotes: false
 			});
 
 			// Should have 2 circle elements (first C and third C are played, middle is held)
@@ -191,7 +191,7 @@ K:C
 CzD`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: false,
+				onlyShowMeaningfulStartOfPlayedNotes: false
 			});
 
 			// Should have 2 circles (C and D, not the silence)
@@ -207,7 +207,7 @@ K:C
 CzC`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: true,
+				onlyShowMeaningfulStartOfPlayedNotes: true
 			});
 
 			// Should have 1 circle (the second C repeats the pitch after silence)
@@ -327,7 +327,7 @@ CDE`;
 			// Should have fewer ticks than a wide range
 			const svgWideRange = contourToSvg(contour, {
 				minDegree: -20,
-				maxDegree: 20,
+				maxDegree: 20
 			});
 
 			const linesLimited = (svg.match(/<line/g) || []).length;
@@ -344,7 +344,7 @@ CGc`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
 				yAxisTickLength: 8,
-				yAxisTonicTickLength: 12,
+				yAxisTonicTickLength: 12
 			});
 
 			// SVG should be valid and contain line elements
@@ -379,7 +379,7 @@ C2`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
 				playedColour: "#0000ff",
-				heldColour: "#00ffff",
+				heldColour: "#00ffff"
 			});
 
 			expect(svg).toContain('stroke="#0000ff"');
@@ -399,7 +399,7 @@ G2B AGA B2d gdB`;
 
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: true,
+				onlyShowMeaningfulStartOfPlayedNotes: true
 			});
 
 			expect(svg).toContain("<svg");
@@ -452,7 +452,7 @@ K:C
 (3CDEF`;
 			const contour = getContour(abc);
 			const svg = contourToSvg(contour, {
-				onlyShowMeaningfulStartOfPlayedNotes: false,
+				onlyShowMeaningfulStartOfPlayedNotes: false
 			});
 
 			// Should have 4 circles (all are played notes) when showing all markers
@@ -471,7 +471,7 @@ C2D`;
 			const contour = getContour(abc);
 			const customConfig = {
 				playedColour: "#ff0000",
-				heldColour: "#ff9999",
+				heldColour: "#ff9999"
 			};
 			const svg = contourToSvg(contour, customConfig);
 
@@ -487,7 +487,7 @@ CDE`;
 			const contour = getContour(abc);
 			const customConfig = {
 				unitWidth: 40,
-				degreeHeight: 20,
+				degreeHeight: 20
 			};
 			const svg = contourToSvg(contour, customConfig);
 
@@ -508,7 +508,7 @@ CDE`;
 			const contour = getContour(abc);
 			const customConfig = {
 				minDegree: -15,
-				maxDegree: 15,
+				maxDegree: 15
 			};
 			const svg = contourToSvg(contour, customConfig);
 
@@ -559,7 +559,7 @@ CDEFG`;
 				yAxisColour: "#00ff00",
 				yAxisWidth: 2,
 				yAxisTickLength: 6,
-				yAxisTonicTickLength: 10,
+				yAxisTonicTickLength: 10
 			});
 
 			expect(svg).toContain('stroke="#00ff00"');
@@ -591,7 +591,7 @@ cdefg`;
 			const svg = contourToSvg(contour, {
 				minDegree: -15,
 				maxDegree: 15,
-				baselineColour: bc,
+				baselineColour: bc
 			});
 
 			// Should contain baseline even if notes don't reach degree 0
@@ -608,40 +608,40 @@ cdefg`;
 			const testCases = [
 				{
 					name: "simple-ascending",
-					abc: `X:1\nL:1/8\nK:C\nCDEFGAB`,
+					abc: `X:1\nL:1/8\nK:C\nCDEFGAB`
 				},
 				{
 					name: "the-munster",
-					abc: `X:1\nT: The Munster\nR: jig\nL:1/8\nM:12/8\nK:G major\nG2B AGA B2d gdB`,
+					abc: `X:1\nT: The Munster\nR: jig\nL:1/8\nM:12/8\nK:G major\nG2B AGA B2d gdB`
 				},
 				{
 					name: "with-subdivisions",
-					abc: `X:1\nL:1/8\nK:C\nC/D/E F/G/A B`,
+					abc: `X:1\nL:1/8\nK:C\nC/D/E F/G/A B`
 				},
 				{
 					name: "with-silences",
-					abc: `X:1\nL:1/8\nK:C\nC z D z E z`,
+					abc: `X:1\nL:1/8\nK:C\nC z D z E z`
 				},
 				{
 					name: "held-vs-repeated",
-					abc: `X:1\nL:1/8\nK:C\nC2 C C2`,
+					abc: `X:1\nL:1/8\nK:C\nC2 C C2`
 				},
 				{
 					name: "multiple-silences",
-					abc: `X:1\nL:1/8\nK:C\nC z2 D z E`,
+					abc: `X:1\nL:1/8\nK:C\nC z2 D z E`
 				},
 				{
 					name: "comparison-low-range",
-					abc: `X:1\nL:1/8\nK:C\nC,D,E,F,`,
+					abc: `X:1\nL:1/8\nK:C\nC,D,E,F,`
 				},
 				{
 					name: "comparison-mid-range",
-					abc: `X:1\nL:1/8\nK:C\nCDEF`,
+					abc: `X:1\nL:1/8\nK:C\nCDEF`
 				},
 				{
 					name: "comparison-high-range",
-					abc: `X:1\nL:1/8\nK:C\ncdef`,
-				},
+					abc: `X:1\nL:1/8\nK:C\ncdef`
+				}
 			];
 
 			for (const testCase of testCases) {
@@ -649,7 +649,7 @@ cdefg`;
 				const svg = contourToSvg(contour);
 				const filename = path.join(outputDir, `${testCase.name}.svg`);
 				fs.writeFileSync(filename, svg);
-				console.log(`Generated: ${filename}`);
+				// console.log(`Generated: ${filename}`);
 			}
 
 			const autoConfig = { minDegree: null, maxDegree: null };
@@ -661,7 +661,7 @@ cdefg`;
 					`${testCase.name}-auto-range.svg`
 				);
 				fs.writeFileSync(filename, svg);
-				console.log(`Generated: ${filename}`);
+				// console.log(`Generated: ${filename}`);
 			}
 		});
 	});
