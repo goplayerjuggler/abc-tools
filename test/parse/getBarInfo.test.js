@@ -25,11 +25,11 @@ K:C
 		expect(barLines[1].completesMusicBar).toBeUndefined();
 		expect(barLines[1].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[1].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 
 		// barLines[2]: | after C4 (closes bar 1)
@@ -49,11 +49,11 @@ K:C
 		expect(barLines[3].completesMusicBar).toBeUndefined();
 		expect(barLines[3].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[3].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 
 		// barLines[4]: | after E2 (partial - completes musical bar 2 with previous D2)
@@ -62,7 +62,7 @@ K:C
 		expect(barLines[4].completesMusicBar).toBe(true);
 		expect(barLines[4].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(
 			barLines[4].cumulativeDuration.sinceLastComplete.compare(1) === 0
@@ -98,11 +98,11 @@ D2|C4|[1D2:|[2DF||G2|F4|G2|]`;
 		expect(barLines[0].completesMusicBar).toBeUndefined();
 		expect(barLines[0].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[0].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 
 		// barLines[1]: | after C4 (closes bar 1)
@@ -123,11 +123,11 @@ D2|C4|[1D2:|[2DF||G2|F4|G2|]`;
 		expect(barLines[2].completesMusicBar).toBeUndefined();
 		expect(barLines[2].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[2].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 
 		// barLines[3]: || after [2DF (partial, variant 1)
@@ -137,11 +137,11 @@ D2|C4|[1D2:|[2DF||G2|F4|G2|]`;
 		expect(barLines[3].completesMusicBar).toBeUndefined();
 		expect(barLines[3].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[3].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 
 		// barLines[4]: | after G2 (partial - still in bar 2 despite the preceding section break "||" ! completes musical bar 2)
@@ -152,11 +152,11 @@ D2|C4|[1D2:|[2DF||G2|F4|G2|]`;
 		expect(barLines[4].completesMusicBar).toBe(true);
 		expect(barLines[4].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[4].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 
 		// barLines[5]: | after F4 (closes bar 3)
@@ -176,11 +176,11 @@ D2|C4|[1D2:|[2DF||G2|F4|G2|]`;
 		expect(barLines[6].completesMusicBar).toBeUndefined();
 		expect(barLines[6].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[6].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 	});
 
@@ -203,11 +203,11 @@ C4|D2[1D2:|[2FA||G4|]`;
 		expect(barLines[0].completesMusicBar).toBeUndefined();
 		expect(barLines[0].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 		expect(barLines[0].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 
 		// barLines[1]: :| after D2[1D2 (complete bar, variant 0)
@@ -229,11 +229,11 @@ C4|D2[1D2:|[2FA||G4|]`;
 		expect(barLines[2].completesMusicBar).toBe(true);
 		expect(barLines[2].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 2,
+			den: 2
 		});
 		expect(barLines[2].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 
 		// barLines[3]: |] after G4
@@ -243,11 +243,11 @@ C4|D2[1D2:|[2FA||G4|]`;
 		expect(barLines[3].completesMusicBar).toBeUndefined();
 		expect(barLines[3].cumulativeDuration.sinceLastBarLine).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 		expect(barLines[3].cumulativeDuration.sinceLastComplete).toEqual({
 			num: 1,
-			den: 1,
+			den: 1
 		});
 	});
 

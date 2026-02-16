@@ -1,6 +1,6 @@
 const {
 	toggleMeter_4_4_to_4_2,
-	toggleMeter_6_8_to_12_8,
+	toggleMeter_6_8_to_12_8
 } = require("../src/index.js");
 
 describe("toggleMeterDoubling with variant endings", () => {

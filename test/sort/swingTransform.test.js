@@ -41,7 +41,7 @@ K:G major
 A>B`;
 			const obj = getContour(abc, { withSwingTransform: true });
 			const twoNotesContour = getContour(twoNotes, {
-				withSwingTransform: true,
+				withSwingTransform: true
 			});
 			expect(compare(obj, twoNotesContour)).toBe(0);
 		});

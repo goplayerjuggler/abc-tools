@@ -11,13 +11,13 @@ describe("grace notes", () => {
 				pitch: "A",
 				octave: 0,
 				isGraceNote: true,
-				duration: new Fraction(0, 1),
+				duration: new Fraction(0, 1)
 			});
 			expect(result[1]).toMatchObject({
 				pitch: "B",
 				octave: 0,
 				isGraceNote: true,
-				duration: new Fraction(0, 1),
+				duration: new Fraction(0, 1)
 			});
 		});
 
@@ -27,12 +27,12 @@ describe("grace notes", () => {
 			expect(result[0]).toMatchObject({
 				pitch: "A",
 				octave: 0,
-				isGraceNote: true,
+				isGraceNote: true
 			});
 			expect(result[1]).toMatchObject({
 				pitch: "B",
 				octave: 0,
-				isGraceNote: true,
+				isGraceNote: true
 			});
 		});
 
@@ -42,12 +42,12 @@ describe("grace notes", () => {
 			expect(result[0]).toMatchObject({
 				pitch: "A",
 				octave: 1,
-				isGraceNote: true,
+				isGraceNote: true
 			});
 			expect(result[1]).toMatchObject({
 				pitch: "B",
 				octave: -1,
-				isGraceNote: true,
+				isGraceNote: true
 			});
 		});
 
@@ -57,12 +57,12 @@ describe("grace notes", () => {
 			expect(result[0]).toMatchObject({
 				pitch: "G", // topmost note of chord
 				isGraceNote: true,
-				isChord: true,
+				isChord: true
 			});
 			expect(result[0].chordNotes).toHaveLength(3);
 			expect(result[1]).toMatchObject({
 				pitch: "A",
-				isGraceNote: true,
+				isGraceNote: true
 			});
 		});
 
@@ -93,18 +93,18 @@ describe("grace notes", () => {
 			expect(result.bars[0][0]).toMatchObject({
 				pitch: "A",
 				isGraceNote: true,
-				duration: new Fraction(0, 1),
+				duration: new Fraction(0, 1)
 			});
 			expect(result.bars[0][1]).toMatchObject({
 				pitch: "B",
 				isGraceNote: true,
-				duration: new Fraction(0, 1),
+				duration: new Fraction(0, 1)
 			});
 
 			// Regular note
 			expect(result.bars[0][2]).toMatchObject({
 				pitch: "c",
-				duration: new Fraction(1, 4),
+				duration: new Fraction(1, 4)
 			});
 			expect(result.bars[0][2].isGraceNote).toBeUndefined();
 		});
@@ -203,11 +203,11 @@ describe("grace notes", () => {
 			expect(graceNotes).toHaveLength(2);
 			expect(graceNotes[0]).toMatchObject({
 				pitch: "A",
-				octave: 1,
+				octave: 1
 			});
 			expect(graceNotes[1]).toMatchObject({
 				pitch: "B",
-				octave: -1,
+				octave: -1
 			});
 		});
 	});
