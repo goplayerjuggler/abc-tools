@@ -620,6 +620,7 @@ function toggleMeter_4_4_to_4_2(abc, currentMeter) {
 const defaultCommentForReelConversion =
 	"*abc-tools: convert to M:4/4 & L:1/16*";
 const defaultCommentForHornpipeConversion = "*abc-tools: convert to M:4/2*";
+const defaultCommentForPolkaConversion = "*abc-tools: convert to M:4/4*";
 const defaultCommentForJigConversion = "*abc-tools: convert to M:12/8*";
 /**
  * Adjusts bar lengths and L, M fields - a 
@@ -676,6 +677,20 @@ function convertStandardJig(jig, comment = defaultCommentForJigConversion) {
 
 	let result = //toggleMeter_4_4_to_4_2(reel, meter);
 		toggleMeterDoubling(jig, [6, 8], [12, 8], meter);
+	if (comment) {
+		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
+	}
+	return result;
+}
+
+function convertStandardPolka(t, comment = defaultCommentForPolkaConversion) {
+	const meter = getMeter(t);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 2 || !meter[1] === 4) {
+		throw new Error("invalid meter");
+	}
+
+	let result = //toggleMeter_4_4_to_4_2(reel, meter);
+		toggleMeterDoubling(t, [2, 4], [4, 4], meter);
 	if (comment) {
 		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
 	}
@@ -786,6 +801,19 @@ function convertToStandardJig(jig, comment = defaultCommentForJigConversion) {
 	}
 
 	let result = toggleMeter_6_8_to_12_8(jig); // toggleMeter_4_4_to_4_2(jig, meter);
+	if (comment) {
+		result = result.replace(`\nN:${comment}`, "");
+	}
+	return result;
+}
+
+function convertToStandardPolka(t, comment = defaultCommentForPolkaConversion) {
+	const meter = getMeter(t);
+	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
+		throw new Error("invalid meter");
+	}
+
+	let result = toggleMeterDoubling(t, [2, 4], [4, 4], meter);
 	if (comment) {
 		result = result.replace(`\nN:${comment}`, "");
 	}
@@ -1033,21 +1061,19 @@ function canDoubleBarLength(abc) {
 		rhythm = getHeaderValue(abc, "R");
 	if (
 		!rhythm ||
-		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
+		["reel", "hornpipe", "jig", "polka"].indexOf(rhythm.toLowerCase()) < 0
 	) {
 		return false;
 	}
 	return (
-		!abc.match(/\[M:/) && //inline meter marking
-		!abc.match(/\[L:/) &&
-		(((rhythm === "reel" || rhythm === "hornpipe") &&
-			l.equals(new Fraction(1, 8)) &&
-			meter[0] === 4 &&
-			meter[1] === 4) ||
-			(rhythm === "jig" &&
+		(!abc.match(/\[M:/) && //inline meter marking
+			!abc.match(/\[L:/) &&
+			(((rhythm === "reel" || rhythm === "hornpipe") &&
 				l.equals(new Fraction(1, 8)) &&
-				meter[0] === 6 &&
-				meter[1] === 8))
+				meter[0] === 4 &&
+				meter[1] === 4) ||
+				(rhythm === "jig" && meter[0] === 6 && meter[1] === 8))) ||
+		(rhythm === "polka" && meter[0] === 2 && meter[1] === 4)
 	);
 }
 function canHalveBarLength(abc) {
@@ -1056,17 +1082,11 @@ function canHalveBarLength(abc) {
 		rhythm = getHeaderValue(abc, "R");
 	if (
 		!rhythm ||
-		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
+		["reel", "hornpipe", "jig", "polka"].indexOf(rhythm.toLowerCase()) < 0
 	) {
 		return false;
 	}
 
-	if (
-		!rhythm ||
-		["reel", "hornpipe", "jig"].indexOf(rhythm.toLowerCase()) < 0
-	) {
-		return false;
-	}
 	return (
 		!abc.match(/\[M:/) && //inline meter marking
 		!abc.match(/\[L:/) &&
@@ -1078,10 +1098,8 @@ function canHalveBarLength(abc) {
 				l.equals(new Fraction(1, 8)) &&
 				meter[0] === 4 &&
 				meter[1] === 2) ||
-			(rhythm === "jig" &&
-				l.equals(new Fraction(1, 8)) &&
-				meter[0] === 12 &&
-				meter[1] === 8))
+			(rhythm === "jig" && meter[0] === 12 && meter[1] === 8) ||
+			(rhythm === "polka" && meter[0] === 4 && meter[1] === 4))
 	);
 }
 
@@ -1090,9 +1108,11 @@ module.exports = {
 	canHalveBarLength,
 	convertStandardJig,
 	convertStandardHornpipe,
+	convertStandardPolka,
 	convertStandardReel,
 	convertToStandardJig,
 	convertToStandardHornpipe,
+	convertToStandardPolka,
 	convertToStandardReel,
 	defaultCommentForReelConversion,
 	doubleBarLength,
