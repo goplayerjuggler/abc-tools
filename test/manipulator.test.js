@@ -593,6 +593,14 @@ K:C
 			expect(result).toContain("|:c'b ag|fe dc:|");
 			expect(result).toContain("|:cd ef|ga bc':|");
 		});
+
+		test("Ebb Tide hornpipe 4/4 to 4/2", () => {
+			const hornpipe =
+				"X:1\nT:The Ebb Tide\nR:hornpipe\nL:1/8\nM:4/4\nK:Gminor\n|:d>c|B>dA>B G>AB>c|d2 G2 G2 b>g|f>dc>A B>cd>B|c>A (3BAG F2 d>c|";
+
+			const result = toggleMeter_4_4_to_4_2(hornpipe);
+			expect(result).not.toContain("undefined");
+		});
 	});
 
 	describe("4/2 to 4/4 conversion", () => {

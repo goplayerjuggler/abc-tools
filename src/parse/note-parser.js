@@ -294,11 +294,12 @@ function parseGraceNotes(graceStr) {
 function parseBrokenRhythm(token) {
 	const brokenMatch = token.match(/^(<{1,3}|>{1,3})$/);
 	if (brokenMatch) {
-		const symbol = brokenMatch[1];
+		const token = brokenMatch[1];
 		return {
 			isBrokenRhythm: true,
-			direction: symbol[0],
-			dots: symbol.length
+			direction: token[0],
+			token,
+			dots: token.length
 		};
 	}
 	return null;

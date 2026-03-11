@@ -417,7 +417,7 @@ function reconstructMusicFromTokens(tokens) {
 		const token = tokens[i];
 
 		// Add the token (possibly modified)
-		result += token.token;
+		if (token.token) result += token.token;
 
 		// Add spacing after token (but not after the last token)
 		if (i < tokens.length - 1 && token.spacing && token.spacing.whitespace) {
