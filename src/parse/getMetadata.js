@@ -1,9 +1,9 @@
 const { normaliseKey } = require("../manipulator");
 
 /**
- * Extracts data in the ABC _header_ T R C M K S F D N H fields
+ * Extracts data in the ABC _header_ T R C M K S O F D N H fields
  * and returns it in a object with properties: title, rhythm, composer, meter, key,
- * source, url, recording, comments, and hComments.
+ * source, origin, url, recording, comments, and hComments.
  * Minimal parsing, but a few features:
  * - only extracts the first T title; subsequent T entries are ignored
  * - the key is normalised, so C, Cmaj, C maj, C major will all map to key:"C major"
