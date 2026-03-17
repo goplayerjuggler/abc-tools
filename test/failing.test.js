@@ -1,3 +1,4 @@
+const { getIncipit } = require("../src/incipit.js");
 const {
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8
@@ -80,5 +81,31 @@ G2 FE D4 :| % B part bar 2`;
 			// create additional complexity in bar line tracking
 			expect(restored).toBe(repeated_with_comments);
 		});
+	});
+});
+
+describe("getIncipit - failing", () => {
+	test.skip("incipit no meter", () => {
+		const result = getIncipit(
+			`X:1
+K:C
+A4 Bcdef gfgf a3B dddd eeee ffff gggg aaaaaaaa ^aaaaaaaaa `,
+			1
+		);
+		expect(result).not.toContain("^aaaaaaaaa");
+	});
+
+	test.skip("Meter change - 2 - 4 bars", () => {
+		const abcMeter = `X:1
+T:A Tune For Frankie
+C:Mairéad Ní Mhaonaigh
+R:jig
+L:1/8
+M:6/8
+K:Gdorian
+|: D2 G FDC | ~A,3 F3 | ~A,3 C3 | [M:9/8] A,CA, G,A,G, G,GF | 
+ `;
+		const result = getIncipit(abcMeter, 4);
+		expect(result).toContain("G,GF");
 	});
 });

@@ -288,7 +288,8 @@ function getIncipit(data) {
 		numBars = 2;
 		const currentMeter = getMeter(abc);
 		const unitLength = getUnitLength(abc);
-		if (
+		if (!currentMeter) numBars = 2;
+		else if (
 			(currentMeter[0] === 4 &&
 				currentMeter[1] === 4 &&
 				unitLength.den === 16) ||

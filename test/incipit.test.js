@@ -34,8 +34,4 @@ K:Gdorian
 		result = getIncipitForContourGeneration(abcMeter);
 		expect(result).toContain("D2 G FDC");
 	});
-	test.skip("Meter change - 2 - 4 bars", () => {
-		const result = getIncipit(abcMeter, 4);
-		expect(result).toContain("G,GF");
-	});
 });

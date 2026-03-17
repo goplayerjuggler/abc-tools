@@ -875,10 +875,13 @@ function getFirstBars(
 
 	// Parse ABC
 	const parsed = parseAbc(abc, { maxBars: estimatedMaxBars });
-	const { bars, headerLines, barLines, musicText, meter } = parsed;
+	const { bars, headerLines, barLines, musicText } = parsed;
+	let { meter } = parsed;
+	if (!meter) meter = [10000, 1]; //hack(?) to handle incipits in meterless music
 
+	let stopAfterDuration = null;
 	if (bars.length === 0 || barLines.length === 0) {
-		throw new Error("No bars found");
+		stopAfterDuration = new Fraction(3, 2);
 	}
 
 	// Determine which bar number to stop after
@@ -910,7 +913,8 @@ function getFirstBars(
 
 	// Calculate the expected duration per musical bar
 	const expectedBarDuration = new Fraction(meter[0], meter[1]);
-	const targetDuration = expectedBarDuration.multiply(numBarsFraction);
+	const targetDuration =
+		stopAfterDuration ?? expectedBarDuration.multiply(numBarsFraction);
 
 	// Determine starting position and how much duration we need to accumulate
 	let startPos = 0;
