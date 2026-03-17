@@ -1,4 +1,5 @@
 const { Fraction } = require("../math.js");
+const { decodeABCText, stripComment } = require("./decode-abc-text");
 
 // ============================================================================
 // ABC HEADER PARSING
@@ -11,6 +12,37 @@ const { Fraction } = require("../math.js");
 // - Line metadata (comments, continuations)
 //
 // ============================================================================
+
+/**
+ * Returns all values for a given header letter in the ABC string, in document order.
+ * @param {string} abc
+ * @param {string} header - Single header letter, e.g. 'T'
+ * @param {object}  [options]
+ * @param {boolean} [options.decode=true] - Decode ABC text escapes; pass false for raw values
+ * @returns {string[]}
+ */
+function getHeaderValues(abc, header, { decode = true } = {}) {
+	const re = new RegExp(`^${header}:[ \\t]*(.*)$`, "gm");
+	const results = [];
+	for (const m of abc.matchAll(re)) {
+		const val = decode ? decodeABCText(stripComment(m[1])) : stripComment(m[1]);
+		if (val) results.push(val);
+	}
+	return results;
+}
+
+/** @deprecated Use `getHeaderValues(abc, header)[0] ?? null` instead. */
+function getHeaderValue(abc, header, options) {
+	return getHeaderValues(abc, header, options)[0] ?? null;
+}
+
+/**
+ * @deprecated Use `getHeaderValues(abc, 'T')` instead.
+ * Note: unlike the previous implementation, this now returns decoded strings, not match objects.
+ */
+function getTitles(abc) {
+	return getHeaderValues(abc, "T");
+}
 
 /**
  * Extract base note of key signature from ABC header
@@ -69,21 +101,6 @@ function getUnitLength(abc) {
 		return new Fraction(parseInt(lengthMatch[1]), parseInt(lengthMatch[2]));
 	}
 	return new Fraction(1, 8); // Default to 1/8
-}
-/**
- * Extract titles - there may be 0..N titles
- *
- * @param {string} abc - ABC notation string
- * @returns {[string]} - array of titles
- */
-function getTitles(abc) {
-	return [...abc.matchAll(/^(?:T:\s*(.+)\n)/gm)];
-}
-
-function getHeaderValue(abc, header) {
-	const r = new RegExp(String.raw`(?:${header}:\s*(.+)\n)`, "m"),
-		m = abc.match(r);
-	return m ? m[1]?.trim() : null;
 }
 
 /**
@@ -167,6 +184,7 @@ function getMusicLines(abc) {
 
 module.exports = {
 	getHeaderValue,
+	getHeaderValues,
 	getKey,
 	getMeter,
 	getMusicLines,

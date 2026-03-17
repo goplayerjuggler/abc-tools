@@ -1,71 +1,75 @@
 const { normaliseKey } = require("../manipulator");
+const { decodeABCText, stripComment } = require("./decode-abc-text");
 
 /**
  * Extracts data in the ABC _header_ T R C M K S O F D N H fields
- * and returns it in a object with properties: title, rhythm, composer, meter, key,
+ * and returns it in an object with properties: title, rhythm, composer, meter, key,
  * source, origin, url, recording, comments, and hComments.
- * Minimal parsing, but a few features:
- * - only extracts the first T title; subsequent T entries are ignored
- * - the key is normalised, so C, Cmaj, C maj, C major will all map to key:"C major"
- * - the comments (i.e. the N / notes) go in an array called `comments`, with one array entry per N: line
- * - the history (H) lines are joined up with spaces into a single line that is returned as `hComments`
- * - the field continuation `+:` is handled only for lines following an initial H (history)
- * - if there’s more than one T (title), then titles after the first one are returned in an array `titles`
- * @param {*} abc
- * @returns {object} - The header info
+ * - Only the first T title is stored in `title`; subsequent ones go in `titles`
+ * - The key is normalised: C, Cmaj, C maj, C major all map to "C major"
+ * - N: lines accumulate in a `comments` array
+ * - H: lines (and +: continuations) are joined with spaces into `hComments`
+ * - ABC text escapes (mnemonics, entities, etc.) are decoded by default
+ * @param {string} abc
+ * @param {object}  [options]
+ * @param {boolean} [options.decode=true] - Decode ABC text escapes; pass false for raw speed
+ * @returns {object}
  */
-function getMetadata(abc) {
+function getMetadata(abc, { decode = true } = {}) {
 	const lines = abc.split("\n"),
 		metadata = {},
 		comments = [],
 		hComments = [],
 		titles = [];
 
+	const process = decode
+		? (raw) => decodeABCText(stripComment(raw))
+		: (raw) => stripComment(raw);
+
 	let currentHeader = "";
 
 	for (const line of lines) {
 		const trimmed = line.trim();
-		const trimmed2 = trimmed.substring(2).trim().replace(/%.+/, "");
-		if (trimmed.startsWith("T:")) {
-			if (!metadata.title) metadata.title = trimmed2;
-			else titles.push(trimmed2);
-		} else if (trimmed.startsWith("R:")) {
-			metadata.rhythm = trimmed2.toLowerCase();
-		} else if (trimmed.startsWith("C:")) {
-			metadata.composer = trimmed2;
-		} else if (trimmed.startsWith("M:")) {
-			metadata.meter = trimmed2;
-		} else if (trimmed.startsWith("K:")) {
-			metadata.key = normaliseKey(trimmed2).join(" ");
-			// metadata.indexOfKey = i
+		if (!trimmed || trimmed[0] === "%") continue;
+
+		if (trimmed.startsWith("K:")) {
+			metadata.key = normaliseKey(
+				stripComment(trimmed.substring(2).trim())
+			).join(" ");
 			break;
+		}
+
+		const val = process(trimmed.substring(2).trim());
+
+		if (trimmed.startsWith("T:")) {
+			if (!metadata.title) metadata.title = val;
+			else titles.push(val);
+		} else if (trimmed.startsWith("R:")) {
+			metadata.rhythm = val.toLowerCase();
+		} else if (trimmed.startsWith("C:")) {
+			metadata.composer = val;
+		} else if (trimmed.startsWith("M:")) {
+			metadata.meter = val;
 		} else if (trimmed.startsWith("S:")) {
-			metadata.source = trimmed2;
+			metadata.source = val;
 		} else if (trimmed.startsWith("O:")) {
-			metadata.origin = trimmed2;
+			metadata.origin = val;
 		} else if (trimmed.startsWith("F:")) {
-			metadata.url = trimmed2;
+			metadata.url = val;
 		} else if (trimmed.startsWith("D:")) {
-			metadata.recording = trimmed2;
+			metadata.recording = val;
 		} else if (trimmed.startsWith("N:")) {
-			comments.push(trimmed2);
+			comments.push(val);
 		} else if (trimmed.startsWith("H:")) {
 			currentHeader = "H";
-			hComments.push(trimmed2);
-		} else if (trimmed.startsWith("+:")) {
-			switch (currentHeader) {
-				case "H":
-					hComments.push(trimmed2);
-					break;
-			}
+			hComments.push(val);
+		} else if (trimmed.startsWith("+:") && currentHeader === "H") {
+			hComments.push(val);
 		}
 	}
-	if (comments.length > 0) {
-		metadata.comments = comments;
-	}
-	if (hComments.length > 0) {
-		metadata.hComments = hComments.join(" ");
-	}
+
+	if (comments.length > 0) metadata.comments = comments;
+	if (hComments.length > 0) metadata.hComments = hComments.join(" ");
 	if (titles.length > 0) metadata.titles = titles;
 
 	return metadata;
