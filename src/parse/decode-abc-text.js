@@ -193,9 +193,9 @@ function decodeABCText(str) {
 		.replace(/&#([0-9]+);/g, (_, n) => String.fromCodePoint(+n))
 		.replace(/\{\\?([^}{]{2})\}/g, (m, k) => MNEMONIC_MAP[k] ?? m)
 		.replace(/\\(..)/g, (m, k) => MNEMONIC_MAP[k] ?? m)
-		.replaceAll("\u0000", "\\")
-		.replaceAll("\u0001", "%")
-		.replaceAll("\u0002", "&");
+		.replaceAll("\x00", "\\")
+		.replaceAll("\x01", "%")
+		.replaceAll("\x02", "&");
 }
 
 module.exports = { decodeABCText, stripComment };
