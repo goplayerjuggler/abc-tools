@@ -175,6 +175,8 @@ function hasAnacrucis(abc) {
  * @throws {Error} If the current meter doesn't match either smallMeter or largeMeter
  */
 function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
+	//if no L: header at all: add one
+	if (!/\nL:\s*1\/8/.test(abc)) abc = abc.replace("\nK:", "\nL:1/8\nK:");
 	if (!currentMeter) currentMeter = getMeter(abc);
 
 	const isSmall =
@@ -649,7 +651,7 @@ function convertStandardReel(
 	}
 
 	let result = //toggleMeter_4_4_to_4_2(reel, meter);
-		toggleMeterDoubling(reel, [4, 4], [4, 2], meter);
+		toggleMeterDoubling(reel, meter, [4, 2], meter);
 	if (comment) {
 		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
 	}
@@ -1074,8 +1076,8 @@ function canDoubleBarLength(abc) {
 			!abc.match(/\[L:/) &&
 			(((rhythm === "reel" || rhythm === "hornpipe") &&
 				l.equals(new Fraction(1, 8)) &&
-				meter[0] === 4 &&
-				meter[1] === 4) ||
+				((meter[0] === 4 && meter[1] === 4) ||
+					(meter[0] === 2 && meter[1] === 2))) ||
 				(rhythm === "jig" && meter[0] === 6 && meter[1] === 8))) ||
 		(rhythm === "polka" && meter[0] === 2 && meter[1] === 4)
 	);
