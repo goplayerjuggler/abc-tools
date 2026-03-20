@@ -204,8 +204,10 @@ function sort(arr, options = {}) {
 		],
 		applySwingTransform = ["hornpipe", "barndance", "fling", "mazurka"],
 		getAbc: getAbcForContour = getAbcForContour_default,
-		getContourOptions = {
-			withSvg: true
+		getContourOptions = () => {
+			return {
+				withSvg: true
+			};
 		}
 	} = options;
 
@@ -223,13 +225,21 @@ function sort(arr, options = {}) {
 	for (const tune of arr) {
 		if (!tune.contour) {
 			try {
+				const contourOptions = getContourOptions();
+				// if (
+				// 	tune.title?.indexOf("oldrick") >= 0 ||
+				// ) {
+				// 	console.log("debug");
+				// }
 				const withSwingTransform =
 					applySwingTransform.indexOf(tune.rhythm) >= 0;
 				const shortAbc = getAbcForContour(tune);
 
 				if (shortAbc) {
-					getContourOptions.withSwingTransform = withSwingTransform;
-					tune.contour = getContour(shortAbc, getContourOptions);
+					contourOptions.withSwingTransform = withSwingTransform;
+					if (tune.contourShift !== null)
+						contourOptions.contourShift = tune.contourShift;
+					tune.contour = getContour(shortAbc, contourOptions);
 				}
 			} catch (error) {
 				console.log(error);
