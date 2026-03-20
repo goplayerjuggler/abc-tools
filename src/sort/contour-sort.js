@@ -237,7 +237,7 @@ function sort(arr, options = {}) {
 
 				if (shortAbc) {
 					contourOptions.withSwingTransform = withSwingTransform;
-					if (tune.contourShift !== null)
+					if (Object.hasOwn(tune, "contourShift"))
 						contourOptions.contourShift = tune.contourShift;
 					tune.contour = getContour(shortAbc, contourOptions);
 				}
