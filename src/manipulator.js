@@ -176,7 +176,7 @@ function hasAnacrucis(abc) {
  */
 function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 	//if no L: header at all: add one
-	if (!/\nL:\s*1\/8/.test(abc)) abc = abc.replace("\nK:", "\nL:1/8\nK:");
+	if (!/\nL:\s*1\/\d+/.test(abc)) abc = abc.replace("\nK:", "\nL:1/8\nK:");
 	if (!currentMeter) currentMeter = getMeter(abc);
 
 	const isSmall =
