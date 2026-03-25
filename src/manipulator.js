@@ -725,6 +725,30 @@ function convertStandardHornpipe(
 	}
 	return result;
 }
+
+/**
+ * Doubles the bar length of an ABC string when the
+ * ABC is eligible (as determined by canDoubleBarLength()).
+ * @param {string} abc
+ * @param {string} rhythm
+ * @returns {string}
+ */
+function maybeConvertStandardTune(abc, rhythm) {
+	if (!canDoubleBarLength(abc, { rhythm })) return abc;
+	switch (rhythm) {
+		case "reel":
+			return convertStandardReel(abc);
+		case "jig":
+			return convertStandardJig(abc);
+		case "polka":
+			return convertStandardPolka(abc);
+		case "hornpipe":
+			return convertStandardHornpipe(abc);
+		default:
+			return abc;
+	}
+}
+
 function doubleBarLength(abc, comment = null) {
 	const meter = getMeter(abc);
 	if (!Array.isArray(meter) || !meter) {
@@ -1061,10 +1085,12 @@ function getFirstBars(
 	)}`;
 }
 
-function canDoubleBarLength(abc) {
-	const meter = getMeter(abc),
+function canDoubleBarLength(abc, info = {}) {
+	const {
+		meter = getMeter(abc),
 		l = getUnitLength(abc),
-		rhythm = getHeaderValue(abc, "R");
+		rhythm = getHeaderValue(abc, "R")
+	} = info;
 	if (
 		!rhythm ||
 		["reel", "hornpipe", "jig", "polka"].indexOf(rhythm.toLowerCase()) < 0
@@ -1125,6 +1151,7 @@ module.exports = {
 	filterHeaders,
 	getFirstBars,
 	hasAnacrucis,
+	maybeConvertStandardTune,
 	normaliseKey,
 	toggleMeter_4_4_to_4_2,
 	toggleMeter_6_8_to_12_8,
