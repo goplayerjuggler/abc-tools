@@ -296,12 +296,13 @@ function getIncipit(data) {
 			(currentMeter[0] === 4 &&
 				currentMeter[1] === 2 &&
 				unitLength.den === 8) ||
-			(currentMeter[0] === 12 && currentMeter[1] === 8)
-		) {
+			(currentMeter[0] === 12 && currentMeter[1] === 8) ||
+			(currentMeter[0] >= 12 && currentMeter[0] < 16)
+		)
 			numBars = new Fraction(3, 2);
-		} else if (currentMeter[0] === 3 && currentMeter[1] === 4) {
+		else if (currentMeter[0] === 3 && [4, 8].indexOf(currentMeter[1]) >= 0)
 			numBars = 3;
-		}
+		else if (currentMeter[0] >= 16) numBars = 1;
 	}
 	abc = sanitise(abc);
 	return getFirstBars(abc, numBars, withAnacrucis, false, { all: true });
