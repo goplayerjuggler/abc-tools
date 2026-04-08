@@ -19,7 +19,7 @@ This system is applicable to single-voice melodies in a modal system, where ther
 So for instance this system can compare any two reels, whatever their key and mode.
 ### A few practical considerations
 #### Length: only use the incipit
-To keep things simple, only need to use start of a tune (the first few notes; a bar and a half for instance) to generate the contour. This means that distinct tunes that start the same way may share the same contour; this is not a problem. One real life example (two reals): the Bucks Of Oranmore and Lucy Campbell.
+To keep things simple, only need to use start of a tune (the first few notes; a bar and a half for instance) to generate the contour. This means that distinct tunes that start the same way may share the same contour; this is not a problem. One real-life example (two reels): the Bucks Of Oranmore and Lucy Campbell.
 #### Anacrucis
 Tunes may have an anacrucis, aka a pickup. This is a short phrase at the beginning of the tune whose length (duration) is less than the length of a full bar. 
 As the length of the anacrucis can vary, and often there is no anacrucis at all, it seems reasonable to **ignore the anacrucis** when comparing tunes.
