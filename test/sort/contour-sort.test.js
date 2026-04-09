@@ -1,10 +1,9 @@
 const {
 	getContour,
-	compare,
 	sort,
-	decodeChar,
 	getContourFromFullAbc
 } = require("../../src/index.js");
+const { decodeChar, compare } = require("../../src/sort/contour-sort.js");
 
 describe("ABC Tools - comparing", () => {
 	describe("Basic encoding", () => {

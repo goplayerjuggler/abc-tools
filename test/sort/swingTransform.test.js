@@ -1,4 +1,5 @@
-const { getContour, decodeChar, compare } = require("../../src/index.js");
+const { getContour } = require("../../src/index.js");
+const { decodeChar, compare } = require("../../src/sort/contour-sort.js");
 
 describe("swingTransform", () => {
 	describe("Basic", () => {

@@ -40,7 +40,7 @@ K: D minor
 M:12/8
 L:1/8
 K: D minor
-FEF GFG  AGA dA^F | G/G/^FG A2g  fed cAG |`;
+FEF GFG  AGA dA^F | G/G/^FG A2g`;
 		const result = getIncipitForContourGeneration(abc);
 		expect(result.trim()).toBe(expected);
 	});

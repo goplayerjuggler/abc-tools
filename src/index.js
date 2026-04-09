@@ -1,12 +1,9 @@
-/**
- * ABC Music Toolkit
- * Main entry point for ABC parsing, manipulation, and sorting
- */
-
 const parser = require("./parse/parser.js");
 const miscParser = require("./parse/misc-parser.js");
 const manipulator = require("./manipulator.js");
-const sort = require("./sort/contour-sort.js");
+const sort = require("./sort/sort.js");
+const sortConstants = require("./sort/sort-constants.js");
+const { compare } = require("./sort/contour-sort.js");
 const contourToSvg = require("./sort/contour-svg.js");
 const displayContour = require("./sort/display-contour.js");
 
@@ -18,18 +15,20 @@ const { getBarInfo } = require("./parse/getBarInfo.js");
 const { getMetadata } = require("./parse/getMetadata.js");
 
 module.exports = {
-	// Parser functions
+	// Get info
 	...parser,
 	...miscParser,
 	getBarInfo,
 	getMetadata,
 	...incipit,
 
-	// Manipulator functions
+	// change things
 	...manipulator,
 
-	// Sort functions
+	// Sort
 	...sort,
+	...sortConstants,
+	compareContour: compare,
 	...displayContour,
 	...contourToSvg,
 	...getContour,
