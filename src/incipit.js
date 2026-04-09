@@ -283,19 +283,23 @@ function getIncipit(data) {
 
 	const { withAnacrucis = true } =
 		typeof data === "string" ? { abc: data } : data;
-
+	let countAnacrucisInTotal = false;
 	if (!numBars) {
 		numBars = 2;
 		const currentMeter = getMeter(abc);
 		const unitLength = getUnitLength(abc);
 		if (!currentMeter) numBars = 2;
 		else if (
+			currentMeter[0] === 4 &&
+			currentMeter[1] === 2 &&
+			unitLength.den === 8
+		) {
+			numBars = 1; //hornpipes
+			countAnacrucisInTotal = true; //otherwise it seems a bit too long
+		} else if (
 			(currentMeter[0] === 4 &&
 				currentMeter[1] === 4 &&
 				unitLength.den === 16) ||
-			(currentMeter[0] === 4 &&
-				currentMeter[1] === 2 &&
-				unitLength.den === 8) ||
 			(currentMeter[0] === 12 && currentMeter[1] === 8) ||
 			(currentMeter[0] >= 12 && currentMeter[0] < 16)
 		)
@@ -305,13 +309,12 @@ function getIncipit(data) {
 		else if (currentMeter[0] >= 16) numBars = 1;
 	}
 	abc = sanitise(abc);
-	return getFirstBars(abc, numBars, withAnacrucis, false, { all: true });
+	return getFirstBars(abc, numBars, withAnacrucis, countAnacrucisInTotal, {
+		all: true
+	});
 }
 
-function getIncipitForContourGeneration(
-	abc,
-	{ numBars = new Fraction(2, 1) } = {}
-) {
+function getIncipitForContourGeneration(abc, { numBars = null } = {}) {
 	return getIncipit({
 		abc,
 		withAnacrucis: false,
