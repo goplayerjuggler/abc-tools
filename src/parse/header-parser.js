@@ -125,8 +125,13 @@ function getMusicLines(abc) {
 		const line = lines[i];
 		let trimmed = line.trim();
 
-		// Skip empty lines and comment-only lines
-		if (trimmed === "" || trimmed.startsWith("%")) {
+		// Skip empty lines, comment-only lines and W: (lyrics) lines
+		if (
+			trimmed === "" ||
+			trimmed.startsWith("%") ||
+			trimmed.startsWith("W:") ||
+			trimmed.startsWith("w:") //lower-case w: lines are in Norbeck scandinavian ANBC
+		) {
 			if (inHeaders) {
 				headerEndIndex = i + 1;
 			}
