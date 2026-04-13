@@ -6,9 +6,9 @@ const {
 	getIncipit,
 	normaliseKey,
 	getIncipitForContourGeneration,
-	convertStandardReel,
 	toggleMeterDoubling
 } = require("../src/index.js");
+const { convertStandardTune } = require("../src/manipulator.js");
 
 const tarbuka = `X: 8
 T: Tommy’s Tarbukas
@@ -1129,9 +1129,9 @@ BG~G2 BGcG|BG~G2 Bdgd|BG~G2 BdcB|1 ADFG ABcA:|2 AGFG ABcA||
 	});
 });
 
-describe("convertStandardReel", () => {
+describe("convertStandardTune", () => {
 	test("tommy's tarbukas", () => {
-		const r = convertStandardReel(tarbuka);
+		const r = convertStandardTune(tarbuka);
 		// console.log(r);
 		expect(r.indexOf("L: 1/16") > 0 || r.indexOf("L:1/16") > 0).toBe(true);
 		expect(r.indexOf("|1") < 0).toBe(true);

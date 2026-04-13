@@ -146,6 +146,242 @@ function hasAnacrucis(abc) {
 }
 
 /**
+ * Get the first N complete or partial musical bars from ABC notation, with or without the anacrusis
+ * Preserves all formatting, comments, spacing, and line breaks
+ * @param {string} abc - ABC notation
+ * @param {number|Fraction} numBars - Number of musical bars to extract (can be fractional, e.g., 1.5 or new Fraction(3,2))
+ * @param {boolean} withAnacrucis - when flagged, the returned result also includes the anacrusis - incomplete bar (default: false)
+ * @param {boolean} countAnacrucisInTotal - when true AND withAnacrucis is true, the anacrusis counts toward numBars duration (default: false)
+ * @param {object} headersToStrip - optional header stripping configuration {all:boolean, toKeep:string}
+ * @returns {string} - ABC with (optionally) the anacrusis, plus the first `numBars` worth of music
+ */
+function getFirstBars(
+	abc,
+	numBars = 1,
+	withAnacrucis = false,
+	countAnacrucisInTotal = false,
+	headersToStrip
+) {
+	// Convert numBars to Fraction if it’s a number
+	const numBarsFraction =
+		typeof numBars === "number" ? new Fraction(numBars) : numBars;
+
+	// Estimate maxBars needed for parsing
+	const estimatedMaxBars = Math.ceil(numBarsFraction.toNumber()) * 2 + 2;
+
+	// Parse ABC
+	const parsed = parseAbc(abc, { maxBars: estimatedMaxBars });
+	const { bars, headerLines, barLines, musicText } = parsed;
+	let { meter } = parsed;
+	if (!meter) meter = [10000, 1]; //hack(?) to handle incipits in meterless music
+
+	let stopAfterDuration = null;
+	if (bars.length === 0 || barLines.length === 0) {
+		stopAfterDuration = new Fraction(3, 2);
+	}
+
+	// Determine which bar number to stop after
+	// We need to account for fractional bars, anacrusis handling, etc.
+	const wholeBarsNeeded = Math.ceil(numBarsFraction.toNumber());
+	const stopAfterBarNumber = wholeBarsNeeded + 1; // Add buffer for safety
+
+	// Get bar info up to the bar number we need
+	const barInfo = getBarInfo(bars, barLines, meter, {
+		barNumbers: true,
+		isPartial: true,
+		cumulativeDuration: true,
+		stopAfterBarNumber
+	});
+
+	const enrichedBarLines = barInfo.barLines;
+
+	// Detect if there’s an anacrusis
+	const firstNumberedBarLine = enrichedBarLines.find(
+		(bl) => bl.barNumber !== null
+	);
+	const hasPickup =
+		firstNumberedBarLine &&
+		firstNumberedBarLine.barNumber === 0 &&
+		firstNumberedBarLine.isPartial === true;
+
+	// Filter headers if requested
+	const filteredHeaders = filterHeaders(headerLines, headersToStrip);
+
+	// Calculate the expected duration per musical bar
+	const expectedBarDuration = new Fraction(meter[0], meter[1]);
+	const targetDuration =
+		stopAfterDuration ?? expectedBarDuration.multiply(numBarsFraction);
+
+	// Determine starting position and how much duration we need to accumulate
+	let startPos = 0;
+	let remainingDurationNeeded = targetDuration.clone();
+	let countingFromBarNumber = 0;
+
+	if (hasPickup) {
+		if (withAnacrucis) {
+			// Include anacrusis in output
+			startPos = 0;
+			if (countAnacrucisInTotal) {
+				// Subtract anacrusis duration from target
+				const anacrusisBarLine = enrichedBarLines.find(
+					(bl) => bl.barNumber === 0
+				);
+				if (anacrusisBarLine && anacrusisBarLine.cumulativeDuration) {
+					const anacrusisDuration =
+						anacrusisBarLine.cumulativeDuration.sinceLastBarLine;
+					remainingDurationNeeded =
+						remainingDurationNeeded.subtract(anacrusisDuration);
+				}
+				countingFromBarNumber = 1; // Start counting from first complete bar
+			} else {
+				// Don’t count anacrusis - we want full numBars after it
+				countingFromBarNumber = 1;
+			}
+		} else {
+			// Skip anacrusis - start after its bar line
+			const anacrusisBarLineIdx = enrichedBarLines.findIndex(
+				(bl) => bl.barNumber === 0
+			);
+			if (anacrusisBarLineIdx >= 0) {
+				const anacrusisBarLine = enrichedBarLines[anacrusisBarLineIdx];
+				startPos = anacrusisBarLine.sourceIndex + anacrusisBarLine.sourceLength;
+			}
+			countingFromBarNumber = 1;
+		}
+	} else {
+		// No anacrusis
+		startPos = 0;
+		countingFromBarNumber = 0;
+	}
+
+	// Determine which bar numbers we need based on remaining duration
+	const wholeBarsInRemaining = Math.floor(
+		remainingDurationNeeded.divide(expectedBarDuration).toNumber()
+	);
+	const fractionalPart = remainingDurationNeeded.subtract(
+		expectedBarDuration.multiply(new Fraction(wholeBarsInRemaining, 1))
+	);
+
+	const needsFractionalBar = fractionalPart.compare(new Fraction(0, 1)) > 0;
+	const finalTargetBarNumber =
+		countingFromBarNumber +
+		wholeBarsInRemaining +
+		(needsFractionalBar ? 0 : -1);
+
+	// Find end position
+	let endPos = startPos;
+	let foundEnd = false;
+
+	// Find all bar lines with our target bar numbers
+	const relevantBarLines = enrichedBarLines.filter(
+		(bl) =>
+			bl.barNumber !== null &&
+			bl.barNumber >= countingFromBarNumber &&
+			bl.barNumber <= finalTargetBarNumber
+	);
+
+	if (!needsFractionalBar) {
+		// For whole bars, find the bar line at finalTargetBarNumber
+		const finalBarLine = relevantBarLines.find(
+			(bl) => bl.barNumber === finalTargetBarNumber
+		);
+		if (finalBarLine) {
+			endPos = finalBarLine.sourceIndex + finalBarLine.sourceLength;
+			foundEnd = true;
+		}
+	} else {
+		// For fractional bars, we need to do duration counting within bars with finalTargetBarNumber
+		// Note: there may be multiple segments with the same barNumber (partial bars)
+
+		let accumulated = new Fraction(0, 1);
+
+		// Iterate through bars and accumulate duration for bars with finalTargetBarNumber
+		for (let i = 0; i < bars.length; i++) {
+			const bar = bars[i];
+			if (bar.length === 0) continue;
+
+			// Find the bar line that follows this bar to get its barNumber
+			const barLineIdx = enrichedBarLines.findIndex(
+				(bl) => bl.sourceIndex >= bar[bar.length - 1].sourceIndex
+			);
+
+			if (barLineIdx < 0) continue;
+
+			const barLine = enrichedBarLines[barLineIdx];
+
+			if (barLine.barNumber === finalTargetBarNumber) {
+				// This bar segment is part of our target bar number
+				for (const token of bar) {
+					if (!token.duration) {
+						continue;
+					}
+
+					const newAccumulated = accumulated.add(token.duration);
+
+					if (newAccumulated.compare(fractionalPart) >= 0) {
+						// Found the position - include this token
+						endPos = token.sourceIndex + token.sourceLength;
+
+						// Skip trailing space if present
+						if (
+							token.spacing &&
+							token.spacing.whitespace &&
+							endPos < musicText.length &&
+							musicText[endPos] === " "
+						) {
+							endPos++;
+						}
+						foundEnd = true;
+						break;
+					}
+
+					accumulated = newAccumulated;
+				}
+
+				if (foundEnd) break;
+			}
+		}
+	}
+
+	// Fallback: if we didn’t find an end, use the last available position
+	if (!foundEnd || endPos === startPos) {
+		endPos = musicText.length;
+	}
+
+	// Reconstruct ABC
+	return `${filteredHeaders.join("\n")}\n${musicText.substring(
+		startPos,
+		endPos
+	)}`;
+}
+
+/**
+ * Build a map of bar index to active key signature
+ * Tracks key changes from barLines[].newKey
+ *
+ * @param {Array} barLines - Bar line array from parseAbc
+ * @param {string} initialKey - Initial K: header value
+ * @returns {Map<number, string>} - Map from bar index to key signature string
+ */
+function getKeyAtEachBar(barLines, initialKey) {
+	const keyMap = new Map();
+	let currentKey = initialKey;
+
+	// Bar index 0 is before the first bar line (or at it if there's an initial bar line)
+	keyMap.set(0, currentKey);
+
+	for (let i = 0; i < barLines.length; i++) {
+		if (barLines[i].newKey) {
+			currentKey = barLines[i].newKey;
+		}
+		// The key after this bar line applies to the next bar
+		keyMap.set(i + 1, currentKey);
+	}
+
+	return keyMap;
+}
+
+/**
  * Toggle meter by doubling or halving bar length
  * Supports 4/4↔4/2 and 6/8↔12/8 transformations
  *
@@ -585,168 +821,12 @@ function toggleMeterDoubling(abc, smallMeter, largeMeter, currentMeter) {
 }
 
 /**
- * Build a map of bar index to active key signature
- * Tracks key changes from barLines[].newKey
- *
- * @param {Array} barLines - Bar line array from parseAbc
- * @param {string} initialKey - Initial K: header value
- * @returns {Map<number, string>} - Map from bar index to key signature string
- */
-function getKeyAtEachBar(barLines, initialKey) {
-	const keyMap = new Map();
-	let currentKey = initialKey;
-
-	// Bar index 0 is before the first bar line (or at it if there's an initial bar line)
-	keyMap.set(0, currentKey);
-
-	for (let i = 0; i < barLines.length; i++) {
-		if (barLines[i].newKey) {
-			currentKey = barLines[i].newKey;
-		}
-		// The key after this bar line applies to the next bar
-		keyMap.set(i + 1, currentKey);
-	}
-
-	return keyMap;
-}
-
-/**
  * Toggle between M:4/4 and M:4/2 by surgically adding/removing bar lines
  * This is a true inverse operation - going there and back preserves the ABC exactly
  * Handles anacrusis correctly and preserves line breaks
  */
 function toggleMeter_4_4_to_4_2(abc, currentMeter) {
 	return toggleMeterDoubling(abc, [4, 4], [4, 2], currentMeter);
-}
-
-const defaultCommentForReelConversion =
-	"*abc-tools: convert to M:4/4 & L:1/16*";
-const defaultCommentForHornpipeConversion = "*abc-tools: convert to M:4/2*";
-const defaultCommentForPolkaConversion = "*abc-tools: convert to M:4/4*";
-const defaultCommentForJigConversion = "*abc-tools: convert to M:12/8*";
-/**
- * Adjusts bar lengths and L, M fields - a 
- * reel written in the normal way (M:4/4 L:1/8) is written
- * written with M:4/4 and L:1/16 (or M:4/2 and L:1/8, if withSemiquavers is unflagged)
- * Bars are twice as long, and the quick notes are semiquavers
- * rather than quavers.
- * @param {string} reel
- * @param {string} comment - when non falsey, the comment will be injected as an N: header
- * @param {bool} withSemiquavers - when unflagged, the L stays at 1/8, and the M is 4/2
-
- * @returns
- */
-function convertStandardReel(
-	reel,
-	comment = defaultCommentForReelConversion,
-	withSemiquavers = true
-) {
-	const meter = getMeter(reel);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
-		throw new Error("invalid meter");
-	}
-	const unitLength = getUnitLength(reel);
-	if (unitLength.den !== 8) {
-		throw new Error("invalid L header");
-	}
-
-	let result = //toggleMeter_4_4_to_4_2(reel, meter);
-		toggleMeterDoubling(reel, meter, [4, 2], meter);
-	if (comment) {
-		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
-	}
-	if (withSemiquavers) {
-		result = result.replace("M:4/2", "M:4/4").replace("L:1/8", "L:1/16");
-	}
-	return result;
-}
-
-/**
- * Adjusts bar lengths and M field to alter a
- * jig written in the normal way (M:6/8) so it’s
- * written with M:12/8.
- * Bars are twice as long.
- * @param {string} jig
- * @param {string} comment - when non falsey, the comment will be injected as an N: header
-
- * @returns
- */
-function convertStandardJig(jig, comment = defaultCommentForJigConversion) {
-	const meter = getMeter(jig);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 6 || !meter[1] === 8) {
-		throw new Error("invalid meter");
-	}
-
-	let result = //toggleMeter_4_4_to_4_2(reel, meter);
-		toggleMeterDoubling(jig, [6, 8], [12, 8], meter);
-	if (comment) {
-		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
-	}
-	return result;
-}
-
-function convertStandardPolka(t, comment = defaultCommentForPolkaConversion) {
-	const meter = getMeter(t);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 2 || !meter[1] === 4) {
-		throw new Error("invalid meter");
-	}
-
-	let result = //toggleMeter_4_4_to_4_2(reel, meter);
-		toggleMeterDoubling(t, [2, 4], [4, 4], meter);
-	if (comment) {
-		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
-	}
-	return result;
-}
-
-/**
- * Adjusts bar lengths and M field to alter a
- * hornpipe written in the normal way (M:6/8) so it’s
- * written with M:12/8.
- * Bars are twice as long.
- * @param {string} hornpipe
- * @param {string} comment - when non falsey, the comment will be injected as an N: header
-
- * @returns
- */
-function convertStandardHornpipe(
-	hornpipe,
-	comment = defaultCommentForHornpipeConversion
-) {
-	const meter = getMeter(hornpipe);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
-		throw new Error("invalid meter");
-	}
-
-	let result = toggleMeter_4_4_to_4_2(hornpipe, meter);
-
-	if (comment) {
-		result = result.replace(/(\nK:)/, `\nN:${comment}$1`);
-	}
-	return result;
-}
-
-/**
- * Doubles the bar length of an ABC string when the
- * ABC is eligible (as determined by canDoubleBarLength()).
- * @param {string} abc
- * @param {string} rhythm
- * @returns {string}
- */
-function maybeConvertStandardTune(abc, rhythm) {
-	if (!canDoubleBarLength(abc, { rhythm })) return abc;
-	switch (rhythm) {
-		case "reel":
-			return convertStandardReel(abc);
-		case "jig":
-			return convertStandardJig(abc);
-		case "polka":
-			return convertStandardPolka(abc);
-		case "hornpipe":
-			return convertStandardHornpipe(abc);
-		default:
-			return abc;
-	}
 }
 
 function doubleBarLength(abc, comment = null) {
@@ -770,103 +850,6 @@ function doubleBarLength(abc, comment = null) {
 }
 
 /**
- * Adjusts bar lengths and L field to convert a
- * reel written in the abnormal way (M:4/4 L:1/16) to the same reel
- * written with M:4/4 L:1/8, the normal or standard way.
- * Bars are half as long, and the quick notes are quavers
- * rather than semiquavers. Inverse operation to convertStandardReel
- * @param {string} reel
- * @param {string} comment - when non falsey, the comment (as an N:) will removed from the header
- * @param {bool} withSemiquavers - when unflagged, the original reel was written in M:4/2 L:1/8
- * @returns
- */
-function convertToStandardReel(
-	reel,
-	comment = defaultCommentForReelConversion,
-	withSemiquavers = true
-) {
-	if (withSemiquavers) {
-		reel = reel
-			.replace(/\nM:\s*4\/4/, "\nM:4/2")
-			.replace(/\nL:\s*1\/16/, "\nL:1/8");
-	}
-
-	const unitLength = getUnitLength(reel);
-	if (unitLength.den !== 8) {
-		throw new Error("invalid L header");
-	}
-	const meter = getMeter(reel);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
-		throw new Error("invalid meter");
-	}
-
-	let result = // toggleMeter_4_4_to_4_2(reel, meter);
-		toggleMeterDoubling(reel, [4, 4], [4, 2], meter);
-	if (comment) {
-		result = result.replace(`\nN:${comment}`, "");
-	}
-	return result;
-}
-/**
- * Adjusts bar lengths to rewrite a
- * jig written in the abnormal way (M:12/8) to M:6/8, the normal or standard way.
- * Bars are half as long. Inverse operation to convertStandardJig
- * @param {string} jig
- * @param {string} comment - when non falsey, the comment (as an N:) will removed from the header
- * @param {bool} withSemiquavers - when unflagged, the original jig was written in M:4/2 L:1/8
- * @returns
- */
-function convertToStandardJig(jig, comment = defaultCommentForJigConversion) {
-	const unitLength = getUnitLength(jig);
-	if (unitLength.den !== 8) {
-		throw new Error("invalid L header");
-	}
-	const meter = getMeter(jig);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 12 || !meter[1] === 8) {
-		throw new Error("invalid meter");
-	}
-
-	let result = toggleMeter_6_8_to_12_8(jig); // toggleMeter_4_4_to_4_2(jig, meter);
-	if (comment) {
-		result = result.replace(`\nN:${comment}`, "");
-	}
-	return result;
-}
-
-function convertToStandardPolka(t, comment = defaultCommentForPolkaConversion) {
-	const meter = getMeter(t);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 4) {
-		throw new Error("invalid meter");
-	}
-
-	let result = toggleMeterDoubling(t, [2, 4], [4, 4], meter);
-	if (comment) {
-		result = result.replace(`\nN:${comment}`, "");
-	}
-	return result;
-}
-
-function convertToStandardHornpipe(
-	hornpipe,
-	comment = defaultCommentForHornpipeConversion
-) {
-	const unitLength = getUnitLength(hornpipe);
-	if (unitLength.den !== 8) {
-		throw new Error("invalid L header");
-	}
-	const meter = getMeter(hornpipe);
-	if (!Array.isArray(meter) || !meter || !meter[0] === 4 || !meter[1] === 2) {
-		throw new Error("invalid meter");
-	}
-
-	let result = toggleMeter_4_4_to_4_2(hornpipe); // toggleMeter_4_4_to_4_2(jig, meter);
-	if (comment) {
-		result = result.replace(`\nN:${comment}`, "");
-	}
-	return result;
-}
-
-/**
  * Toggle between M:6/8 and M:12/8 by surgically adding/removing bar lines
  * This is a true inverse operation - going there and back preserves the ABC exactly
  * Handles anacrusis correctly and preserves line breaks
@@ -874,279 +857,293 @@ function convertToStandardHornpipe(
 function toggleMeter_6_8_to_12_8(abc) {
 	return toggleMeterDoubling(abc, [6, 8], [12, 8]);
 }
+// ============================================================================
+// Rhythm configuration table
+// Centralises meter pairs, unit-length constraints, and default comments for
+// each supported rhythm.  Add new rhythms here rather than touching the
+// convert* functions.
+// ============================================================================
+
+const defaultCommentForReelConversion =
+	"*abc-tools: convert to M:4/4 & L:1/16*";
+const defaultCommentForHornpipeConversion = "*abc-tools: convert to M:4/2*";
+const defaultCommentForPolkaConversion = "*abc-tools: convert to M:4/4*";
+const defaultCommentForJigConversion = "*abc-tools: convert to M:12/8*";
+const defaultCommentForStrathspeyConversion = "*abc-tools: convert to M:4/2*";
 
 /**
- * Get the first N complete or partial musical bars from ABC notation, with or without the anacrusis
- * Preserves all formatting, comments, spacing, and line breaks
- * @param {string} abc - ABC notation
- * @param {number|Fraction} numBars - Number of musical bars to extract (can be fractional, e.g., 1.5 or new Fraction(3,2))
- * @param {boolean} withAnacrucis - when flagged, the returned result also includes the anacrusis - incomplete bar (default: false)
- * @param {boolean} countAnacrucisInTotal - when true AND withAnacrucis is true, the anacrusis counts toward numBars duration (default: false)
- * @param {object} headersToStrip - optional header stripping configuration {all:boolean, toKeep:string}
- * @returns {string} - ABC with (optionally) the anacrusis, plus the first `numBars` worth of music
+ * Per-rhythm configuration.
+ * - smallMeter / largeMeter: the two states toggled between
+ * - unitLength: required L: value (as a Fraction), or null if unconstrained
+ * - semiquavers: when true, after doubling rewrite M:4/2 L:1/8 → M:4/4 L:1/16
+ *   (reels only - gives the conventional semiquaver notation)
+ * - defaultConvertComment: injected as N: when converting to the large meter
  */
-function getFirstBars(
-	abc,
-	numBars = 1,
-	withAnacrucis = false,
-	countAnacrucisInTotal = false,
-	headersToStrip
-) {
-	// Convert numBars to Fraction if it’s a number
-	const numBarsFraction =
-		typeof numBars === "number" ? new Fraction(numBars) : numBars;
-
-	// Estimate maxBars needed for parsing
-	const estimatedMaxBars = Math.ceil(numBarsFraction.toNumber()) * 2 + 2;
-
-	// Parse ABC
-	const parsed = parseAbc(abc, { maxBars: estimatedMaxBars });
-	const { bars, headerLines, barLines, musicText } = parsed;
-	let { meter } = parsed;
-	if (!meter) meter = [10000, 1]; //hack(?) to handle incipits in meterless music
-
-	let stopAfterDuration = null;
-	if (bars.length === 0 || barLines.length === 0) {
-		stopAfterDuration = new Fraction(3, 2);
+const RHYTHM_CONFIGS = {
+	reel: {
+		smallMeter: [4, 4],
+		largeMeter: [4, 2],
+		unitLength: new Fraction(1, 8),
+		semiquavers: true,
+		defaultConvertComment: defaultCommentForReelConversion
+	},
+	hornpipe: {
+		smallMeter: [4, 4],
+		largeMeter: [4, 2],
+		unitLength: new Fraction(1, 8),
+		semiquavers: false,
+		defaultConvertComment: defaultCommentForHornpipeConversion
+	},
+	strathspey: {
+		smallMeter: [4, 4],
+		largeMeter: [4, 2],
+		unitLength: new Fraction(1, 8),
+		semiquavers: false,
+		defaultConvertComment: defaultCommentForStrathspeyConversion
+	},
+	jig: {
+		smallMeter: [6, 8],
+		largeMeter: [12, 8],
+		unitLength: new Fraction(1, 8),
+		semiquavers: false,
+		defaultConvertComment: defaultCommentForJigConversion
+	},
+	polka: {
+		smallMeter: [2, 4],
+		largeMeter: [4, 4],
+		unitLength: null, // no unit-length constraint for polkas
+		semiquavers: false,
+		defaultConvertComment: defaultCommentForPolkaConversion
 	}
+};
 
-	// Determine which bar number to stop after
-	// We need to account for fractional bars, anacrusis handling, etc.
-	const wholeBarsNeeded = Math.ceil(numBarsFraction.toNumber());
-	const stopAfterBarNumber = wholeBarsNeeded + 1; // Add buffer for safety
+// ============================================================================
+// Unified convert / revert functions
+// ============================================================================
 
-	// Get bar info up to the bar number we need
-	const barInfo = getBarInfo(bars, barLines, meter, {
-		barNumbers: true,
-		isPartial: true,
-		cumulativeDuration: true,
-		stopAfterBarNumber
-	});
+/**
+ * Converts a tune in its standard (small-meter) form to a doubled-bar form.
+ * The target meter depends on the tune's R: (rhythm) header:
+ *
+ *   reel       M:4/4 L:1/8  →  M:4/4 L:1/16  (semiquaver notation)
+ *   hornpipe   M:4/4 L:1/8  →  M:4/2
+ *   strathspey M:4/4 L:1/8  →  M:4/2
+ *   jig        M:6/8        →  M:12/8
+ *   polka      M:2/4        →  M:4/4
+ *
+ * @param {string} abc - ABC notation in its standard form
+ * @param {string|null} [comment] - Injected as an N: header; pass null to suppress.
+ *   Defaults to a rhythm-specific string when omitted.
+ * @returns {string} Converted ABC notation
+ * @throws {Error} If the rhythm is unsupported, or the meter/unit-length don't match expectations
+ */
+function convertStandardTune(abc, comment) {
+	const rhythmRaw = getHeaderValue(abc, "R");
+	const rhythm = rhythmRaw ? rhythmRaw.toLowerCase() : null;
+	const config = RHYTHM_CONFIGS[rhythm];
+	if (!config) throw new Error(`Unsupported rhythm: ${rhythm}`);
 
-	const enrichedBarLines = barInfo.barLines;
-
-	// Detect if there’s an anacrusis
-	const firstNumberedBarLine = enrichedBarLines.find(
-		(bl) => bl.barNumber !== null
-	);
-	const hasPickup =
-		firstNumberedBarLine &&
-		firstNumberedBarLine.barNumber === 0 &&
-		firstNumberedBarLine.isPartial === true;
-
-	// Filter headers if requested
-	const filteredHeaders = filterHeaders(headerLines, headersToStrip);
-
-	// Calculate the expected duration per musical bar
-	const expectedBarDuration = new Fraction(meter[0], meter[1]);
-	const targetDuration =
-		stopAfterDuration ?? expectedBarDuration.multiply(numBarsFraction);
-
-	// Determine starting position and how much duration we need to accumulate
-	let startPos = 0;
-	let remainingDurationNeeded = targetDuration.clone();
-	let countingFromBarNumber = 0;
-
-	if (hasPickup) {
-		if (withAnacrucis) {
-			// Include anacrusis in output
-			startPos = 0;
-			if (countAnacrucisInTotal) {
-				// Subtract anacrusis duration from target
-				const anacrusisBarLine = enrichedBarLines.find(
-					(bl) => bl.barNumber === 0
-				);
-				if (anacrusisBarLine && anacrusisBarLine.cumulativeDuration) {
-					const anacrusisDuration =
-						anacrusisBarLine.cumulativeDuration.sinceLastBarLine;
-					remainingDurationNeeded =
-						remainingDurationNeeded.subtract(anacrusisDuration);
-				}
-				countingFromBarNumber = 1; // Start counting from first complete bar
-			} else {
-				// Don’t count anacrusis - we want full numBars after it
-				countingFromBarNumber = 1;
-			}
-		} else {
-			// Skip anacrusis - start after its bar line
-			const anacrusisBarLineIdx = enrichedBarLines.findIndex(
-				(bl) => bl.barNumber === 0
-			);
-			if (anacrusisBarLineIdx >= 0) {
-				const anacrusisBarLine = enrichedBarLines[anacrusisBarLineIdx];
-				startPos = anacrusisBarLine.sourceIndex + anacrusisBarLine.sourceLength;
-			}
-			countingFromBarNumber = 1;
-		}
-	} else {
-		// No anacrusis
-		startPos = 0;
-		countingFromBarNumber = 0;
-	}
-
-	// Determine which bar numbers we need based on remaining duration
-	const wholeBarsInRemaining = Math.floor(
-		remainingDurationNeeded.divide(expectedBarDuration).toNumber()
-	);
-	const fractionalPart = remainingDurationNeeded.subtract(
-		expectedBarDuration.multiply(new Fraction(wholeBarsInRemaining, 1))
-	);
-
-	const needsFractionalBar = fractionalPart.compare(new Fraction(0, 1)) > 0;
-	const finalTargetBarNumber =
-		countingFromBarNumber +
-		wholeBarsInRemaining +
-		(needsFractionalBar ? 0 : -1);
-
-	// Find end position
-	let endPos = startPos;
-	let foundEnd = false;
-
-	// Find all bar lines with our target bar numbers
-	const relevantBarLines = enrichedBarLines.filter(
-		(bl) =>
-			bl.barNumber !== null &&
-			bl.barNumber >= countingFromBarNumber &&
-			bl.barNumber <= finalTargetBarNumber
-	);
-
-	if (!needsFractionalBar) {
-		// For whole bars, find the bar line at finalTargetBarNumber
-		const finalBarLine = relevantBarLines.find(
-			(bl) => bl.barNumber === finalTargetBarNumber
+	const meter = getMeter(abc);
+	if (
+		!Array.isArray(meter) ||
+		meter[0] !== config.smallMeter[0] ||
+		meter[1] !== config.smallMeter[1]
+	) {
+		throw new Error(
+			`Expected M:${config.smallMeter[0]}/${config.smallMeter[1]} for ${rhythm}`
 		);
-		if (finalBarLine) {
-			endPos = finalBarLine.sourceIndex + finalBarLine.sourceLength;
-			foundEnd = true;
-		}
-	} else {
-		// For fractional bars, we need to do duration counting within bars with finalTargetBarNumber
-		// Note: there may be multiple segments with the same barNumber (partial bars)
-
-		let accumulated = new Fraction(0, 1);
-
-		// Iterate through bars and accumulate duration for bars with finalTargetBarNumber
-		for (let i = 0; i < bars.length; i++) {
-			const bar = bars[i];
-			if (bar.length === 0) continue;
-
-			// Find the bar line that follows this bar to get its barNumber
-			const barLineIdx = enrichedBarLines.findIndex(
-				(bl) => bl.sourceIndex >= bar[bar.length - 1].sourceIndex
+	}
+	if (config.unitLength) {
+		const ul = getUnitLength(abc);
+		if (!ul.equals(config.unitLength)) {
+			throw new Error(
+				`Expected L:${config.unitLength.num}/${config.unitLength.den} for ${rhythm}`
 			);
-
-			if (barLineIdx < 0) continue;
-
-			const barLine = enrichedBarLines[barLineIdx];
-
-			if (barLine.barNumber === finalTargetBarNumber) {
-				// This bar segment is part of our target bar number
-				for (const token of bar) {
-					if (!token.duration) {
-						continue;
-					}
-
-					const newAccumulated = accumulated.add(token.duration);
-
-					if (newAccumulated.compare(fractionalPart) >= 0) {
-						// Found the position - include this token
-						endPos = token.sourceIndex + token.sourceLength;
-
-						// Skip trailing space if present
-						if (
-							token.spacing &&
-							token.spacing.whitespace &&
-							endPos < musicText.length &&
-							musicText[endPos] === " "
-						) {
-							endPos++;
-						}
-						foundEnd = true;
-						break;
-					}
-
-					accumulated = newAccumulated;
-				}
-
-				if (foundEnd) break;
-			}
 		}
 	}
 
-	// Fallback: if we didn’t find an end, use the last available position
-	if (!foundEnd || endPos === startPos) {
-		endPos = musicText.length;
+	let result = toggleMeterDoubling(
+		abc,
+		config.smallMeter,
+		config.largeMeter,
+		meter
+	);
+
+	// Reels: rewrite the intermediate M:4/2 L:1/8 into conventional M:4/4 L:1/16
+	if (config.semiquavers) {
+		result = result
+			.replace(/\nM:\s*4\/2/, "\nM:4/4")
+			.replace(/\nL:\s*1\/8/, "\nL:1/16");
 	}
 
-	// Reconstruct ABC
-	return `${filteredHeaders.join("\n")}\n${musicText.substring(
-		startPos,
-		endPos
-	)}`;
+	const effectiveComment =
+		comment !== undefined ? comment : config.defaultConvertComment;
+	if (effectiveComment) {
+		result = result.replace(/(\nK:)/, `\nN:${effectiveComment}$1`);
+	}
+	return result;
 }
 
+/**
+ * Inverse of convertStandardTune: converts a tune back to its standard
+ * (small-meter) form.  For reels, handles both the semiquaver form
+ * (M:4/4 L:1/16) and the plain doubled form (M:4/2 L:1/8).
+ *
+ * @param {string} abc - ABC notation in its doubled-bar form
+ * @param {string|null} [comment] - N: header to strip; defaults to the same
+ *   rhythm-specific string used by convertStandardTune.  Pass null to suppress.
+ * @returns {string} Converted ABC notation in standard form
+ * @throws {Error} If the rhythm is unsupported, or the meter/unit-length don't match expectations
+ */
+function convertToStandardTune(abc, comment) {
+	const rhythmRaw = getHeaderValue(abc, "R");
+	const rhythm = rhythmRaw ? rhythmRaw.toLowerCase() : null;
+	const config = RHYTHM_CONFIGS[rhythm];
+	if (!config) throw new Error(`Unsupported rhythm: ${rhythm}`);
+
+	// Reels: normalise semiquaver form (M:4/4 L:1/16) back to M:4/2 L:1/8 before toggling
+	if (config.semiquavers) {
+		const ul = getUnitLength(abc);
+		const m = getMeter(abc);
+		if (
+			Array.isArray(m) &&
+			m[0] === 4 &&
+			m[1] === 4 &&
+			ul.equals(new Fraction(1, 16))
+		) {
+			abc = abc
+				.replace(/\nM:\s*4\/4/, "\nM:4/2")
+				.replace(/\nL:\s*1\/16/, "\nL:1/8");
+		}
+	}
+
+	const meter = getMeter(abc);
+	if (
+		!Array.isArray(meter) ||
+		meter[0] !== config.largeMeter[0] ||
+		meter[1] !== config.largeMeter[1]
+	) {
+		throw new Error(
+			`Expected M:${config.largeMeter[0]}/${config.largeMeter[1]} for ${rhythm}`
+		);
+	}
+	if (config.unitLength) {
+		const ul = getUnitLength(abc);
+		if (!ul.equals(config.unitLength)) {
+			throw new Error(
+				`Expected L:${config.unitLength.num}/${config.unitLength.den} for ${rhythm}`
+			);
+		}
+	}
+
+	let result = toggleMeterDoubling(
+		abc,
+		config.smallMeter,
+		config.largeMeter,
+		meter
+	);
+
+	const effectiveComment =
+		comment !== undefined ? comment : config.defaultConvertComment;
+	if (effectiveComment) {
+		result = result.replace(`\nN:${effectiveComment}`, "");
+	}
+	return result;
+}
+
+/**
+ * Doubles the bar length of an ABC tune when it is eligible (as determined by
+ * canDoubleBarLength()).  Delegates to convertStandardTune which reads the
+ * rhythm from the R: header.
+ * @param {string} abc
+ * @param {string} [rhythm] - Optional: override the R: header value used for
+ *   the eligibility check (the rhythm itself is still read from the ABC).
+ * @returns {string}
+ */
+function maybeConvertStandardTune(abc, rhythm) {
+	if (!canDoubleBarLength(abc, { rhythm })) return abc;
+	return convertStandardTune(abc);
+}
+
+/**
+ * Returns true when the tune's bar length can be doubled.
+ * Supports reels, hornpipes, strathspeys (M:4/4 L:1/8),
+ * jigs (M:6/8), and polkas (M:2/4).
+ */
 function canDoubleBarLength(abc, info = {}) {
 	const {
 		meter = getMeter(abc),
 		l = getUnitLength(abc),
 		rhythm = getHeaderValue(abc, "R")
 	} = info;
-	if (
-		!rhythm ||
-		["reel", "hornpipe", "jig", "polka"].indexOf(rhythm.toLowerCase()) < 0
-	) {
-		return false;
-	}
-	return (
-		(!abc.match(/\[M:/) && //inline meter marking
-			!abc.match(/\[L:/) &&
-			(((rhythm === "reel" || rhythm === "hornpipe") &&
+
+	if (!rhythm) return false;
+	const r = rhythm.toLowerCase();
+
+	if (abc.match(/\[M:/) || abc.match(/\[L:/)) return false; // inline meter changes not handled
+
+	switch (r) {
+		case "reel":
+		case "hornpipe":
+		case "strathspey":
+			return (
 				l.equals(new Fraction(1, 8)) &&
 				((meter[0] === 4 && meter[1] === 4) ||
-					(meter[0] === 2 && meter[1] === 2))) ||
-				(rhythm === "jig" && meter[0] === 6 && meter[1] === 8))) ||
-		(rhythm === "polka" && meter[0] === 2 && meter[1] === 4)
-	);
+					(meter[0] === 2 && meter[1] === 2))
+			);
+		case "jig":
+			return meter[0] === 6 && meter[1] === 8;
+		case "polka":
+			return meter[0] === 2 && meter[1] === 4;
+		default:
+			return false;
+	}
 }
+
+/**
+ * Returns true when the tune's bar length can be halved back to standard form.
+ * Supports doubled reels (M:4/4 L:1/16 or M:4/2 L:1/8), doubled hornpipes
+ * and strathspeys (M:4/2 L:1/8), doubled jigs (M:12/8), and doubled polkas
+ * (M:4/4).
+ */
 function canHalveBarLength(abc) {
 	const meter = getMeter(abc),
 		l = getUnitLength(abc),
 		rhythm = getHeaderValue(abc, "R");
-	if (
-		!rhythm ||
-		["reel", "hornpipe", "jig", "polka"].indexOf(rhythm.toLowerCase()) < 0
-	) {
-		return false;
-	}
 
-	return (
-		!abc.match(/\[M:/) && //inline meter marking
-		!abc.match(/\[L:/) &&
-		((rhythm === "reel" &&
-			l.equals(new Fraction(1, 16)) &&
-			meter[0] === 4 &&
-			meter[1] === 4) ||
-			((rhythm === "reel" || rhythm === "hornpipe") &&
-				l.equals(new Fraction(1, 8)) &&
-				meter[0] === 4 &&
-				meter[1] === 2) ||
-			(rhythm === "jig" && meter[0] === 12 && meter[1] === 8) ||
-			(rhythm === "polka" && meter[0] === 4 && meter[1] === 4))
-	);
+	if (!rhythm) return false;
+	const r = rhythm.toLowerCase();
+
+	if (abc.match(/\[M:/) || abc.match(/\[L:/)) return false;
+
+	switch (r) {
+		case "reel":
+			return (
+				(l.equals(new Fraction(1, 16)) && meter[0] === 4 && meter[1] === 4) ||
+				(l.equals(new Fraction(1, 8)) && meter[0] === 4 && meter[1] === 2)
+			);
+		case "hornpipe":
+		case "strathspey":
+			return l.equals(new Fraction(1, 8)) && meter[0] === 4 && meter[1] === 2;
+		case "jig":
+			return meter[0] === 12 && meter[1] === 8;
+		case "polka":
+			return meter[0] === 4 && meter[1] === 4;
+		default:
+			return false;
+	}
 }
 
 module.exports = {
 	canDoubleBarLength,
 	canHalveBarLength,
-	convertStandardJig,
-	convertStandardHornpipe,
-	convertStandardPolka,
-	convertStandardReel,
-	convertToStandardJig,
-	convertToStandardHornpipe,
-	convertToStandardPolka,
-	convertToStandardReel,
+	convertStandardTune,
+	convertToStandardTune,
 	defaultCommentForReelConversion,
+	defaultCommentForHornpipeConversion,
+	defaultCommentForPolkaConversion,
+	defaultCommentForJigConversion,
+	defaultCommentForStrathspeyConversion,
 	doubleBarLength,
 	filterHeaders,
 	getFirstBars,
