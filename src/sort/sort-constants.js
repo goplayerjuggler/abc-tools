@@ -22,7 +22,8 @@ const DEFAULT_METER_SORT_SPECS = [
 
 const DEFAULT_RHYTHM_GROUPS = [
 	["jig", "slide", "single jig", "double jig"],
-	["reel", "single reel", "reel (single)", "strathspey", "double reel"],
+	["reel", "single reel", "reel (single)", "double reel"],
+	["highland", "strathspey"],
 	["hornpipe", "barndance", "fling"]
 ];
 const DEFAULT_NAME_PREFIXES = [
