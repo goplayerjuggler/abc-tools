@@ -19,6 +19,7 @@ function getMetadata(abc, { decode = true } = {}) {
 	const lines = abc.split("\n"),
 		metadata = {},
 		comments = [],
+		recording = [],
 		hComments = [],
 		titles = [];
 
@@ -57,7 +58,7 @@ function getMetadata(abc, { decode = true } = {}) {
 		} else if (trimmed.startsWith("F:")) {
 			metadata.url = val;
 		} else if (trimmed.startsWith("D:")) {
-			metadata.recording = val;
+			recording.push(val);
 		} else if (trimmed.startsWith("N:")) {
 			comments.push(val);
 		} else if (trimmed.startsWith("H:")) {
@@ -70,6 +71,7 @@ function getMetadata(abc, { decode = true } = {}) {
 
 	if (comments.length > 0) metadata.comments = comments;
 	if (hComments.length > 0) metadata.hComments = hComments.join(" ");
+	if (recording.length > 0) metadata.recording = recording.join("\n");
 	if (titles.length > 0) metadata.titles = titles;
 
 	return metadata;
