@@ -724,16 +724,7 @@ function calculateBarDurations(parsedData) {
  * @throws {TypeError} If the input is not a string
  *
  * @example
- * const abcText = `X: 1
- * T: Example Tune
- * M: 4/4
- * K: C
- * CDEF|
- *
- * X: 2
- * T: Another Tune
- * K: G
- * GABc|`;
+ * const abcText = `X: 1\r\nT: Example Tune\r\nM: 4/4\r\nK: C\r\nCDEF|\r\n\r\nX: 2\r\nT: Another Tune\r\nK: G\r\nGABc|`;
  *
  * const tunes = getTunes(abcText);
  * // Returns: ['X: 1\nT: Example Tune\nM: 4/4\nK: C\nCDEF|', 'X: 2\nT: Another Tune\nK: G\nGABc|']
@@ -742,6 +733,10 @@ function getTunes(text) {
 	if (typeof text !== "string") {
 		throw new TypeError("Input must be a string");
 	}
+	// Normalise line endings so the regex works regardless of \r\n or \n input.
+	// Output will consistently use \n.
+	text = text.replace(/\r\n/g, "\n");
+
 	// Regex pattern to match ABC tunes:
 	// ^X:\s*\d+   - Matches lines starting with "X:" followed by optional whitespace and digits
 	// .*$         - Matches the rest of that line
@@ -753,7 +748,6 @@ function getTunes(text) {
 	const getAbc = /^X:\s*\d+.*$(?:\n(?!\n).*)*$/gm;
 	// Extract all matches and return as an array of strings
 	const matches = [...text.matchAll(getAbc)];
-
 	return matches.map((match) => match[0]);
 }
 
