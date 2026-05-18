@@ -40,8 +40,11 @@ const DEFAULT_CONTOUR_OPTIONS = {
 };
 const PREDEFINED_SORT_NAMES = [
 	"rhythmContourName",
+	"rhythmContourDescName",
 	"meterContourName",
-	"nameContour"
+	"meterContourDescName",
+	"nameContour",
+	"nameDescContour"
 ];
 const sortConstants = {
 	DEFAULT_CONTOUR_OPTIONS,

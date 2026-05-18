@@ -223,15 +223,23 @@ function resolveLevels(options) {
 	if (sortLevels) return sortLevels;
 
 	const contourLevel = { type: "contour", contourOptions };
+	const contourDescLevel = { ...contourLevel, order: "desc" };
 	const nameLevel = { type: "name" };
+	const nameDescLevel = { type: "name", order: "desc" };
 
 	switch (predefinedSort ?? "rhythmContourName") {
 		case "rhythmContourName":
 			return [{ type: "rhythm" }, contourLevel, nameLevel];
+		case "rhythmContourDescName":
+			return [{ type: "rhythm" }, contourDescLevel, nameLevel];
 		case "meterContourName":
 			return [{ type: "meter" }, contourLevel, nameLevel];
+		case "meterContourDescName":
+			return [{ type: "meter" }, contourDescLevel, nameLevel];
 		case "nameContour":
 			return [nameLevel, contourLevel];
+		case "nameDescContour":
+			return [nameDescLevel, contourLevel];
 		default:
 			throw new Error(`Unknown predefinedSort: "${predefinedSort}"`);
 	}
