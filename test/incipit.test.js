@@ -34,4 +34,18 @@ K:Gdorian
 		result = getIncipitForContourGeneration(abcMeter);
 		expect(result).toContain("D2 G FDC");
 	});
+	test("line continuation", () => {
+		const result = getIncipit(
+			`X:31
+T:Big Sciota
+L:1/8
+M:C|
+K:G
+D2 \\
+| "G"G2 GB "D"A2 Ad | "G"B2 G2- G2 D2 |`,
+			1
+		);
+		expect(result).toContain(`K:G
+D2 | G2 GB A2 Ad | B2 G2- G2 D2 |`);
+	});
 });

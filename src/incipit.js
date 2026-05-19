@@ -217,6 +217,11 @@ function StripChordsOne(theNotes) {
 	return output;
 }
 
+//handles backslash=>line continuation, descarding everything that follows up to and including the EOL.
+function handleLineContinuations(str) {
+	return str.replace(/^(.*?)\\.*?\r?\n/gm, "$1");
+}
+
 function sanitise(theTune) {
 	let j, k;
 	const theTextIncipits = [];
@@ -228,6 +233,8 @@ function sanitise(theTune) {
 
 	// Strip out chord markings
 	theTune = StripChordsOne(theTune);
+
+	theTune = handleLineContinuations(theTune);
 
 	// Parse out the first few measures
 	const theLines = theTune.split("\n"),
