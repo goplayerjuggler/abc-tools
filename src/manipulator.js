@@ -866,10 +866,9 @@ function toggleMeter_6_8_to_12_8(abc) {
 
 const defaultCommentForReelConversion =
 	"*abc-tools: convert to M:4/4 & L:1/16*";
-const defaultCommentForHornpipeConversion = "*abc-tools: convert to M:4/2*";
+const defaultCommentFor4_2Conversion = "*abc-tools: convert to M:4/2*";
 const defaultCommentForPolkaConversion = "*abc-tools: convert to M:4/4*";
 const defaultCommentForJigConversion = "*abc-tools: convert to M:12/8*";
-const defaultCommentForStrathspeyConversion = "*abc-tools: convert to M:4/2*";
 
 /**
  * Per-rhythm configuration.
@@ -892,14 +891,7 @@ const RHYTHM_CONFIGS = {
 		largeMeter: [4, 2],
 		unitLength: new Fraction(1, 8),
 		semiquavers: false,
-		defaultConvertComment: defaultCommentForHornpipeConversion
-	},
-	strathspey: {
-		smallMeter: [4, 4],
-		largeMeter: [4, 2],
-		unitLength: new Fraction(1, 8),
-		semiquavers: false,
-		defaultConvertComment: defaultCommentForStrathspeyConversion
+		defaultConvertComment: defaultCommentFor4_2Conversion
 	},
 	jig: {
 		smallMeter: [6, 8],
@@ -916,6 +908,9 @@ const RHYTHM_CONFIGS = {
 		defaultConvertComment: defaultCommentForPolkaConversion
 	}
 };
+//same config for hronpipe, strathspey and barndance
+RHYTHM_CONFIGS["strathspey"] = RHYTHM_CONFIGS.hornpipe;
+RHYTHM_CONFIGS["barndance"] = RHYTHM_CONFIGS.hornpipe;
 
 // ============================================================================
 // Unified convert / revert functions
@@ -930,6 +925,7 @@ const RHYTHM_CONFIGS = {
  *   strathspey M:4/4 L:1/8  →  M:4/2
  *   jig        M:6/8        →  M:12/8
  *   polka      M:2/4        →  M:4/4
+ *   ...
  *
  * @param {string} abc - ABC notation in its standard form
  * @param {string|null} [comment] - Injected as an N: header; pass null to suppress.
@@ -1086,6 +1082,7 @@ function canDoubleBarLength(abc, info = {}) {
 		case "reel":
 		case "hornpipe":
 		case "strathspey":
+		case "barndance":
 			return (
 				l.equals(new Fraction(1, 8)) &&
 				((meter[0] === 4 && meter[1] === 4) ||
@@ -1124,6 +1121,7 @@ function canHalveBarLength(abc) {
 			);
 		case "hornpipe":
 		case "strathspey":
+		case "barndance":
 			return l.equals(new Fraction(1, 8)) && meter[0] === 4 && meter[1] === 2;
 		case "jig":
 			return meter[0] === 12 && meter[1] === 8;
@@ -1140,10 +1138,10 @@ module.exports = {
 	convertStandardTune,
 	convertToStandardTune,
 	defaultCommentForReelConversion,
-	defaultCommentForHornpipeConversion,
+	defaultCommentForHornpipeConversion: defaultCommentFor4_2Conversion,
 	defaultCommentForPolkaConversion,
 	defaultCommentForJigConversion,
-	defaultCommentForStrathspeyConversion,
+	defaultCommentFor4_2Conversion,
 	doubleBarLength,
 	filterHeaders,
 	getFirstBars,
