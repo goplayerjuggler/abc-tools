@@ -61,13 +61,13 @@ function getMeterGroup(meter, unitLength, meterSortSpecs) {
 
 /// Returns the ABC fragment used for contour / meter resolution.
 function getAbc_default(tune) {
-	return getIncipitForContourGeneration(
-		tune.incipit
-			? tune.incipit
-			: Array.isArray(tune.abc)
-				? tune.abc[0]
-				: tune.abc
-	);
+	const abc = tune.incipit
+		? tune.incipit
+		: Array.isArray(tune.abc)
+			? tune.abc[0]
+			: tune.abc;
+	if (!abc) return null;
+	return getIncipitForContourGeneration(abc);
 }
 
 function ensureContour(tune, contourOptions) {
