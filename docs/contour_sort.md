@@ -1,5 +1,10 @@
 # Melody modal contour sorting algorithm - “contour sort for tunes”
 
+## Summary / TL;DR
+
+Contour sort is a system for sorting or indexing tunes or melodies. Unchanged by changes of key, mode and accidentals. It takes short phrases, or parts of modal melodies, and indexes and sorts them by their melodic contour. Tunes will be sorted together if their contours start the same way.
+Contours also depend on the note durations; the sorting comparison algorithm handles fractional note durations w.r.t. some common division of the beat.
+
 ## A contour
 <img src="./contour.svg" alt="a contour" />
 
@@ -22,19 +27,10 @@ simply look it up in the list, based on how it starts. It’s just like how one 
 in printed dictionaries.
 </p>
 
-## A concise description
+## Jianpu 
+Contours are related to [Jianpu / 简谱](https://en.wikipedia.org/wiki/Jianpu) (numbered musical notation used in China and elsewhere). A contour is very similar to a short piece of Jianpu. The main difference is related how contours focus on the modal structure w.r.t. a tonic.
 
-A system for sorting or indexing tunes or melodies. Key and mode agnostic. It takes short phrases, or parts of modal melodies, and sorts or indexes them by their contour within their modal scale, independent of key. 
-
-So tunes may be in different keys, or modes, but will get sorted together if they have the same modal contour.
-
-Note durations are preserved by the contours, and the sorting comparison algorithm handles fractional note durations.
-
-## Jianpu sorting: similar, but different
-This system resembles the sort system used for [Jianpu](https://en.wikipedia.org/wiki/Jianpu) (numbered musical notation used in China and elsewhere), but with two key differences: 
-1) Jianpu sorting is mode-specific (usually major scale) and modern Jianpu also specifies the key; this sorting algorithm abstracts away the key and the mode. 
-2) AFAIK, there is no formalised way in Jianpu sorting to compare notes of different, fractional durations.
-
+I wasn’t able to find any formal description of how collections of tunes written with Jianpu are sorted; examples I found do not seem to handle fractional note durations, but did use lexicographical sort, so are similar to contour sorting. 
 
 ## Extensions (not yet implemented)
 
@@ -48,7 +44,7 @@ Alternatively, different algorithms or some sort of neural network that identifi
 ## Held notes and repeated notes
 
 The initial version of this algorithm sorted held notes before repeated notes, when they are in the same position in the tone contour.  
-The algorithm works with or without this feature, and in my demo application I've decided to simplify: at present the sorting does not distinguish between held and repeated notes. 
+The algorithm works with or without this feature, and in my demo application I’ve decided to simplify: at present the sorting does not distinguish between held and repeated notes. 
 
 The implementation in this repo handles both variants - with or without taking held vs repeated into account.
 
@@ -65,7 +61,7 @@ Tunes may have an anacrucis, aka a pickup. This is a short phrase at the beginni
 As the length of the anacrucis can vary, and often there is no anacrucis at all, it seems reasonable to **ignore the anacrucis** when comparing tunes.
 #### multi-level sorting / like with like; 
 It makes sense to compare two reels using this system; less so to compare a reel with a jig. However, comparing jigs and slides with each other makes sense – both can be written using triplets.  
-The implementation here lets you do a multi-level sort. The first level can either sort by the tunes' time signatures, or by their rhythmic types (jigs, reels, polkas,… ), putting like with like; and then applying the contour sort afterwards, to the first-level groups.
+The implementation here lets you do a multi-level sort. The first level can either sort by the tunes’ time signatures, or by their rhythmic types (jigs, reels, polkas,… ), putting like with like; and then applying the contour sort afterwards, to the first-level groups.
 in [my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default) you can cycle through different types of multi-level sorting by clicking on the header of the first column.
 
 #### Chords
@@ -75,7 +71,7 @@ Sometimes tunes may be written with chords (i.e. more than one note head on a si
 
 **Modal neutrality:** A melody that goes 1-3-5 will sort the same whether in G major, D dorian, or A mixolydian.
 
-**Key neutrality:** Transposing a tune to a different key doesn't change its sort position relative to other tunes in their respective keys.
+**Key neutrality:** Transposing a tune to a different key doesn’t change its sort position relative to other tunes in their respective keys.
 
 **Melodic clustering:** Tunes with similar openings are sorted together
 
@@ -83,7 +79,7 @@ Sometimes tunes may be written with chords (i.e. more than one note head on a si
 
 **Multiple incipits (aliases)**: A tune with N different ways of playing its opening can appear N times in a sorted list, once for each different incipit. This accounts for regional variations and different performance practices.
 
-**Multi-part tunes**: For tunes with multiple sections (A part, B part, etc.), each section's incipit can be encoded separately. This allows for:
+**Multi-part tunes**: For tunes with multiple sections (A part, B part, etc.), each section’s incipit can be encoded separately. This allows for:
 - Sorting by primary part (usually A part)
 - Secondary sorting by subsequent parts
 - Finding tunes with similar B parts but different A parts
@@ -93,13 +89,13 @@ Sometimes tunes may be written with chords (i.e. more than one note head on a si
 ## Outline
 This algorithm is similar to the standard lexicographic sorting algorithm, but the items to be sorted can be modified as part of the process.
 
-Identify the tonic ("home" of the mode) in the primary octave of the tune. Each note of the tune will either be a pause (or silence), or be in a specific degree of the modal scale, a specific octave, and will have a duration that can be expressed in terms of the **common subdivision of the beat (CSB)**. (For a given tune type, like a reel, the CSB is the note length commonly used to write most notes. In ABC format, it can be identified with the `L:` header. It's commonly a quaver (aka an eighth note), but some may prefer using semiquavers instead.)
+Identify the tonic ("home" of the mode) in the primary octave of the tune. Each note of the tune will either be a pause (or silence), or be in a specific degree of the modal scale, a specific octave, and will have a duration that can be expressed in terms of the **common subdivision of the beat (CSB)**. (For a given tune type, like a reel, the CSB is the note length commonly used to write most notes. In ABC format, it can be identified with the `L:` header. It’s commonly a quaver (aka an eighth note), but some may prefer using semiquavers instead.)
 
 We consider two types of notes: **played** notes and **held** notes. *Held* notes are held over from the preceding note of the same modal degree and octave. So a crotchet (aka a quarter note) can be considered as one played quaver followed by one held quaver.
 
 
 ## Modal contour
-We start by rewriting the tune so each note's duration is at most one CSB, in order to enforce a rule:
+We start by rewriting the tune so each note’s duration is at most one CSB, in order to enforce a rule:
 
 **Duration rule**: each duration is either 1 CSB, or is shorter than one CSB. 
 
@@ -119,14 +115,14 @@ Durations shorter than one CSB have fractional duration:
 For each note in the tune, record the following:
 1. **Modal degree** - position relative to the tonic (1st, 2nd, 3rd degree, etc.) Ignore accidentals; for the purpose of this algorithm, a 3rd degree with a flat or a sharp is treated just the same as a 3rd without an accidental.
 2. **Octave** - which octave the note is in; assuming that there is a primary octave or middle octave for the tune, the octave is an integer ranging from -2 to 2; and usually ranging from -1 to 1.
-3. **How the note is played** (H) - whether the note is **played** or is **held** over from the previously played note, or (third option) is **silence** - nothing is played - there is a musical pause during the note's duration.
+3. **How the note is played** (H) - whether the note is **played** or is **held** over from the previously played note, or (third option) is **silence** - nothing is played - there is a musical pause during the note’s duration.
 4. **Duration** - explained above
 
-The list of all these pieces of information is called the tune's **modal contour** (MC), or simply its **contour**.
+The list of all these pieces of information is called the tune’s **modal contour** (MC), or simply its **contour**.
 
 Items 1-4 are called the **note information** (NI).
 
-Items 1-3, without item 4, is called the note's **modal degree information** (MDI), or simply its **degree information**.
+Items 1-3, without item 4, is called the note’s **modal degree information** (MDI), or simply its **degree information**.
 
 ## Comparison of contours
 
@@ -140,21 +136,21 @@ Two contours `A` and `B` are compared by the following algorithm. Say `a` is the
     - (**__The next rule is optional; keeping it or not gives two different variant algorithms__**)
 
     - Else (same octave and degree) if one is held and one is played, then one that is held goes first. (**rule putting held notes before repeated notes**) 
-    - Else (same MDI) get new tunes `A'` and `B'` by removing `a` from `A` and `b` from `B`. 
-        - If one or both of `A'`, `B'` are empty, then stop - the tunes that is not empty goes after the empty one; and if both are empty then they are sorted together. 
-         - Else apply the sort algorithm to `A'` and `B'`.
+    - Else (same MDI) get new tunes `A’` and `B’` by removing `a` from `A` and `b` from `B`. 
+        - If one or both of `A’`, `B’` are empty, then stop - the tunes that is not empty goes after the empty one; and if both are empty then they are sorted together. 
+         - Else apply the sort algorithm to `A’` and `B’`.
 
 2. **Else `a` and `b` are not of the same duration:**
     
     Say `a` has duration x and `b` has duration y, where x < y. Both durations are expressed as fractions of the CSB.
     
-    - Create new tunes A' and B' by:
+    - Create new tunes A’ and B’ by:
         - Replacing `b` in B with two notes: `b1` of duration x, and `b2` of duration (y - x)
         - Where `b1` has the same MDI as `b` (but duration x)
         - And `b2` is a **held** note with the same pitch as `b` (and duration y - x)
-        - A' remains the same as A
+        - A’ remains the same as A
     
-    - Now apply the comparison algorithm to A' and B', noting that their first notes now have the same duration x.
+    - Now apply the comparison algorithm to A’ and B’, noting that their first notes now have the same duration x.
     
     **Example**: Comparing a tune starting with a note of duration 1/2 against a tune starting with a note of duration 2/3:
     - Split the 2/3 duration note into: one note of duration 1/2 (played) + one note of duration 1/6 (held)
@@ -262,7 +258,7 @@ A sort object is generated for each tune:
     // notes at positions 0,1,2 have duration 1/2 - if n is omitted, take n=1.
   ],
   version: '1.0',                 // algorithm version
-  part: 'A'                       // the part of the tune (A, B, C, etc.)
+  part: 'A’                       // the part of the tune (A, B, C, etc.)
 }
 ```
 
