@@ -1,6 +1,7 @@
 # Melody modal contour sorting algorithm - “contour sort for tunes”
 
-[a contour](./contour.svg)
+## A contour
+<img src="./contour.svg" alt="a contour" />
 
 ## Online demo
 Contour sort can be viewed “in action” in ![my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default).
