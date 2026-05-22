@@ -1,16 +1,55 @@
 # Melody modal contour sorting algorithm - “contour sort for tunes”
 
-## Overview
+[a contour](./contour.svg)
 
-A system for sorting or indexing tunes or melodies. Key and mode agnostic. It takes short phrases, or parts of modal melodies, and sorts or indexes them by their contour within their modal scale, independent of key. So tunes may be in different keys, or modes, but will get sorted together if they have the same modal contour.
+## Online demo
+Contour sort can be viewed “in action” in [my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default).
+
+[screenshot](./demo-slides.png)
+
+A tune’s <em>contour</em> (shown as a small graphic next to the tune’s
+title) is its melodic outline: the shape of the melody relative to the
+tonic (home note), independent of key or mode (major, minor,
+mixolydian…). The contour graphic is generated automatically from the
+tune’s <em>incipit</em> (the first few notes of the tune). </p>
+<p><em>Contour sort</em> groups tunes together when their contours start similarly, whatever key they happen to be in. For example, the following five jigs in my default tune list are grouped together (because
+they start similarly): Leave it down easy, Wellington’s Advance, Connie
+the Soldier, Old Man Dillon, and Darby The Driver. Comparing these tunes’ contours with their
+neighbours may help you understand the sorting sytem. </p>
+<p>I find having tunes sorted this way makes it easier to find a tune whose name I’ve forgotten. I
+simply look it up in the list, based on how it starts. It’s just like how one used to look up words
+in printed dictionaries.
+</p>
+
+## A concise description
+
+A system for sorting or indexing tunes or melodies. Key and mode agnostic. It takes short phrases, or parts of modal melodies, and sorts or indexes them by their contour within their modal scale, independent of key. 
+
+So tunes may be in different keys, or modes, but will get sorted together if they have the same modal contour.
+
+Note durations are preserved by the contours, and the sorting comparison algorithm handles fractional note durations.
+
+## Jianpu sorting: similar, but different
+This system resembles the sort system used for [Jianpu](https://en.wikipedia.org/wiki/Jianpu) (numbered musical notation used in China and elsewhere), but with two key differences: 
+1) Jianpu sorting is mode-specific (usually major scale) and modern Jianpu also specifies the key; this sorting algorithm abstracts away the key and the mode. 
+2) AFAIK, there is no formalised way in Jianpu sorting to compare notes of different, fractional durations.
+
+
+## Extensions (not yet implemented)
 
 Typically the algorithm will apply to sort tunes based on their incipit (opening phrase), but for tunes with multiple parts/sections, it could also be applied to the incipits of the other sections.
 
 Sometimes the same tune can be played differently; so a single tune can be represented by N different incipits. In that case this sort algorithm could be used to place the same tune N times in a list.
 
-A noteworthy general feature is that held notes are sorted before the repeated notes, when they are in the same position in the tone contour - details below.
+Alternatively, different algorithms or some sort of neural network that identifies similar contours should produce interesting results by grouping tunes into clusters depending on how similar/ different their contours are.
 
-This system resembles the sort system used for [Jianpu](https://en.wikipedia.org/wiki/Jianpu) (numbered musical notation used in China and elsewhere), but with a key difference: Jianpu sorting is mode-specific (usually major scale) and modern Jianpu also specifies the key; this sorting algorithm abstracts away the key and the mode.
+
+## Held notes and repeated notes
+
+The initial version of this algorithm sorted held notes before repeated notes, when they are in the same position in the tone contour.  
+The algorithm works with or without this feature, and in my demo application I've decided to simplify: at present the sorting does not distinguish between held and repeated notes. 
+
+The implementation in this repo handles both variants - with or without taking held vs repeated into account.
 
 ## Scope
 
@@ -19,12 +58,15 @@ This system is applicable to single-voice melodies in a modal system, where ther
 So for instance this system can compare any two reels, whatever their key and mode.
 ### A few practical considerations
 #### Length: only use the incipit
-To keep things simple, only need to use start of a tune (the first few notes; a bar and a half for instance) to generate the contour. This means that distinct tunes that start the same way may share the same contour; this is not a problem. One real-life example (two reels): the Bucks Of Oranmore and Lucy Campbell.
+To keep things simple, only need to use start of a tune (the first few notes; a bar and a half for instance) to generate the contour. This means that distinct tunes that start the same way may share the same contour; this is not a problem. One real-life example: the Bucks Of Oranmore and Lucy Campbell - it depends of course on the setting one chooses for these tunes.
 #### Anacrucis
 Tunes may have an anacrucis, aka a pickup. This is a short phrase at the beginning of the tune whose length (duration) is less than the length of a full bar. 
 As the length of the anacrucis can vary, and often there is no anacrucis at all, it seems reasonable to **ignore the anacrucis** when comparing tunes.
-#### Like with like
-It makes sense to compare two reels using this system; less so to compare a reel with a jig. However, comparing jigs and slides with each other makes sense – both can be written using triplets.
+#### multi-level sorting / like with like; 
+It makes sense to compare two reels using this system; less so to compare a reel with a jig. However, comparing jigs and slides with each other makes sense – both can be written using triplets.  
+The implementation here lets you do a multi-level sort. The first level can either sort by the tunes' time signatures, or by their rhythmic types (jigs, reels, polkas,… ), putting like with like; and then applying the contour sort afterwards, to the first-level groups.
+in [my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default) you can cycle through different types of multi-level sorting by clicking on the header of the first column.
+
 #### Chords
 Sometimes tunes may be written with chords (i.e. more than one note head on a single stem). When this happens, the algorithm only takes the topmost note (the note of the highest pitch) and ignores the others.
 
@@ -34,10 +76,7 @@ Sometimes tunes may be written with chords (i.e. more than one note head on a si
 
 **Key neutrality:** Transposing a tune to a different key doesn't change its sort position relative to other tunes in their respective keys.
 
-**Melodic clustering:** Tunes with similar opening gestures naturally group together:
-- Tunes leaping to the fifth
-- Tunes with stepwise motion
-- Tunes with specific rhythmic-melodic patterns
+**Melodic clustering:** Tunes with similar openings are sorted together
 
 ## Extensions
 
@@ -48,7 +87,6 @@ Sometimes tunes may be written with chords (i.e. more than one note head on a si
 - Secondary sorting by subsequent parts
 - Finding tunes with similar B parts but different A parts
 
-**Partial matching**: The encoding scheme allows for finding tunes that share a common opening of any length, not just exact matches.
 
 # Detailed description of the algorithm
 ## Outline
@@ -97,7 +135,10 @@ Two contours `A` and `B` are compared by the following algorithm. Say `a` is the
     - If one is **silent** but not the other, then the silent one goes first
     - Else if they are not in the same octave, then the one with the lower octave goes first
     - Else if they are not in the same modal degree, then one with the lower degree goes first
-    - Else (same octave and degree) if one is held and one is played, then one that is held goes first. (**rule putting held notes before repeated notes**)
+
+    - (**__The next rule is optional; keeping it or not gives two different variant algorithms__**)
+
+    - Else (same octave and degree) if one is held and one is played, then one that is held goes first. (**rule putting held notes before repeated notes**) 
     - Else (same MDI) get new tunes `A'` and `B'` by removing `a` from `A` and `b` from `B`. 
         - If one or both of `A'`, `B'` are empty, then stop - the tunes that is not empty goes after the empty one; and if both are empty then they are sorted together. 
          - Else apply the sort algorithm to `A'` and `B'`.
@@ -140,7 +181,7 @@ Assume each example is K:Cmajor, L:1/8, R:4/4 (ABC headers). That means the CSB 
 - Both start with C, but different durations (1/2 vs 2/3 of CSB)
 - expand the first note of tune B to a played C, duration 1/2 followed by a held C of duration 1/6 (2/3-1/2 = 1/6). Now comparing the second notes, the D in Tune A is higher than the held C in tune B; so tune B goes first; `Tune B < Tune A`.
 
-# Implementation / data structure proposal
+# Implementation / data structure 
 
 Tunes are input in ABC format. Sorting to be carried out in a Javascript/ES context.
 It can be useful to save some intermediate data structures to optimise sorting of a list.
@@ -179,13 +220,8 @@ Full specs are available [here](https://abcnotation.com/wiki/abc:standard:v2.1).
 
 ## Determining the primary octave
 
-The home note depends on the tonal base, aka the tonic, of the tune's key signature, not the mode. And the primary octave is the one following the home note.
-The tonal base (ignoring sharps and flats) is the first non-whitespace letter following `K:` in the ABC header.
-For the moment we will apply the following heuristic: the home note, written in ABC, is simply the (upper case) letter for the tonal base.
-This also applies to key signatures where the tonal base is a sharpened or flattened note, like F sharp or D flat. The sharps and flats can be ignored.
-
-It may be necessary in the future to apply a different heuristic where we add/subtract octaves in order to maximise the number of notes of the tune that are in the primary octave.
-
+The home note depends on the tonal base, aka the tonic, of the tune's key signature, not the mode. And the primary octave depends on the tune – we use a simple calculation to add/subtract octaves in order to maximise the number of notes of the tune that are in the primary octave.
+In some cases the simple calculation does not give a home octave that “feels right” from a musical perspective; in that case the home octave can be adjusted by adding a custom metadata property, `contourShift`, to the tune.
 
 ## Encoding scheme
 
@@ -206,16 +242,6 @@ This ensures:
 **Current choices** are:
  - base character: 0x0420 (towards the middle of the Cyrillic characters)
  - *Silence* is represented by `_`.
-
-### Basic note encoding example
-
-Using base_char = 0x0041 (ASCII 'A') for illustration:
-
-- **Tonic in primary octave (played)** = character at position (2×7+0)×2+1 = code 0x0041 + 29 = 'N'
-- **Tonic in primary octave (held)** = character at position (2×7+0)×2+0 = code 0x0041 + 28 = 'M'
-- **Second degree (played)** = character at position (2×7+1)×2+1 = code 0x0041 + 31 = 'P'
-- **Each scale degree up** = +2 in character code
-- **Each octave up** = +14 in character code (7 degrees × 2)
 
 
 ## Data structure
@@ -251,7 +277,7 @@ When comparing two tunes:
 
 1. **Compare base sort strings** lexicographically until they differ or one needs expansion (different durations, as specified by `rhythmicDivisions`)
 
-2. **If rhythmic divisions differ at a position:** apply the algorithm above for **expanding** where necessary, using the held-note rule
+2. **If rhythmic divisions differ at a position:** apply the algorithm above for **expanding** where necessary, optionally using the held-note rule
 
 ## Examples with incipits of real tunes – a jig and two reels
 

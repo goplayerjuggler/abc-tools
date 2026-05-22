@@ -36,7 +36,8 @@ const DEFAULT_NAME_PREFIXES = [
 const DEFAULT_CONTOUR_OPTIONS = {
 	withSvg: true,
 	swingTransform: ["hornpipe", "barndance", "fling", "mazurka"],
-	incipitPart: "A"
+	incipitPart: "A",
+	distinguishPlayedNotes: false
 };
 const PREDEFINED_SORT_NAMES = [
 	"rhythmContourName",

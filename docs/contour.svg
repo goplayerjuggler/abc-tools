@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="contour-svg" aria-label="Tune contour" width="164" height="46" viewBox="0 0 164 46" role="img">
+  <rect width="164" height="46" fill="white"></rect>
+  <line x1="5" y1="3" x2="5" y2="33" stroke="#888888" stroke-width="0.5"></line>
+  <line x1="1" y1="33" x2="5" y2="33" stroke="#888888" stroke-width="0.5"></line>
+  <line x1="-1" y1="18" x2="5" y2="18" stroke="#888888" stroke-width="0.5"></line>
+  <line x1="10" y1="18" x2="154" y2="18" stroke="#555555" stroke-width="0.5"></line>
+  <line x1="10" y1="18" x2="22" y2="18" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="10" cy="18" r="2" fill="#2563eb"></circle>
+  <line x1="22" y1="18" x2="34" y2="18" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <line x1="34" y1="18" x2="46" y2="18" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="34" cy="18" r="2" fill="#2563eb"></circle>
+  <line x1="46" y1="18" x2="58" y2="18" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="46" cy="18" r="2" fill="#2563eb"></circle>
+  <line x1="58" y1="18" x2="58" y2="23" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="58" y1="23" x2="70" y2="23" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="58" cy="23" r="2" fill="#2563eb"></circle>
+  <line x1="70" y1="23" x2="70" y2="33" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="70" y1="33" x2="82" y2="33" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="70" cy="33" r="2" fill="#2563eb"></circle>
+  <line x1="82" y1="33" x2="82" y2="8" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="82" y1="8" x2="94" y2="8" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="82" cy="8" r="2" fill="#2563eb"></circle>
+  <line x1="94" y1="8" x2="106" y2="8" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <line x1="106" y1="8" x2="106" y2="13" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="106" y1="13" x2="118" y2="13" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="106" cy="13" r="2" fill="#2563eb"></circle>
+  <line x1="118" y1="13" x2="118" y2="8" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="118" y1="8" x2="130" y2="8" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="118" cy="8" r="2" fill="#2563eb"></circle>
+  <line x1="130" y1="8" x2="142" y2="8" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <line x1="142" y1="8" x2="142" y2="3" stroke="#2563eb" stroke-width="0.5" stroke-linecap="round"></line>
+  <line x1="142" y1="3" x2="154" y2="3" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round"></line>
+  <circle cx="142" cy="3" r="2" fill="#2563eb"></circle>
+</svg>

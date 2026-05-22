@@ -1,6 +1,11 @@
 const { Fraction } = require("../math.js");
 
-const { decodeChar, encodeToChar, silenceChar } = require("./encode.js");
+const {
+	decodeChar,
+	encodeToChar,
+	silenceChar,
+	removeHeld
+} = require("./encode.js");
 const { getContour } = require("./get-contour.js");
 
 /**
@@ -15,9 +20,16 @@ const { getContour } = require("./get-contour.js");
 /**
  * Compare two compare objects using expansion algorithm
  */
-function compare(objA, objB) {
-	let keyA = objA.sortKey;
-	let keyB = objB.sortKey;
+function compare(objA, objB, distinguishPlayedNotes = true) {
+	if (!distinguishPlayedNotes) {
+		if (!objA.sortKeyWithoutHeld)
+			objA.sortKeyWithoutHeld = removeHeld(objA.sortKey);
+		if (!objB.sortKeyWithoutHeld)
+			objB.sortKeyWithoutHeld = removeHeld(objB.sortKey);
+	}
+
+	let keyA = distinguishPlayedNotes ? objA.sortKey : objA.sortKeyWithoutHeld;
+	let keyB = distinguishPlayedNotes ? objB.sortKey : objB.sortKeyWithoutHeld;
 
 	const dursA = objA.durations || [];
 	const dursB = objB.durations || [];
@@ -81,19 +93,20 @@ function compare(objA, objB) {
 				return 1;
 			}
 
-			// Insert held note into B
+			// Insert note into B; it's held iff distinguishPlayedNotes
 			const decodedB = decodeChar(charB);
-			const heldChar = decodedB.isSilence
+			const charToInsert = decodedB.isSilence
 				? silenceChar
-				: encodeToChar(decodedB.position, true);
+				: encodeToChar(decodedB.position, distinguishPlayedNotes);
 
-			keyB = keyB.substring(0, posB + 1) + heldChar + keyB.substring(posB + 1);
+			keyB =
+				keyB.substring(0, posB + 1) + charToInsert + keyB.substring(posB + 1);
 
 			// Update duration map for B
 			const remainingDur = fracB.subtract(fracA);
 			delete durMapB[logicalIndex];
 
-			// Add new duration entry for the held note
+			// Add new duration entry for the note inserted
 			durMapB[logicalIndex + 1] = { n: remainingDur.num, d: remainingDur.den };
 
 			// Shift all subsequent B durations by 1
@@ -125,11 +138,12 @@ function compare(objA, objB) {
 
 			// Insert held note into A
 			const decodedA = decodeChar(charA);
-			const heldChar = decodedA.isSilence
+			const charToInsert = decodedA.isSilence
 				? silenceChar
-				: encodeToChar(decodedA.position, true);
+				: encodeToChar(decodedA.position, distinguishPlayedNotes);
 
-			keyA = keyA.substring(0, posA + 1) + heldChar + keyA.substring(posA + 1);
+			keyA =
+				keyA.substring(0, posA + 1) + charToInsert + keyA.substring(posA + 1);
 
 			// Update duration map for A
 			const remainingDur = fracA.subtract(fracB);

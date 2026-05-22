@@ -4,7 +4,8 @@ const {
 	calculateModalPosition,
 	encodeToChar,
 	silenceChar,
-	shiftChar
+	shiftChar,
+	removeHeld
 } = require("./encode.js");
 
 const {
@@ -34,6 +35,7 @@ function getContour(
 		withSwingTransform = false,
 		maxNbBars = new Fraction(3, 1),
 		maxNbUnitLengths = 12,
+		distinguishPlayedNotes = false,
 		svgConfig = {}
 	} = {}
 ) {
@@ -176,6 +178,10 @@ function getContour(
 	if (withSvg) {
 		result.svg = contourToSvg(result, svgConfig);
 	}
+
+	if (!distinguishPlayedNotes)
+		result.sortKeyWithoutHeld = removeHeld(result.sortKey);
+
 	return result;
 }
 

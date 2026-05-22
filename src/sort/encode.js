@@ -52,6 +52,26 @@ function decodeChar(char) {
 	return { position, isHeld, isSilence: false };
 }
 
+// Converts one sortKey to another one that's the same,
+// except all the characters that represent held notes are replace by ones representing the
+// same notes, but played
+function removeHeld(sortKey) {
+	if (!sortKey) return sortKey;
+	const result = [];
+	for (let index = 0; index < sortKey.length; index++) {
+		const char = sortKey[index];
+		if (char === silenceChar) result.push(char);
+		else {
+			const code = char.charCodeAt(0) - baseChar;
+			const position = Math.floor(code / 2);
+			const isHeld = code % 2 === 0;
+			if (!isHeld) result.push(char);
+			else result.push(String.fromCharCode(baseChar + position * 2 + 1));
+		}
+	}
+	return result.join("");
+}
+
 function shiftChar(char, nbOctaves) {
 	const { position, isHeld } = decodeChar(char);
 	return encodeToChar(position + nbOctaves * OCTAVE_SHIFT, isHeld);
@@ -61,6 +81,7 @@ module.exports = {
 	calculateModalPosition,
 	encodeToChar,
 	decodeChar,
+	removeHeld,
 	shiftChar,
 	silenceChar
 };

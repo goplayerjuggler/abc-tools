@@ -92,9 +92,9 @@ function ensureContour(tune, contourOptions) {
 		console.error(err);
 	}
 }
-function compareContour(a, b) {
+function compareContour(a, b, distinguishPlayedNotes) {
 	if (a.contour && b.contour && canBeCompared(a, b))
-		return compare(a.contour, b.contour);
+		return compare(a.contour, b.contour, distinguishPlayedNotes);
 	if (a.contour) return -1;
 	if (b.contour) return 1;
 	return 0;
@@ -175,7 +175,7 @@ function annotateTunes(tunes, levels) {
 	}
 }
 
-function makeLevelComparator(level) {
+function makeLevelComparator(level, options) {
 	const dir = level.order === "desc" ? -1 : 1;
 	const collator =
 		level.type === "name"
@@ -206,7 +206,13 @@ function makeLevelComparator(level) {
 				return dir * collator.compare(na, nb);
 			};
 		case "contour":
-			return (a, b) => dir * compareContour(a, b);
+			return (a, b) =>
+				dir *
+				compareContour(
+					a,
+					b,
+					options?.contourOptions?.distinguishPlayedNotes ?? false
+				);
 		default:
 			throw new Error(`Unknown sort level type: "${level.type}"`);
 	}
@@ -263,12 +269,14 @@ function resolveLevels(options) {
  * @param {Object}   [options.contourOptions]
  *   Options forwarded to getContour(). Applied to all contour levels in
  *   predefined sorts; for custom sortLevels, set contourOptions per level.
- *   Shape: { withSvg?, swingTransform?, incipitPart?, ...getContourPassthrough }
+ *   Shape: { withSvg?, distinguishPlayedNotes?, swingTransform?, incipitPart?, ...getContourPassthrough }
  */
 function sort(tunes, options = {}) {
 	const { getAbc = getAbc_default } = options;
 	const levels = resolveLevels(options);
-	const comparators = levels.map(makeLevelComparator);
+	const comparators = levels.map((level) =>
+		makeLevelComparator(level, options)
+	);
 
 	tunes.forEach((t) => (t._sortAbc = getAbc(t)));
 	annotateTunes(tunes, levels);
