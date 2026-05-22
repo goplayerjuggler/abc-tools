@@ -3,9 +3,9 @@
 [a contour](./contour.svg)
 
 ## Online demo
-Contour sort can be viewed “in action” in [my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default).
+Contour sort can be viewed “in action” in ![my online tunebook](https://goplayerjuggler.github.io/tuneTable/?l=default).
 
-[screenshot](./demo-slides.png)
+![screenshot](./demo-slides.png)
 
 A tune’s <em>contour</em> (shown as a small graphic next to the tune’s
 title) is its melodic outline: the shape of the melody relative to the
