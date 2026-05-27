@@ -911,6 +911,7 @@ const RHYTHM_CONFIGS = {
 //same config for hronpipe, strathspey and barndance
 RHYTHM_CONFIGS["strathspey"] = RHYTHM_CONFIGS.hornpipe;
 RHYTHM_CONFIGS["barndance"] = RHYTHM_CONFIGS.hornpipe;
+RHYTHM_CONFIGS["march"] = RHYTHM_CONFIGS.hornpipe;
 
 // ============================================================================
 // Unified convert / revert functions
@@ -1083,6 +1084,7 @@ function canDoubleBarLength(abc, info = {}) {
 		case "hornpipe":
 		case "strathspey":
 		case "barndance":
+		case "march":
 			return (
 				l.equals(new Fraction(1, 8)) &&
 				((meter[0] === 4 && meter[1] === 4) ||
@@ -1122,6 +1124,7 @@ function canHalveBarLength(abc) {
 		case "hornpipe":
 		case "strathspey":
 		case "barndance":
+		case "march":
 			return l.equals(new Fraction(1, 8)) && meter[0] === 4 && meter[1] === 2;
 		case "jig":
 			return meter[0] === 12 && meter[1] === 8;

@@ -10,13 +10,20 @@ A JavaScript library with utility functions for tunes written in ABC format. Par
 * Extracting initial bars and incipits.
 * Doubling/halving bar length - e.g. going from 4/4 to 4/2 and vice versa.
 
-This is work in progress; I'm aware of a few small bugs and there are probably many others.
+This is work in progress; I’m aware of a few small bugs and there are probably many others.
 
 # where is it used
-AFAIK at present this is only used by one other repo; a project of mine, [tuneTable](https://github.com/goplayerjuggler/tuneTable), which builds on this repo. There’s a [live demo](https://goplayerjuggler.github.io/tuneTable) featuring the contour sort - the default list is sorted first by rhythm, then by contour, then by name.
+AFAIK at present this is only used by one other repo; a project of mine, [tuneTable](https://github.com/goplayerjuggler/tuneTable), which builds on this repo. There’s a [live demo](https://goplayerjuggler.github.io/tuneTable) featuring the contour sort:
+* the [default list](https://goplayerjuggler.github.io/tuneTable?l=default) is sorted first by rhythm, then by contour, then by name.
+* [Josh Larios’ tunebook](https://goplayerjuggler.github.io/tuneTable?l=abc-pgh_session_tunebook) is sorted by meter, then by contour, then by name
 
-# AI
-A lot of the implementation was done with the help of AI, notably with Anthropic’s Claude.ai / Sonnet 4.6.
+# credits
+
+## Incipits: Micheal Eskin
+The implementation for incipits is a fork from code in Michael Eskin’s open-source [abctools repo](https://github.com/seisiuneer/abctools); a big thank-you to Michael!
+
+## AI
+A lot of the other implementation was done with the help of AI, notably with Anthropic’s Claude.ai / Sonnet 4.6.
 
 ## license
 
